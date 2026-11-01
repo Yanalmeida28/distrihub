@@ -23,6 +23,9 @@ export function PartnerAccessGate({ user, identity, identityError, onRetryIdenti
   const scope = identity ? `${identity.authUserId}:${identity.companyUserId}` : '';
   const [authorized, setAuthorized] = useState<{ scope: string; access: PartnerAccess } | null>(null);
   const [mode, setMode] = useState<Mode | null>(null);
+  const [restoring, setRestoring] = useState(true);
+  const [restoreError, setRestoreError] = useState(false);
+  const [restoreRevision, setRestoreRevision] = useState(0);
   const current = authorized?.scope === scope ? authorized.access : null;
   const currentRef = useRef(current);
   const generation = useRef({ value: 0 });
@@ -64,29 +67,44 @@ export function PartnerAccessGate({ user, identity, identityError, onRetryIdenti
     const lifetime = generation.current;
     const attempt = ++lifetime.value;
     let live = true;
+    setRestoreError(false);
+    setRestoring(false);
     if (identity && user) {
       const expectedIdentity = identity;
       let saved: ReturnType<OperatorSessionStore['read']> = null;
       try { saved = new OperatorSessionStore(sessionStorage, scope).read(); } catch { /* Locked until PIN confirmation. */ }
       if (saved) {
+        setRestoring(true);
         const session = saved;
         void authorizePin(expectedIdentity, session.operatorId, session.operatorName, session.credential, session.branchId)
           .then(access => {
             if (!live || attempt !== lifetime.value || access.kind !== 'employee') return;
             setAuthorized({ scope, access: { kind: 'employee', operator: { ...access.operator, sessionExpiresAt: session.expiresAt } } });
           })
-          .catch(() => { /* Fail closed; leave the saved session for a retry after a temporary network failure. */ });
+          .catch(() => {
+            if (live && attempt === lifetime.value) setRestoreError(true);
+          })
+          .finally(() => {
+            if (live && attempt === lifetime.value) setRestoring(false);
+          });
       }
     }
     return () => { live = false; lifetime.value++; };
-  }, [scope, user, identity]);
-  function requestAccess(nextMode: Mode) { generation.current.value++; setMode(nextMode); }
+  }, [scope, user, identity, restoreRevision]);
+  function requestAccess(nextMode: Mode) { generation.current.value++; setRestoring(false); setRestoreError(false); setMode(nextMode); }
   if (!identity || !user) return <div className="partner-panel"><p role="status">
     {identityError || 'Validando sua sessão…'}</p>
     {identityError && onRetryIdentity && <button type="button" className="module-submit-btn" onClick={onRetryIdentity}>Tentar novamente</button>}
   </div>;
   return <>
-    {children(current?.kind === 'employee' ? current.operator : null, requestAccess, !current, selectBranch)}
+    {!current && restoring ? <div className="partner-panel"><p role="status">Retomando seu operador…</p></div> :
+    !current && restoreError ? <div className="partner-panel">
+      <p role="alert">Não foi possível retomar seu operador. Confira a conexão e tente novamente. Se o acesso expirou ou foi alterado, confirme o PIN.</p>
+      <button type="button" className="module-submit-btn" onClick={() => setRestoreRevision(value => value + 1)}>Retomar operador</button>
+      <button type="button" className="rma-advance-btn" onClick={() => requestAccess('employee')}>Trocar operador por PIN</button>
+    </div> :
+    children(current?.kind === 'employee' ? current.operator : null, requestAccess, !current, selectBranch)
+    }
     {mode && <PinAccessDialog key={`${scope}:${mode}`} mode={mode}
       identity={identity} user={user} onAuthorize={allow} onSwitchAccount={onSwitchAccount}
       onClose={() => setMode(null)} />}

@@ -50,7 +50,7 @@ function harness({ reply = { data: [employee], error: null }, scope = { can_acce
     } };
   } };
   const api = {};
-  vm.runInNewContext(helperSource, { exports: api, Error, require: name => name === './supabase' ? deps : require(name) });
+  vm.runInNewContext(helperSource, { exports: api, Error, setTimeout: callback => { callback(); }, require: name => name === './supabase' ? deps : require(name) });
   const components = {};
   vm.runInNewContext(gateSource, { exports: components, Error, sessionStorage,
     require: name => name === '../../lib/supabase' ? deps : name === '../../lib/partnerAccess' ? api
@@ -196,10 +196,32 @@ test('reload restores an opaque operator session only after server validation, n
     { savedSession: { ...savedSession, credential: '1234' } },
   ]) {
     const denied = await render(harness(config), false);
-    assert.equal(denied.renderer.root.findByProps({ 'data-partner-panel': true }).props['data-locked'], true);
+    assert.equal(denied.renderer.root.findAllByProps({ 'data-workspace': true }).length, 0);
     await denied.close();
   }
 });
+test('F5 retries temporary validation and recovers without entering the PIN again', async () => {
+  const savedSession = { operatorId:'employee', operatorName:'Ana', branchId:'north', credential:'ops_'+'c'.repeat(64), expiresAt:new Date(Date.now()+3600000).toISOString() };
+  let attempts=0;
+  const h=harness({savedSession,reply:()=>++attempts===1
+    ? {data:null,error:{code:'PGRST303',message:'JWT issued at future'}}
+    : {data:[employee],error:null}});
+  let view=await render(h,false);
+  assert.equal(attempts,2);
+  assert.equal(view.renderer.root.findByProps({'data-workspace':true}).props['data-operator'],'employee');
+  await view.close();
+  let recovered=false;
+  const retry=harness({savedSession,reply:()=>recovered?{data:[employee],error:null}:{data:null,error:new Error('unavailable')}});
+  view=await render(retry,false);
+  assert.equal(view.renderer.root.findAllByProps({'data-workspace':true}).length,0);
+  recovered=true;
+  await act(async()=>view.renderer.root.findAllByType('button').find(button=>button.children.includes('Retomar operador')).props.onClick());
+  assert.equal(view.renderer.root.findByProps({'data-workspace':true}).props['data-operator'],'employee');
+  assert.equal(retry.calls.filter(call=>call.name==='create_partner_operator_session').length,0);
+  assert.ok(retry.calls.filter(call=>call.name==='resolve_partner_pdv_operator').every(call=>call.args.p_pin===savedSession.credential));
+  await view.close();
+});
+
 test('PIN confirmation stays busy until the reload credential is saved and refuses duplicate requests', async () => {
   let finish, pending;
   const h = harness({ issuedSession: () => new Promise(resolve => { finish = resolve; }) });
