@@ -11,3 +11,7 @@ verify_jwt = false
 [functions.saas-provider-jobs]
 # Scheduled server requests require x-saas-job-secret.
 verify_jwt = false
+
+[functions.saas-billing-status]
+# Private diagnostic authenticated with the existing scheduler token and server RPC.
+verify_jwt = false
