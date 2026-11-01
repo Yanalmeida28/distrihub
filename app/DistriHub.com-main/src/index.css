@@ -3460,3 +3460,71 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .sales-history-list-table td:nth-child(2) summary { min-height: 44px; display: flex; align-items: center; }
   .partner-panel .sales-history-list-table td.empty-row { grid-column: 1 / -1; grid-row: auto; padding-right: 0; display: block; min-height: 0; }
 }
+
+/* Keep long option labels inside the available report/filter grid column. */
+.partner-panel .orders-filter-row > :is(input, select, label) { min-width: 0; max-width: 100%; }
+.partner-panel .orders-filter-row > select { width: 100%; }
+/* Mobile module audit: fit fields and actions without hiding overflowing content. */
+@media screen and (max-width: 768px) {
+  .partner-panel :is(.module-card, .panel-module, .module-grid, .report-card, .catalog-submodule-card) { min-width: 0; }
+  .partner-panel :is(.module-card-title, .section-divider-label) { white-space: normal; overflow-wrap: anywhere; }
+  .partner-panel :is(.module-card-title, .section-divider-label) > svg { flex-shrink: 0; }
+  .partner-panel :is(.subscription-actions, .otp-actions, .catalog-action-row, .row-action-group, .branch-edit-actions) { flex-wrap: wrap; gap: 8px; }
+  .partner-panel :is(.subscription-actions, .otp-actions, .catalog-action-row, .row-action-group, .branch-edit-actions) > button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; height: auto; }
+  .partner-panel :is(.catalog-toggle-card, .security-card) { gap: 12px; flex-wrap: wrap; }
+  .partner-panel :is(.catalog-toggle-info, .security-info) { min-width: 0; flex: 1 1 180px; }
+  .partner-panel :is(.catalog-toggle-info, .security-info) > div:last-child { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .toggle-switch { flex-shrink: 0; }
+  .partner-panel .catalog-slug-row { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .partner-panel .catalog-slug-prefix { padding: 8px 10px; border-right: 0; border-bottom: 1px solid var(--dh-border); white-space: normal; overflow-wrap: anywhere; font-size: 12px; }
+  .partner-panel .catalog-slug-input { width: 100%; min-width: 0; }
+  .partner-panel :is(.catalog-url-preview, .catalog-qr-info) { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .catalog-url-preview > span { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .import-map-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .partner-panel .import-map-source { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .import-map-row select { width: 100%; min-width: 0; }
+  .partner-panel .support-chat-form { align-items: stretch; }
+  .partner-panel .support-chat-form .module-submit-btn { width: auto; flex: 0 0 auto; min-width: 44px; margin: 0; padding: 10px 12px; }
+  .partner-panel .support-message { max-width: 92%; min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .support-chat-messages { min-height: 160px; max-height: min(42dvh, 360px); overscroll-behavior: contain; }
+  .partner-panel .subscription-session-row > :is(strong, span) { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .plan-modal-summary { flex-wrap: wrap; }
+  .partner-panel .plan-modal-row { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .branch-cards { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .partner-panel .branch-card { min-width: 0; width: 100%; }
+  .partner-panel .mobile-record-wrap { border: 0; background: transparent; overflow: visible !important; }
+  .partner-panel .mobile-record-table { display: block; width: 100%; min-width: 0; }
+  .partner-panel .mobile-record-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .partner-panel .mobile-record-table tbody { display: grid; gap: 8px; }
+  .partner-panel .mobile-record-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--dh-border); border-radius: 10px; background: var(--dh-surface); }
+  .partner-panel .mobile-record-table td { display: block; min-width: 0; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; font-size: 13px; line-height: 1.4; }
+  .partner-panel .mobile-record-table td[data-label]::before { content: attr(data-label); display: block; color: var(--dh-text-secondary); font-size: 11px; margin-bottom: 2px; }
+  .partner-panel .mobile-record-table :is(.mobile-record-title, .mobile-record-actions, .empty-row) { grid-column: 1 / -1; }
+  .partner-panel .mobile-record-table .mobile-record-title > strong { font-size: 14px; }
+  .partner-panel .mobile-record-table .mobile-record-title > small { display: block; }
+  .partner-panel .mobile-record-table .row-action-group { display: flex; flex-wrap: wrap; }
+  .partner-panel .sales-history-list-table td:first-child { min-height: 32px; }
+  .partner-panel .rma-status-filters { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .partner-panel .rma-status-filters > button { min-width: 0 !important; width: 100%; white-space: normal; padding: 8px; }
+  .partner-panel .rma-control-filters { padding: 12px; }
+  .partner-panel .rma-control-summary .orders-summary-card { padding: 10px !important; gap: 4px; }
+  .partner-panel .rma-control-summary .orders-summary-card strong { font-size: 17px; }
+  .partner-panel .rma-control-summary .orders-summary-card p { font-size: 12px; }
+  .partner-panel .rma-wallet-card { display: grid; grid-template-columns: 36px minmax(0, 1fr); padding: 12px; gap: 8px; }
+  .partner-panel .rma-wallet-card .wallet-icon { width: 36px; height: 36px; }
+  .partner-panel .rma-wallet-card .wallet-hint { grid-column: 1 / -1; margin: 0; max-width: 100%; text-align: left; }
+}
+@media screen and (min-width: 360px) and (max-width: 768px) {
+  .partner-panel .rma-control-filters > .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .partner-panel .rma-control-filters > .form-row:first-of-type > label:nth-child(-n+2) { grid-column: 1 / -1; }
+  .partner-panel .rma-control-filters > .form-row > button { grid-column: 1 / -1; }
+}
+@media screen and (max-width: 480px) {
+  .partner-panel :is(.catalog-submodule-grid, .report-cards) { gap: 8px !important; }
+  .partner-panel .catalog-submodule-card { padding: 12px; }
+  .partner-panel .catalog-submodule-card > .catalog-submodule-icon { margin-bottom: 8px; }
+  .partner-panel .orders-filter-row { flex-wrap: wrap; gap: 8px; }
+  .partner-panel .orders-filter-row > button { min-width: 0 !important; flex: 1 1 calc(50% - 8px); white-space: normal; height: auto; }
+  .partner-panel .sales-history-filters label { flex: 1 1 calc(50% - 8px); }
+  .partner-panel .sales-history-filters label:first-child { flex-basis: 100%; }
+}

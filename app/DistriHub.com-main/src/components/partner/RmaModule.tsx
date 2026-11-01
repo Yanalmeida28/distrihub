@@ -341,7 +341,7 @@ export function RmaModule({
         </form>
       </div>}
 
-      <div className="module-card rma-form">
+      <div className="module-card rma-form rma-control-filters">
         <h4>Controle de devoluções</h4>
         <div className="form-row">
           <label>Buscar<input aria-label="Buscar devoluções" placeholder="Cliente, produto, SKU ou pedido" value={controlFilters.search} onChange={event => setControlFilters(previous => ({ ...previous, search: event.target.value }))} /></label>
@@ -381,7 +381,7 @@ export function RmaModule({
           {showForm ? 'Cancelar' : <><FileText size={16} /> Nova Solicitação de Garantia</>}
         </button>
 
-        <div className="orders-filter-row" style={{ gap: '8px' }}>
+        <div className="orders-filter-row rma-status-filters" style={{ gap: '8px' }}>
           {(['all', 'aguardando_troca', 'retornou_fornecedor', 'reintegrado_estoque', 'credito_gerado'] as const).map((option) => (
             <button
               key={option}
@@ -560,8 +560,8 @@ export function RmaModule({
       )}
 
       {actionError && <p className="form-error-msg" role="alert">{actionError}</p>}
-      <div className="rma-table-wrap">
-        <table className="rma-table">
+      <div className="rma-table-wrap mobile-record-wrap">
+        <table className="rma-table mobile-record-table">
           <thead>
             <tr><th>Produto</th><th>Lote/Pedido</th><th>Status</th><th>Etiqueta</th><th>Ações</th></tr>
           </thead>
@@ -572,7 +572,7 @@ export function RmaModule({
               visibleRequests.map((rma) => (
                 <tr key={rma.id}>
                     <>
-                      <td>
+                      <td data-label="Produto" className="mobile-record-title">
                         <strong>{rma.product_name}</strong>
                         <small>SKU {rma.product_sku} · Qtd. {rma.quantity ?? 1}</small>
                         <small>{destinationLabels[currentDestination(rma)]}</small>
@@ -584,18 +584,18 @@ export function RmaModule({
                           <div className="rma-product-attachments">{(rma.attachments ?? []).map(file => <button type="button" key={file.path} className="rma-advance-btn" onClick={() => void openAttachment(file.path)}>{file.kind === 'before' ? 'Antes' : file.kind === 'after' ? 'Depois' : 'Defeito'}: {file.name}</button>)}</div>
                         </details>
                       </td>
-                      <td>{saleReference(rma)}</td>
-                      <td>
+                      <td data-label="Lote/Pedido">{saleReference(rma)}</td>
+                      <td data-label="Status">
                         <span className="rma-status-badge" style={{ color: rmaStatusColors[rma.status], borderColor: rmaStatusColors[rma.status] }}>
                           {rmaStatusLabels[rma.status]}
                         </span>
                       </td>
-                      <td>
+                      <td data-label="Etiqueta">
                         <button className="rma-advance-btn" onClick={() => setLabelRmaId(rma.id)} title="Imprimir Etiqueta">
                           <QrCode size={14} /> Etiqueta
                         </button>
                       </td>
-                      <td>
+                      <td data-label="Ações" className="mobile-record-actions">
                         <div className="row-action-group">
                           {onAddPhotos && <button type="button" className="rma-advance-btn" disabled={busy || (rma.attachments?.length??0)>=20} onClick={()=>setPhotoRma(rma)}><Camera size={14} /> Adicionar fotos</button>}
                           {currentDestination(rma) !== 'estoque' && (

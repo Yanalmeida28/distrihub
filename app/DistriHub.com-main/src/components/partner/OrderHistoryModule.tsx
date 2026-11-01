@@ -114,8 +114,8 @@ export function OrderHistoryModule({ orders = [], salesHistory }: Props) {
         </div>
       </div>
 
-      <div className="stock-table-wrap">
-        <table className="rma-table">
+      <div className="stock-table-wrap mobile-record-wrap">
+        <table className="rma-table mobile-record-table">
           <thead>
             <tr>
               <th>Pedido</th>
@@ -151,12 +151,12 @@ export function OrderHistoryModule({ orders = [], salesHistory }: Props) {
 
               return (
                 <tr key={order.id ?? index}>
-                  <td><strong>#{displayId}</strong></td>
-                  <td>{order.business_name ?? '—'}</td>
-                  <td>{formattedDate}</td>
-                  <td>{money.format(Number(order.total) || 0)}</td>
-                  <td>{mappedPayment}</td>
-                  <td>
+                  <td data-label="Pedido"><strong>#{displayId}</strong></td>
+                  <td data-label="Loja" className="mobile-record-title">{order.business_name ?? '—'}</td>
+                  <td data-label="Data">{formattedDate}</td>
+                  <td data-label="Total">{money.format(Number(order.total) || 0)}</td>
+                  <td data-label="Pagamento">{mappedPayment}</td>
+                  <td data-label="Status">
                     <span className="rma-status-badge" style={{ color: mappedStatus.color, borderColor: mappedStatus.color }}>
                       {mappedStatus.label}
                     </span>
