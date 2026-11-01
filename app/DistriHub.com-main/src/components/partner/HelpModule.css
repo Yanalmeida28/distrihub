@@ -24,7 +24,7 @@
 .help-guide summary strong{font-size:1rem;line-height:1.4}.help-guide summary small{font-size:.86rem;line-height:1.5;margin-top:5px}
 .help-guide summary:hover{background:var(--dh-blue-soft)}
 .help-guide[open]{border-color:var(--dh-accent-text)}
-.help-center .help-guide-toggle{color:var(--dh-accent-text) !important}
+.partner-panel .help-center .help-guide-toggle{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--dh-success);border-radius:50%;background:var(--dh-success-bg);color:var(--dh-success) !important;font-weight:700}
 .help-guide-toggle{font-size:1.5rem;flex-shrink:0;transition:transform .15s}.help-guide[open] .help-guide-toggle{transform:rotate(45deg)}
 .help-guide-body{padding:0 20px 20px}.help-guide-body ol{padding-left:24px;margin:0;line-height:1.7}.help-guide-body li{padding:6px 0 6px 6px}
 .help-tip{padding:12px 14px;border-left:3px solid var(--dh-accent-text);background:var(--dh-blue-soft);font-size:.9rem;line-height:1.6;margin:16px 0}
