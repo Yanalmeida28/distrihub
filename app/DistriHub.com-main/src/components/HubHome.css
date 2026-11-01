@@ -1,0 +1,15 @@
+.hub-home .hub-hero-actions > a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+.hub-home .hub-about-metrics .hub-metric strong { font-size: 24px; }
+@media (max-width: 600px) {
+  .hub-home .hub-plan-table-scroll { overflow-x: visible; border: 0; }
+  .hub-home .hub-plan-table { display: block; min-width: 0; }
+  .hub-home .hub-plan-table caption { display: block; padding: 0 0 14px; }
+  .hub-home .hub-plan-table thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); }
+  .hub-home .hub-plan-table tbody { display: grid; gap: 12px; }
+  .hub-home .hub-plan-table tbody tr { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); border: 1px solid #29465f; border-radius: 10px; overflow: hidden; }
+  .hub-home .hub-plan-table tbody th:first-child { grid-column: 1 / -1; width: auto; padding: 12px; border-top: 0; background: #132f4d; }
+  .hub-home .hub-plan-table tbody td { min-width: 0; padding: 12px 6px; overflow-wrap: anywhere; font-size: 12px; }
+  .hub-home .hub-plan-table tbody td::before { content: attr(data-plan); display: block; margin-bottom: 6px; color: #edf5fc; font-size: 11px; font-weight: 700; }
+  .hub-home .hub-hero-actions { align-items: stretch; }
+  .hub-home .hub-hero-actions > * { flex: 1 1 180px; justify-content: center; }
+}

@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import './HubHome.css';
 import { planCatalog } from '../lib/planCatalog';
 import { money } from '../utils';
 
@@ -36,6 +37,7 @@ function Reveal({ children, className = '' }: { children: ReactNode; className?:
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    if (!('IntersectionObserver' in window)) { setVisible(true); return; }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -176,7 +178,7 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
             <button className="hub-login-btn secondary" onClick={openPanel}>
               <LogIn size={16} /> Entrar
             </button>
-            <button className="hub-login-btn" onClick={openPanel}>Agendar demonstração</button>
+            <a className="hub-login-btn" href="#planos" onClick={event => handleNavClick(event, '#planos')}>Ver planos</a>
             <button
               className={`hub-super-admin-btn ${superAdminActive ? 'active' : ''}`}
               onClick={onAccessSuperAdmin}
@@ -196,7 +198,7 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
         </div>
       </header>
 
-      <section className="hub-hero">
+      <section id="inicio" className="hub-hero">
         <div className="page-container hub-hero-inner">
           <div className="hub-hero-copy">
             <div className="eyebrow">
@@ -211,12 +213,16 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
               Controle estoque, vendas, financeiro e assistência técnica sem planilhas. A DistriHub
               conecta distribuidoras, lojistas e filiais para sua equipe vender mais e operar melhor.
             </p>
-            <div className="hub-proof"><span className="hub-proof-stars">★★★★★</span><strong>4.9/5 por operações B2B</strong><span>•</span><span>Implantação assistida</span></div>
+            <div className="hub-hero-actions">
+              <button className="hub-login-btn" onClick={openPanel}>Acessar DistriHub <ArrowRight size={16}/></button>
+              <a className="hub-outline-button" href="#planos" onClick={event => handleNavClick(event, '#planos')}>Comparar planos</a>
+            </div>
+            <div className="hub-proof"><ShieldCheck size={16}/><span>Acesso por operador e permissões por filial</span></div>
           </div>
           <div className="hub-hero-visual">
             <div className="hub-orb hub-orb-1" /><div className="hub-orb hub-orb-2" />
             <div className="hub-dashboard-card">
-              <div className="hub-dashboard-top"><span><i /> LIVE • VISÃO CONSOLIDADA</span><span>Hoje, 09:42</span></div>
+              <div className="hub-dashboard-top"><span>DEMONSTRAÇÃO DO PAINEL</span><span>Dados ilustrativos</span></div>
               <div className="hub-dashboard-title"><div><small>Receita total</small><strong>R$ 284.920,00</strong></div><span className="hub-growth">+18,4%</span></div>
               <div className="hub-chart"><span style={{ height: '32%' }} /><span style={{ height: '46%' }} /><span style={{ height: '39%' }} /><span style={{ height: '63%' }} /><span style={{ height: '55%' }} /><span style={{ height: '78%' }} /><span style={{ height: '92%' }} /></div>
               <div className="hub-dashboard-stats"><div><small>Pedidos hoje</small><strong>148</strong></div><div><small>Estoque disponível</small><strong>12.480</strong></div><div><small>Filiais online</small><strong>04/04</strong></div></div>
@@ -227,7 +233,7 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
       </section>
 
       <section className="hub-stats-strip">
-        <div className="page-container hub-stats-grid"><div><strong>12.480+</strong><span>itens controlados</span></div><div><strong>99,9%</strong><span>disponibilidade</span></div><div><strong>&lt; 1s</strong><span>tempo de resposta</span></div><div><strong>100%</strong><span>rastreabilidade</span></div></div>
+        <div className="page-container hub-stats-grid"><div><strong>PDV</strong><span>vendas e caixa</span></div><div><strong>OS</strong><span>assistência técnica</span></div><div><strong>Filiais</strong><span>acesso por unidade</span></div><div><strong>Gestão</strong><span>recursos por plano</span></div></div>
       </section>
 
       <section id="solucoes" className="hub-features">
@@ -247,8 +253,8 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
             </div></Reveal>
             <Reveal><div className="hub-feature">
               <Zap size={24} />
-              <h4>PDV ultrarrápido</h4>
-              <p>Venda no balcão com busca instantânea, controle de IMEI e operação mesmo com instabilidade.</p>
+              <h4>PDV para o dia a dia</h4>
+              <p>Venda no balcão com busca de produtos, leitura de códigos e acompanhamento dos pagamentos registrados.</p>
             </div></Reveal>
             <Reveal><div className="hub-feature">
               <Building2 size={24} />
@@ -267,8 +273,8 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
             </div></Reveal>
             <Reveal><div className="hub-feature">
               <PackageCheck size={24} />
-              <h4>Checkout B2B</h4>
-              <p>PIX, cartão, faturado ou crédito de RMA com logística local e acompanhamento do pedido.</p>
+              <h4>Vendas e pagamentos</h4>
+              <p>Registre formas de pagamento e acompanhe seus pedidos. Recursos de crédito e entrega dependem do plano.</p>
             </div></Reveal>
           </div>
         </div>
@@ -276,15 +282,15 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
 
       <section id="migracao" className="hub-migration">
         <div className="page-container hub-migration-inner">
-          <Reveal><div><div className="eyebrow"><Zap size={14} /> MIGRAÇÃO SEM PARAR A OPERAÇÃO</div><h2>Troque a planilha por uma operação que acompanha seu ritmo.</h2><p>Importe clientes, fornecedores e estoque com apoio especializado. Sua equipe começa rápido, com dados organizados e histórico preservado.</p><button className="hub-outline-button" onClick={openPanel}>Falar com especialista <ArrowRight size={15} /></button></div></Reveal>
-          <Reveal><div className="hub-steps"><div><b>01</b><span><strong>Importação inteligente</strong><small>Excel, CSV e XML de NF-e com validação.</small></span></div><div><b>02</b><span><strong>Configuração por perfil</strong><small>Menus, permissões e módulos sob medida.</small></span></div><div><b>03</b><span><strong>Equipe em operação</strong><small>Treinamento e acompanhamento na virada.</small></span></div></div></Reveal>
+          <Reveal><div><div className="eyebrow"><Zap size={14} /> ORGANIZE SUA OPERAÇÃO</div><h2>Troque a planilha por uma operação que acompanha seu ritmo.</h2><p>Cadastre seus produtos, clientes e fornecedores. Confira as opções de importação disponíveis e revise os dados antes de começar a vender.</p><a className="hub-outline-button" href="#planos" onClick={event => handleNavClick(event, '#planos')}>Conhecer os planos <ArrowRight size={15} /></a></div></Reveal>
+          <Reveal><div className="hub-steps"><div><b>01</b><span><strong>Cadastros organizados</strong><small>Produtos, clientes, fornecedores e entrada por XML.</small></span></div><div><b>02</b><span><strong>Configuração por perfil</strong><small>Menus e permissões conforme o plano e o operador.</small></span></div><div><b>03</b><span><strong>Equipe em operação</strong><small>Guias de ajuda para consultar dentro do app.</small></span></div></div></Reveal>
         </div>
       </section>
 
       <section id="modulos" className="hub-modules">
         <div className="page-container">
           <Reveal><div className="hub-section-head"><div className="eyebrow">MÓDULOS CONFIGURÁVEIS</div><h2>Ative o que sua operação precisa</h2><p>O menu se adapta ao seu negócio, sem excesso de ferramentas na tela.</p></div></Reveal>
-          <div className="hub-module-grid">{[['OS com fotos','Checklist e assinatura digital',Wrench],['Catálogo B2B','Portal atacado por cliente',PackageCheck],['Curva ABC','Analytics para decisão',BarChart3],['Estoque cruzado','Transferências aprovadas',Layers],['Fiscal NF-e/NFC-e','Conformidade e controle',CircleDollarSign]].map(([title, description, Icon]) => { const ModuleIcon = Icon as typeof Wrench; return <Reveal key={title as string}><div className="hub-module"><span className="hub-module-icon"><ModuleIcon size={18} /></span><div><strong>{title as string}</strong><small>{description as string}</small></div><Check size={16} /></div></Reveal>; })}</div>
+          <div className="hub-module-grid">{[['OS com fotos','Condições e fotos do atendimento',Wrench],['Catálogo B2B','Portal atacado por cliente',PackageCheck],['Curva ABC','Analytics para decisão',BarChart3],['Estoque cruzado','Transferências aprovadas',Layers],['Fiscal NF-e/NFC-e','Conformidade e controle',CircleDollarSign]].map(([title, description, Icon]) => { const ModuleIcon = Icon as typeof Wrench; return <Reveal key={title as string}><div className="hub-module"><span className="hub-module-icon"><ModuleIcon size={18} /></span><div><strong>{title as string}</strong><small>{description as string}</small></div><Check size={16} /></div></Reveal>; })}</div>
         </div>
       </section>
 
@@ -292,10 +298,10 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
         <div className="page-container">
           <Reveal><div className="hub-section-head"><div className="eyebrow">PLANOS PARA CRESCER</div><h2>Comece simples. Escale sem trocar de sistema.</h2><p>Escolha o plano ideal para a estrutura atual da sua operação.</p></div></Reveal>
           <div className="hub-plan-grid">{[
-            { ...planCatalog.basico, features: ['1 filial', '3 dispositivos simultâneos por filial', 'PDV, caixa e pedidos', 'Cadastros e histórico de vendas', 'Relatórios simples', 'Configurações e suporte'] },
+            { ...planCatalog.basico, features: ['1 filial', '3 dispositivos simultâneos por filial', 'PDV, caixa e pedidos', 'Cadastros e histórico de vendas', 'Ordens de serviço', 'Personalização básica de impressão', 'Relatórios simples', 'Configurações e suporte'] },
             { ...planCatalog.profissional, features: ['Tudo do Básico', 'Até 3 filiais', '5 dispositivos simultâneos por filial', 'Estoque, financeiro e entregas', 'Ordens de serviço, RMA e fiscal', 'CRM, cupons e relatórios avançados', 'Administrativo e permissões'] },
             { ...planCatalog.enterprise, features: ['Tudo do Profissional', 'Até 5 filiais', '8 dispositivos simultâneos por filial', `Filial adicional por ${money.format(planCatalog.enterprise.extraBranchPrice)}/mês`, 'Personalização White-label', 'Suporte prioritário'] },
-          ].map((plan, index) => <Reveal key={plan.name}><div className={`hub-plan ${index === 1 ? 'featured' : ''}`}>{index === 1 && <span className="hub-plan-badge">MAIS POPULAR</span>}<strong>Plano {plan.name}</strong><div className="hub-plan-price">{money.format(plan.price)}<em>/ mês</em></div><ul>{plan.features.map(feature => <li key={feature}><Check size={14} /> {feature}</li>)}</ul><button onClick={openPanel}>{index === 1 ? 'Escolher plano' : 'Selecionar plano'} <ArrowRight size={14} /></button></div></Reveal>)}</div>
+          ].map((plan, index) => <Reveal key={plan.name}><div className={`hub-plan ${index === 1 ? 'featured' : ''}`}>{index === 1 && <span className="hub-plan-badge">PROFISSIONAL</span>}<strong>Plano {plan.name}</strong><div className="hub-plan-price">{money.format(plan.price)}<em>/ mês</em></div><ul>{plan.features.map(feature => <li key={feature}><Check size={14} /> {feature}</li>)}</ul><button onClick={openPanel}>Acessar para contratar <ArrowRight size={14} /></button></div></Reveal>)}</div>
           <div className="hub-plan-comparison">
             <h3>Compare o que está incluído em cada plano</h3>
             <p>Veja os módulos disponíveis e escolha o plano para sua operação.</p>
@@ -318,18 +324,20 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
                     ['CRM', 'Histórico dos clientes e acompanhamento comercial', '—', 'Incluído', 'Incluído'],
                     ['Entregas', 'Organização e acompanhamento das entregas', '—', 'Incluído', 'Incluído'],
                     ['Financeiro', 'Contas a pagar e receber e fluxo financeiro', '—', 'Incluído', 'Incluído'],
-                    ['Ordens de serviço', 'Cadastro e acompanhamento dos serviços e aparelhos', '—', 'Incluído', 'Incluído'],
+                    ['Ordens de serviço', 'Cadastro e acompanhamento dos serviços e aparelhos', 'Incluído', 'Incluído', 'Incluído'],
                     ['RMA & Devoluções', 'Solicitações de devolução, troca e reembolso', '—', 'Incluído', 'Incluído'],
                     ['Fiscal', 'Recursos de notas fiscais', '—', 'Incluído', 'Incluído'],
                     ['Administrativo', 'Gestão da empresa, equipe e permissões', '—', 'Incluído', 'Incluído'],
                     ['Cupons', 'Cupons de desconto para vendas', '—', 'Incluído', 'Incluído'],
-                    ['Personalização', 'Identidade visual White-label e preferências do sistema', '—', '—', 'Incluído'],
+                    ['Personalização básica', 'Informações de impressão e termos de serviço nas áreas disponíveis', 'Incluído', 'Incluído', 'Incluído'],
+                    ['Personalização profissional', 'Recursos adicionais conforme as opções disponíveis na conta', '—', 'Incluído', 'Incluído'],
+                    ['Aba Personalização', 'Identidade visual White-label e preferências do sistema', '—', '—', 'Incluído'],
                     ['Configurações', 'Dados da conta e assinatura', 'Incluído', 'Incluído', 'Incluído'],
                     ['Suporte', 'Atendimento para sua empresa', 'Incluído', 'Incluído', 'Prioritário'],
                   ].map(([module, description, ...values]) => (
                     <tr key={module}>
                       <th scope="row">{module}<small>{description}</small></th>
-                      {values.map((value, index) => <td key={index}>{value === '—' ? <span aria-label="Não incluído">—</span> : value}</td>)}
+                      {values.map((value, index) => <td key={index} data-plan={['Básico','Profissional','Enterprise'][index]}>{value === '—' ? <span aria-label="Não incluído">—</span> : value}</td>)}
                     </tr>
                   ))}
                 </tbody>
@@ -352,34 +360,34 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
               </p>
               <div className="hub-about-metrics">
                 <div className="hub-metric">
-                  <strong>99.9%</strong>
-                  <small>Disponibilidade do Sistema</small>
+                  <strong>Operadores</strong>
+                  <small>Acesso com PIN</small>
                 </div>
                 <div className="hub-metric">
-                  <strong>&lt; 1s</strong>
-                  <small>Tempo Médio de Resposta</small>
+                  <strong>Filiais</strong>
+                  <small>Permissões por unidade</small>
                 </div>
                 <div className="hub-metric">
-                  <strong>100%</strong>
-                  <small>Conformidade Fiscal SEFAZ</small>
+                  <strong>Planos</strong>
+                  <small>Recursos para cada operação</small>
                 </div>
               </div>
             </div></Reveal>
             <div className="hub-about-cards">
               <Reveal><div className="hub-agile-card">
                 <span className="hub-agile-icon"><Zap size={22} /></span>
-                <h4>Agilidade &amp; Performance Absoluta</h4>
-                <p>PDV e vendas B2B otimizados para resposta em milissegundos. Venda mais rápido no balcão e elimine filas sem travamentos.</p>
+                <h4>Agilidade no atendimento</h4>
+                <p>Consulte produtos, monte pedidos e acompanhe vendas em um fluxo organizado para o balcão.</p>
               </div></Reveal>
               <Reveal><div className="hub-agile-card">
                 <span className="hub-agile-icon"><ShieldCheck size={22} /></span>
-                <h4>Rastreabilidade &amp; Segurança Anti-Fraude</h4>
-                <p>Controle rigoroso de IMEI, números de série, selos de garantia e auditoria fiscal completa para proteger a margem do seu negócio.</p>
+                <h4>Rastreabilidade e controle de acesso</h4>
+                <p>Organize identificações de produtos e registros de atendimento, com permissões por operador e filial.</p>
               </div></Reveal>
               <Reveal><div className="hub-agile-card">
                 <span className="hub-agile-icon"><Layers size={22} /></span>
                 <h4>Ecosistema Integrado &amp; Escalável</h4>
-                <p>Multi-lojas, gestão financeira, emissão fiscal automatizada e logística B2B conectadas em tempo real.</p>
+                <p>Filiais, financeiro, entregas e recursos fiscais conforme o plano contratado. A emissão fiscal depende da configuração da empresa e do serviço de emissão.</p>
               </div></Reveal>
             </div>
           </div>
