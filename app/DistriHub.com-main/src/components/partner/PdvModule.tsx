@@ -32,11 +32,15 @@ function BarcodeCameraDialog({ onDetected, onClose }: { onDetected: (code: strin
       }
 
       try {
-        const { BrowserMultiFormatReader } = await import('@zxing/browser');
+        const [{ BrowserMultiFormatReader }, { DecodeHintType }] = await Promise.all([
+          import('@zxing/browser'), import('@zxing/library'),
+        ]);
         if (cancelled || !videoRef.current) return;
 
-        controls = await new BrowserMultiFormatReader().decodeFromConstraints(
-          { video: { facingMode: { ideal: 'environment' } } },
+        // Accuracy mode tries QR before 1D formats and spends more time on small labels.
+        const hints = new Map([[DecodeHintType.TRY_HARDER, true]]);
+        controls = await new BrowserMultiFormatReader(hints).decodeFromConstraints(
+          { audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
           videoRef.current,
           (result, _error, activeControls) => {
             if (!result || cancelled) return;
@@ -47,7 +51,20 @@ function BarcodeCameraDialog({ onDetected, onClose }: { onDetected: (code: strin
         );
 
         if (cancelled) controls.stop();
-        else scannerControlsRef.current = controls;
+        else {
+          scannerControlsRef.current = controls;
+          // This is an optional improvement: unsupported focus settings must not stop reading.
+          try {
+            const stream = videoRef.current?.srcObject;
+            if (stream && 'getVideoTracks' in stream) {
+              const track = (stream as MediaStream).getVideoTracks()[0];
+              const capabilities = track?.getCapabilities?.() as (MediaTrackCapabilities & { focusMode?: string[] }) | undefined;
+              if (capabilities?.focusMode?.includes('continuous')) {
+                void track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as MediaTrackConstraintSet] }).catch(() => {});
+              }
+            }
+          } catch { /* Camera focus capability inspection is optional. */ }
+        }
       } catch (cause) {
         if (cancelled) return;
         const name = cause && typeof cause === 'object' && 'name' in cause ? String(cause.name) : '';
@@ -80,7 +97,7 @@ function BarcodeCameraDialog({ onDetected, onClose }: { onDetected: (code: strin
           <button type="button" className="modal-close" aria-label="Fechar leitor de câmera" onClick={() => callbacksRef.current.onClose()}><X size={18} /></button>
         </div>
         <video ref={videoRef} className="pdv-camera-video" autoPlay muted playsInline aria-label="Visualização da câmera para leitura do código de barras" />
-        {error ? <p role="alert" className="otp-error-msg">{error}</p> : <p role="status">Aponte a câmera para o código de barras.</p>}
+        {error ? <p role="alert" className="otp-error-msg">{error}</p> : <p role="status">Aponte a câmera para o QR code ou código de barras. Mantenha o código inteiro visível, com boa luz, e afaste um pouco para focar.</p>}
       </section>
     </div>
   );
@@ -647,7 +664,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
       // Aplica o filtro local apenas quando uma filial específica está selecionada,
       // mantendo a Visão Consolidada do proprietário funcional.
       if (selectedBranchId && p.branch_id !== selectedBranchId) return false;
-      return normalize(p.name).includes(term) || normalize(p.sku ?? '').includes(term) || normalize(p.barcode ?? '').includes(term);
+      return normalize(p.name).includes(term) || normalize(p.sku ?? '').includes(term) || normalize(p.barcode ?? '').includes(term) || normalize(p.id) === term;
     });
   }, [products, search, selectedBranchId]);
 
@@ -676,7 +693,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     const normalizedCode = code.trim().toLocaleLowerCase();
     const matches = products.filter((product) =>
       (!selectedBranchId || product.branch_id === selectedBranchId)
-      && [product.barcode, product.sku].some(value => !!value?.trim() && value.trim().toLocaleLowerCase() === normalizedCode),
+      && [product.barcode, product.sku, product.id].some(value => !!value?.trim() && value.trim().toLocaleLowerCase() === normalizedCode),
     );
     setSearch('');
     if (matches.length === 1) {
@@ -912,7 +929,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     event.preventDefault();
     if (!barcodeScannerEnabled || !canChangeCart()) return;
     const code = search.trim().toLocaleLowerCase();
-    const matches = filtered.filter((product) => [product.barcode, product.sku].some(value => !!value?.trim() && value.trim().toLocaleLowerCase() === code));
+    const matches = filtered.filter((product) => [product.barcode, product.sku, product.id].some(value => !!value?.trim() && value.trim().toLocaleLowerCase() === code));
     if (matches.length === 1) {
       addToCart(matches[0], true);
     } else if (matches.length > 1) {

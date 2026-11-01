@@ -9,14 +9,16 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 import {splitPaymentComponent} from './fixtures/split_payment_component.mjs';
 import {pdvHelpers} from './fixtures/pdv_helpers.mjs';
 const require=createRequire(import.meta.url);
+const {DecodeHintType,QRCodeWriter,BarcodeFormat,BinaryBitmap,HybridBinarizer,RGBLuminanceSource}=require('@zxing/library');
+const {BrowserMultiFormatReader:RealReader}=require('@zxing/browser');
 const source=ts.transpileModule(await readFile(new URL('../../src/components/partner/PdvModule.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText+'\nexports.Checkout=PdvCheckout;exports.Camera=BarcodeCameraDialog;';
 let renderer;
 afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=null;});
 function harness({secure=true,error=null,pending=false}={}){
- let callback,resolve,stops=0;
+ let callback,resolve,decoder,stops=0;
  const controls={stop(){stops++;}};
  const document={visibilityState:'visible',listeners:new Set(),addEventListener(_event,fn){this.listeners.add(fn);},removeEventListener(_event,fn){this.listeners.delete(fn);}};
- const library={BrowserMultiFormatReader:class{async decodeFromConstraints(constraints,_video,cb){assert.equal(constraints.video.facingMode.ideal,'environment');if(error)throw {name:error};callback=cb;return pending?new Promise(done=>resolve=done):controls;}}};
+ const library={BrowserMultiFormatReader:class{constructor(hints){assert.equal(hints.get(DecodeHintType.TRY_HARDER),true);decoder=new RealReader(hints);}async decodeFromConstraints(constraints,_video,cb){assert.equal(constraints.video.facingMode.ideal,'environment');assert.equal(constraints.video.width.ideal,1280);assert.equal(constraints.video.height.ideal,720);assert.equal(constraints.audio,false);if(error)throw {name:error};callback=cb;return pending?new Promise(done=>resolve=done):controls;}}};
  const exports={};
  vm.runInNewContext(source,{exports,Date,Error,document,navigator:{mediaDevices:{getUserMedia(){}}},window:{isSecureContext:secure,open:()=>null,setTimeout:()=>1,clearTimeout(){}},require(name){
   if(name==='react')return React;if(name==='@zxing/browser')return library;
@@ -29,7 +31,7 @@ function harness({secure=true,error=null,pending=false}={}){
   if(name==='./SalePriceInput')return {SalePriceInput:()=>null};
   return require(name);
  }});
- return {exports,document,get stops(){return stops;},detect(code){callback({getText:()=>code},null,controls);},resolve(){resolve(controls);}};
+ return {exports,document,get stops(){return stops;},decode(bitmap){return decoder.decodeBitmap(bitmap).getText();},detect(code){callback({getText:()=>code},null,controls);},resolve(){resolve(controls);}};
 }
 const props={products:[{id:'product',name:'Produto',sku:'0789012345678',branch_id:'branch',stock:5,sale_price:100}],customers:[],salespeople:[],credits:[],selectedBranchId:'branch',segment:'assistencia',canCheckout:true,canEditPrice:false,cameraScannerEnabled:true,onCreateSale:async()=>{}};
 const search=()=>renderer.root.findByProps({'aria-label':'Buscar produto por nome, SKU ou código de barras'});
@@ -42,6 +44,22 @@ test('keyboard reader finds a separate barcode with leading zeroes while SKU is 
 test('camera finds a separate barcode while preserving the internal SKU',async()=>{
  const h=harness();await mount(h,{products:[{...props.products[0],sku:'INTERNO-42',barcode:'0789012345678'}]});
  await openCamera();await act(async()=>h.detect('0789012345678'));assert.equal(qty(),'1');
+});
+
+test('QR sem SKU usa o ID impresso na etiqueta, pela câmera e pelo leitor de teclado',async()=>{
+ const h=harness();await mount(h,{products:[{...props.products[0],sku:null,barcode:null}]});
+ await openCamera();await act(async()=>h.detect('product'));assert.equal(qty(),'1');
+ await act(async()=>search().props.onChange({target:{value:'product'}}));await act(async()=>enter());assert.equal(qty(),'2');
+});
+
+test('decodifica QR real de código numérico, SKU e ID com as opções do leitor da câmera',async()=>{
+ const h=harness();await mount(h);await openCamera();
+ for(const value of ['0194252156971','FONTE-IPHONE-20W','ca519b77-76e1-4044-b67a-e9874b670849']){
+  const matrix=new QRCodeWriter().encode(value,BarcodeFormat.QR_CODE,240,240,new Map());
+  const pixels=new Uint8ClampedArray(240*240);
+  for(let y=0;y<240;y++)for(let x=0;x<240;x++)pixels[y*240+x]=matrix.get(x,y)?0:255;
+  assert.equal(h.decode(new BinaryBitmap(new HybridBinarizer(new RGBLuminanceSource(pixels,240,240)))),value);
+ }
 });
 test('duplicate barcode in the same branch never adds an arbitrary product',async()=>{
  const h=harness();await mount(h,{products:[{...props.products[0],sku:'A',barcode:'0789012345678'},{...props.products[0],id:'second',sku:'B',barcode:'0789012345678'}]});

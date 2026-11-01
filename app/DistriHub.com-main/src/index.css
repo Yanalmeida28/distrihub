@@ -1474,7 +1474,7 @@ select option:hover, select option:checked { background: #1d3445; color: #ffffff
 .partner-panel .pdv-camera-button:hover { filter: brightness(1.08); }
 .partner-panel .pdv-camera-button:focus-visible { outline: 2px solid var(--dh-blue); outline-offset: 2px; }
 .partner-panel .pdv-camera-dialog { width: min(560px, calc(100% - 24px)); }
-.partner-panel .pdv-camera-video { display: block; width: 100%; max-height: 65vh; min-height: 240px; border-radius: var(--dh-radius-sm); background: #07111d; object-fit: cover; }
+.partner-panel .pdv-camera-video { display: block; width: 100%; max-height: 55dvh; min-height: 0; aspect-ratio: 4 / 3; border-radius: var(--dh-radius-sm); background: #07111d; object-fit: contain; }
 .partner-panel .pdv-camera-dialog > p { margin: 12px 0 0; color: var(--dh-text-secondary); }
 .partner-panel .pdv-selection-notice { margin: 0; padding: 9px 12px; border: 1px solid rgba(180,83,9,.35); border-radius: var(--dh-radius-sm); background: var(--dh-warning-bg); color: var(--dh-warning); font-size: 12.5px; font-weight: 600; }
 .partner-panel .pdv-product-card { position: relative; text-align: left; transition: background-color .15s, color .15s, border-color .15s, transform .1s; }
