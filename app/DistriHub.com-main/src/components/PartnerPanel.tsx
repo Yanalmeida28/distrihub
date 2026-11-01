@@ -316,7 +316,6 @@ export function PartnerPanel({
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [helpFocus, setHelpFocus] = useState<string | undefined>();
   const [switchingBranch, setSwitchingBranch] = useState(false);
   const [branchAccessError, setBranchAccessError] = useState<string | null>(null);
   useEffect(() => {
@@ -1812,7 +1811,7 @@ export function PartnerPanel({
               </button>
             ),
           )}
-          <button type="button" aria-label="Ajuda" aria-current={helpOpen?'page':undefined} className={'sidebar-nav-item '+(helpOpen?'active':'')} onClick={()=>{setHelpFocus(undefined);setHelpOpen(true);setSidebarOpen(false);}}>
+          <button type="button" aria-label="Ajuda" aria-current={helpOpen?'page':undefined} className={'sidebar-nav-item '+(helpOpen?'active':'')} onClick={()=>{setHelpOpen(true);setSidebarOpen(false);}}>
             <BookOpen size={20}/><span className="sidebar-nav-label">Ajuda</span>
           </button>
           <button
@@ -1846,9 +1845,6 @@ export function PartnerPanel({
 
       <div className="sidebar-main">
         <div className="sidebar-main-inner">
-          {!helpOpen&&<button type="button" className="rma-advance-btn" style={{marginBottom:12}} onClick={()=>{setHelpFocus(accessLocked?'acesso':activeTab);setHelpOpen(true);setSidebarOpen(false);}}>
-            <BookOpen size={16}/> Como usar esta tela
-          </button>}
           {partner.error && (
             <p className="partner-loading">
               {partner.error}
@@ -1857,7 +1853,7 @@ export function PartnerPanel({
 
           {helpOpen && <ModuleBoundary><Suspense fallback={<p role="status">Carregando ajuda…</p>}>
             <HelpModule planId={saas.subscription?.effective_plan} features={saas.subscription?.features} plans={saas.subscription?.plans}
-              focusModule={helpFocus} allowedModules={accessLocked?[]:visibleTabs.map(tab=>tab.id)}
+              allowedModules={accessLocked?[]:visibleTabs.map(tab=>tab.id)}
               onBack={()=>setHelpOpen(false)} onNavigate={module=>{if(!accessLocked&&visibleTabs.some(tab=>tab.id===module))handleTabClick(module as Tab);}}/>
           </Suspense></ModuleBoundary>}
           <div hidden={helpOpen}>

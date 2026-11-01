@@ -1,6 +1,6 @@
 .help-center{max-width:1040px;margin:0 auto;padding:24px 12px;background:#fff;color:#111;border-radius:12px;color-scheme:light;--dh-text:#111;--dh-text-secondary:#111;--dh-surface:#fff;--dh-border:#b9c9d6;--dh-accent-text:#164e80;--dh-blue-soft:#eaf3fb}
 .help-center :is(h1,h2,h3,h4,p,small,strong,label,li,summary){color:#111}
-.partner-panel .help-center :is(h1,h2,h3,h4,p,small,strong,label,li,summary){color:#111}
+.partner-panel .help-center :is(h1,h2,h3,h4,p,small,strong,label,li,summary,span,input,select,option,button){color:#111 !important}
 .help-center .module-card{background:#fff;color:#111}
 .help-center .rma-advance-btn{background:#eaf3fb;color:#111;border-color:#8aacc8}
 .help-center .rma-advance-btn:hover{background:#d7e9f8;color:#111}
