@@ -16,8 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import './HubHome.css';
 import { planCatalog } from '../lib/planCatalog';
+import './HubHome.css';
 import { money } from '../utils';
 
 type HubHomeProps = {
@@ -211,7 +211,7 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
             </h1>
             <p>
               Controle estoque, vendas, financeiro e assistência técnica sem planilhas. A DistriHub
-              conecta distribuidoras, lojistas e filiais para sua equipe vender mais e operar melhor.
+              conecta lojas, distribuidoras e assistências de notebooks, TVs, celulares e outros equipamentos.
             </p>
             <div className="hub-hero-actions">
               <button className="hub-login-btn" onClick={openPanel}>Acessar DistriHub <ArrowRight size={16}/></button>
@@ -264,7 +264,7 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
             <Reveal><div className="hub-feature">
               <ShieldCheck size={24} />
               <h4>Garantia e RMA</h4>
-              <p>Rastreie IMEI, série, selo e fotos para reduzir perdas e transformar trocas em crédito.</p>
+              <p>Acompanhe produtos por número de série, identificação e fotos. Organize as devoluções e os créditos de troca.</p>
             </div></Reveal>
             <Reveal><div className="hub-feature">
               <Wrench size={24} />
@@ -324,7 +324,7 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
                     ['CRM', 'Histórico dos clientes e acompanhamento comercial', '—', 'Incluído', 'Incluído'],
                     ['Entregas', 'Organização e acompanhamento das entregas', '—', 'Incluído', 'Incluído'],
                     ['Financeiro', 'Contas a pagar e receber e fluxo financeiro', '—', 'Incluído', 'Incluído'],
-                    ['Ordens de serviço', 'Cadastro e acompanhamento dos serviços e aparelhos', 'Incluído', 'Incluído', 'Incluído'],
+                    ['Ordens de serviço', 'Cadastro e acompanhamento dos serviços e equipamentos', 'Incluído', 'Incluído', 'Incluído'],
                     ['RMA & Devoluções', 'Solicitações de devolução, troca e reembolso', '—', 'Incluído', 'Incluído'],
                     ['Fiscal', 'Recursos de notas fiscais', '—', 'Incluído', 'Incluído'],
                     ['Administrativo', 'Gestão da empresa, equipe e permissões', '—', 'Incluído', 'Incluído'],

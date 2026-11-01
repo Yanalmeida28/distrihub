@@ -51,8 +51,8 @@ test('product registration keeps SKU and barcode independent and reader Enter do
  await act(async()=>renderer.root.findByProps({className:'module-action-btn'}).props.onClick());
  const input=placeholder=>renderer.root.findByProps({placeholder});
  await act(async()=>{
-  input('Ex: Display Moto G8').props.onChange({target:{value:'Produto'}});
-  input('Código do produto. Ex: DH-MG8-012').props.onChange({target:{value:'INTERNO-42'}});
+  input('Nome do produto ou serviço').props.onChange({target:{value:'Produto'}});
+  input('Código do produto. Ex: PROD-001').props.onChange({target:{value:'INTERNO-42'}});
   input('Clique aqui e passe o leitor').props.onChange({target:{value:'0012345678905'}});
   renderer.root.findAllByType('input').find(field=>field.props.required&&field.props.type==='number').props.onChange({target:{value:'20'}});
  });
@@ -96,7 +96,7 @@ test('possible duplicate is shown with a way to open the existing product',async
  await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Products,{products:[duplicate],allProducts:[duplicate],branches:[],selectedBranchId:'branch',categories:[],suppliers:[],segment:'assistencia',onAddSupplier:async()=>{},onAddProduct:async()=>{writes++;},findProductDuplicates:async()=>[duplicate],onUpdateProduct:async()=>{},onDeleteProduct:async()=>{}}));});
  await act(async()=>renderer.root.findByProps({className:'module-action-btn'}).props.onClick());
  const input=placeholder=>renderer.root.findByProps({placeholder});
- await act(async()=>{input('Ex: Display Moto G8').props.onChange({target:{value:' BATERIA  IPHONE 15 PRO MAX '}});renderer.root.findAllByType('input').find(field=>field.props.required&&field.props.type==='number').props.onChange({target:{value:'2'}});});
+ await act(async()=>{input('Nome do produto ou serviço').props.onChange({target:{value:' BATERIA  IPHONE 15 PRO MAX '}});renderer.root.findAllByType('input').find(field=>field.props.required&&field.props.type==='number').props.onChange({target:{value:'2'}});});
  await act(async()=>submit());
  assert.equal(writes,0);
  assert.match(rendered(),/estoque não será somado/);
@@ -111,7 +111,7 @@ test('user can confirm a legitimate similar-name product without changing existi
  await act(async()=>renderer.root.findByProps({className:'module-action-btn'}).props.onClick());
  const input=placeholder=>renderer.root.findByProps({placeholder});
  const stockInput=renderer.root.findAllByType('label').find(label=>label.children.includes('Estoque')).findByType('input');
- await act(async()=>{input('Ex: Display Moto G8').props.onChange({target:{value:'Produto igual'}});renderer.root.findAllByType('input').find(field=>field.props.required&&field.props.type==='number').props.onChange({target:{value:'2'}});stockInput.props.onChange({target:{value:'5'}});});
+ await act(async()=>{input('Nome do produto ou serviço').props.onChange({target:{value:'Produto igual'}});renderer.root.findAllByType('input').find(field=>field.props.required&&field.props.type==='number').props.onChange({target:{value:'2'}});stockInput.props.onChange({target:{value:'5'}});});
  await act(async()=>submit());
  const continueButton=renderer.root.findAllByType('button').find(button=>button.children.includes('Cadastrar mesmo assim'));
  await act(async()=>continueButton.props.onClick({preventDefault(){}}));

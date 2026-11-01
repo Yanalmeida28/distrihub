@@ -175,7 +175,7 @@ test('signup form selects CPF or CNPJ, blocks invalid document and submits norma
   })); });
   await act(async () => renderer.root.findAllByType('button').find(n => n.children.includes('Cadastrar')).props.onClick());
   const change = async (node, value) => act(async () => node.props.onChange({target:{value}}));
-  await change(renderer.root.findAllByType('input').find(n=>n.props.placeholder==='Ex: Conserta Tudo Celulares'), 'Loja');
+  await change(renderer.root.findAllByType('input').find(n=>n.props.placeholder==='Nome da sua empresa'), 'Loja');
   await change(renderer.root.findAllByType('input').find(n=>n.props.placeholder==='(11) 99999-9999'), '11999999999');
   const submit = () => act(async () => renderer.root.findByType('form').props.onSubmit({preventDefault(){}}));
   await change(renderer.root.findByProps({'aria-label':'CNPJ'}), '00000000000000');

@@ -724,7 +724,7 @@ function ServiceOrdersContent({
               <input
                 value={equipmentType}
                 onChange={(event) => setEquipmentType(event.target.value)}
-                placeholder="Celular, notebook, ar-condicionado, veículo..."
+                placeholder="Ex.: notebook, TV, celular, eletrodoméstico..."
                 style={inputDarkStyle}
                 className="dark-os-input"
               />

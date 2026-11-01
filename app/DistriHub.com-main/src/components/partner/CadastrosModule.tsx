@@ -296,7 +296,7 @@ function StockAdjustmentSubTab({ products, branchId, onUpdate }: {
   </div>;
 }
 
-function ProductsSubTab({ suppliersReady = true, defaultIsService = false, isActive = true, products, allProducts, branches, selectedBranchId, categories, suppliers, onAddSupplier, segment, onAddProduct, findProductDuplicates, onUpdateProduct, onDeleteProduct }: {
+function ProductsSubTab({ suppliersReady = true, defaultIsService = false, isActive = true, products, allProducts, branches, selectedBranchId, categories, suppliers, onAddSupplier, onAddProduct, findProductDuplicates, onUpdateProduct, onDeleteProduct }: {
   suppliersReady?: boolean;
   defaultIsService?: boolean;
   isActive?: boolean;
@@ -439,7 +439,7 @@ function ProductsSubTab({ suppliersReady = true, defaultIsService = false, isAct
     }
   }
 
-  const itemLabel = segment === 'assistencia' ? 'Peça / Serviço' : 'Produto / Serviço';
+  const itemLabel = 'Produto / Serviço';
 
   const selectedProduct = products.find((p) => p.id === availabilityProductId) ?? null;
   const currentBranch = branches.find((branch) => branch.id === selectedBranchId);
@@ -497,11 +497,11 @@ function ProductsSubTab({ suppliersReady = true, defaultIsService = false, isAct
           <div className="form-row product-form-row product-identity-row">
             <label>
               Nome
-                <input value={name} onChange={(e) => { setName(e.target.value); setPotentialDuplicates([]); }} placeholder="Ex: Display Moto G8" required />
+                <input value={name} onChange={(e) => { setName(e.target.value); setPotentialDuplicates([]); }} placeholder="Nome do produto ou serviço" required />
             </label>
             <label>
               SKU
-              <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Código do produto. Ex: DH-MG8-012" />
+              <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="Código do produto. Ex: PROD-001" />
             </label>
             <label>
               Código de barras
@@ -938,7 +938,7 @@ function CategoriesSubTab({ categories, products, onAdd, onDelete, branches = []
         {!selectedBranchId && branches.length > 0 && <label>Filial<select aria-label="Filial da categoria" value={draftBranchId} onChange={event => setDraftBranchId(event.target.value)} required><option value="">Selecione</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>}
         <label>
           Nova Categoria
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Displays / Telas" required />
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da categoria" required />
         </label>
         <button type="submit" disabled={busy} className="module-submit-btn"><Plus size={16} /> Adicionar</button>
       </form>
@@ -1524,8 +1524,8 @@ function CustomersSubTab({ isActive = true, customers, branches, sales, rmaReque
           </div>
           <div className="form-row">
             <label>
-              Aparelho / Observações
-              <input value={device} onChange={(e) => setDevice(e.target.value)} placeholder="Ex: iPhone 11 — bateria" />
+              Equipamento / Observações
+              <input value={device} onChange={(e) => setDevice(e.target.value)} placeholder="Tipo, modelo ou observações do equipamento" />
             </label>
             <label>
               Tipo de Cliente
@@ -1617,7 +1617,7 @@ function CustomersSubTab({ isActive = true, customers, branches, sales, rmaReque
             )}
             <div className="stock-table-wrap">
               <table className="rma-table">
-                <thead><tr><th>Data</th><th>Itens</th><th>Total</th><th>Pagamento</th><th>IMEI/Série</th></tr></thead>
+                <thead><tr><th>Data</th><th>Itens</th><th>Total</th><th>Pagamento</th><th>Série / IMEI</th></tr></thead>
                 <tbody>
                   {historySales.length === 0 ? (
                     <tr><td colSpan={5} className="empty-row">Nenhuma compra registrada.</td></tr>
@@ -1812,7 +1812,7 @@ function CustomerProfileModal({ customer, sales, rmaRequests, salespeople, onUpd
           </div>}
           {tab === 'observacoes' && <div className="rma-form">
             <label><span className="social-label">Observações do Cliente</span><textarea value={form.notes ?? ''} onChange={(event) => setField('notes', event.target.value)} rows={4} placeholder="Notas gerais sobre o cliente..." /></label>
-            {textField('device_model', 'Aparelho / Modelo', 'Ex: iPhone 11')}
+            {textField('device_model', 'Equipamento / Modelo', 'Tipo e modelo do equipamento')}
           </div>}
           {tab === 'financeiros' && <div className="rma-form">
             <div className="form-row">

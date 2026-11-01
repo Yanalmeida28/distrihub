@@ -217,7 +217,7 @@ export function AuthScreen({ onBack, onSignIn, onSignUp, onRequestPasswordReset,
                   className={inputClass}
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder="Ex: Conserta Tudo Celulares"
+                  placeholder="Nome da sua empresa"
                   required
                 />
               </label>

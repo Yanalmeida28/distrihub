@@ -486,11 +486,11 @@ export function RmaModule({
           <div className="form-row">
             <label>
               Produto
-              <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Ex: Display Moto G8 Power" required />
+              <input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Nome do produto" required />
             </label>
             <label>
               SKU
-              <input value={productSku} onChange={(e) => setProductSku(e.target.value)} placeholder="Ex: DH-MG8-012" required />
+              <input value={productSku} onChange={(e) => setProductSku(e.target.value)} placeholder="Código do produto. Ex: PROD-001" required />
             </label>
           </div>
           <label>

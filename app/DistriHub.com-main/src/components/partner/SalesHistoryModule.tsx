@@ -36,7 +36,7 @@ export function SalesHistoryModule(props: Props) {
   return <SalesHistoryContent key={JSON.stringify([props.companyId, props.branchId, props.operatorKey, props.currentRole])} {...props} />;
 }
 
-function SalesHistoryContent({ companyId, branchId = null, isActive = true, currentRole, onPageLoaded, sales, rmaRequests = [], customers, salespeople, segment, receiptDetails, onCancelSale }: Props) {
+function SalesHistoryContent({ companyId, branchId = null, isActive = true, currentRole, onPageLoaded, sales, rmaRequests = [], customers, salespeople, receiptDetails, onCancelSale }: Props) {
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
   const actionInFlight = useRef(false);
@@ -77,7 +77,7 @@ function SalesHistoryContent({ companyId, branchId = null, isActive = true, curr
     channel.subscribe();
     return () => { void client.removeChannel(channel); };
   }, [companyId, branchId, isActive]);
-  const traceabilityLabel = segment === 'assistencia' ? 'IMEI / Selo' : 'Serie';
+  const traceabilityLabel = 'Série / IMEI / Selo';
   const filteredSales = useMemo(() => {
     if (serverMode) return [];
     const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -191,7 +191,7 @@ function SalesHistoryContent({ companyId, branchId = null, isActive = true, curr
 
   return (<>
     <div className="orders-filter-row sales-history-filters">
-      <label>Buscar venda<input type="search" name="sales-history-search" maxLength={200} autoComplete="off" data-lpignore="true" data-1p-ignore="true" disabled={!!cancelTarget} value={search} onChange={e => { if (!cancelTarget) setSearch(e.target.value); }} placeholder="Cliente, número, IMEI ou série" /></label>
+      <label>Buscar venda<input type="search" name="sales-history-search" maxLength={200} autoComplete="off" data-lpignore="true" data-1p-ignore="true" disabled={!!cancelTarget} value={search} onChange={e => { if (!cancelTarget) setSearch(e.target.value); }} placeholder="Cliente, número da venda, série ou IMEI" /></label>
       <label>De<input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
       <label>Até<input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></label>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option><option value="aberta">Aberta</option><option value="devolucao">Devolução</option></select></label>
