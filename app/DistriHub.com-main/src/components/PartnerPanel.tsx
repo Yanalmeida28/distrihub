@@ -385,12 +385,12 @@ export function PartnerPanel({
   const effectiveBranchId = accessLocked ? '' :
     isEmployeeRestricted ? lockedBranchId ?? '' : selectedBranchId;
   useEffect(() => {
-    if (!effectiveBranchId || partner.loading || (activeTab !== 'pdv' && activeTab !== 'pedidos')) return;
+    if (!deviceSession.ready || !effectiveBranchId || partner.loading || (activeTab !== 'pdv' && activeTab !== 'pedidos')) return;
     let active = true;
     setPdvReadError(null);
     void refreshPdv(effectiveBranchId).catch(error => { if (active) setPdvReadError(pdvErrorMessage(error)); });
     return () => { active = false; };
-  }, [effectiveBranchId, activeTab, partner.loading, refreshPdv]);
+  }, [deviceSession.ready, effectiveBranchId, activeTab, partner.loading, refreshPdv]);
 
   async function handleRefreshPdv() {
     if (!effectiveBranchId || refreshingPdv) return;
@@ -428,11 +428,11 @@ export function PartnerPanel({
     catch { /* Storage does not change account authorization. */ }
   }, [identity, isEmployeeRestricted, operatorScope, selectedBranchId]);
 
-  const checkoutCash = useCheckoutCash(effectiveBranchId, pinOperator?.id ?? null, pinOperator?.pin ?? null, managedCashSession?.operator_name ?? activeSalesperson?.name ?? 'Proprietário / Administrador', operatorScope, !accessLocked && ['pdv', 'pedidos', 'caixa'].includes(activeTab), managedCashSession?.id ?? null, activeTab === 'pedidos' ? 'pedidos' : activeTab === 'caixa' ? 'caixa' : 'pdv');
+  const checkoutCash = useCheckoutCash(effectiveBranchId, pinOperator?.id ?? null, pinOperator?.pin ?? null, managedCashSession?.operator_name ?? activeSalesperson?.name ?? 'Proprietário / Administrador', operatorScope, !accessLocked && deviceSession.ready && ['pdv', 'pedidos', 'caixa'].includes(activeTab), managedCashSession?.id ?? null, activeTab === 'pedidos' ? 'pedidos' : activeTab === 'caixa' ? 'caixa' : 'pdv');
   const refreshCash = checkoutCash.refresh;
   useEffect(() => {
-    if (!accessLocked && (activeTab === 'pdv' || activeTab === 'pedidos' || activeTab === 'caixa')) void refreshCash().catch(() => {});
-  }, [activeTab, refreshCash, partner.sales, accessLocked]);
+    if (!accessLocked && deviceSession.ready && (activeTab === 'pdv' || activeTab === 'pedidos' || activeTab === 'caixa')) void refreshCash().catch(() => {});
+  }, [activeTab, refreshCash, partner.sales, accessLocked, deviceSession.ready]);
 
   useEffect(() => {
     if (
@@ -1415,13 +1415,13 @@ export function PartnerPanel({
     );
   }
 
-  if (identity && !deviceSession.ready) {
+  if (identity && !deviceSession.ready && deviceSession.error) {
     return <DeviceAccessGate companyId={identity.companyUserId} branchId={identity.salespersonId ? identity.branchId ?? '' : selectedBranchId}
       error={deviceSession.error} onBranchChange={pinOperator?.canAccessAllBranches ? handleSelectBranch : setSelectedBranchId} onRetry={deviceSession.retry} onLogout={onBack} />;
   }
 
   function preloadTab(tab: Tab) {
-    if (accessLocked) return;
+    if (accessLocked || !deviceSession.ready) return;
     if (blockedTabs.includes(tab) || !canUseSaasFeature(saas.subscription, tab)) return;
     void tabCodeLoaders[tab]().catch(() => {});
     void partner.prefetchModule(tab === 'cadastros' ? 'cadastros:' + cadastroDataScope : tab === 'administrativo' ? 'administrativo:' + adminDataScope : tab === 'relatorios' ? 'relatorios:' + reportDataScope : tab);
@@ -1438,7 +1438,7 @@ export function PartnerPanel({
   }
 
   function renderTab(tab: Tab, content: ReactNode, instance = '') {
-    if (accessLocked) return null;
+    if (accessLocked || !deviceSession.ready) return null;
     if (!visitedTabs.has(tab) || blockedTabs.includes(tab) || !canUseSaasFeature(saas.subscription, tab)) return null;
     return (
       <div key={tab + instance} hidden={activeTab !== tab}>
@@ -1857,7 +1857,7 @@ export function PartnerPanel({
               onBack={()=>setHelpOpen(false)} onNavigate={module=>{if(!accessLocked&&visibleTabs.some(tab=>tab.id===module))handleTabClick(module as Tab);}}/>
           </Suspense></ModuleBoundary>}
           <div hidden={helpOpen}>
-          {accessLocked ? <div className="partner-content"><p role="status">Selecione seu operador no menu e confirme o PIN para visualizar os dados da sua filial.</p></div> : <SessionDraftProvider
+          {accessLocked ? <div className="partner-content"><p role="status">Selecione seu operador no menu e confirme o PIN para visualizar os dados da sua filial.</p></div> : !deviceSession.ready ? <div className="partner-content" aria-busy="true"><p role="status">Preparando sua filial…</p></div> : <SessionDraftProvider
             key={`${identity?.authUserId ?? user?.id ?? 'pending'}:${identity?.companyUserId ?? 'pending'}:workspace:${effectiveBranchId || 'all'}`}
             scope={`${identity?.authUserId ?? user?.id ?? 'pending'}:${identity?.companyUserId ?? 'pending'}:workspace:${effectiveBranchId || 'all'}`}
             legacyScope={`${identity?.authUserId ?? user?.id ?? 'pending'}:${identity?.companyUserId ?? 'pending'}:${identity?.salespersonId ?? 'owner'}:${effectiveBranchId || 'all'}`}

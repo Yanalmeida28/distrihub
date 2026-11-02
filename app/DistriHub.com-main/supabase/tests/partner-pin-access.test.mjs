@@ -73,18 +73,22 @@ test('PIN authorizes the server-assigned branch directly without choosing a bran
 
 test('the real PartnerPanel renders its own menus while all operational hooks and module prefetch remain disabled', async () => {
   const calls = [], exports = {};
+  const device = { ready: false, error: null, retry() {} };
+  let modulesAllowed = true;
   const partner = { loading: false, syncing: false, settings: null, profile: null,
     branches: [], salespeople: [], suppliers: [], categories: [], products: [], movements: [], sales: [], customers: [], rmas: [], invoices: [], orders: [] };
   const dependencies = {
     './ModuleBoundary': { ModuleBoundary: ({ children }) => children },
     '../hooks/usePartnerData': { usePartnerData: value => { calls.push(['data', value]); return partner; } },
-    '../hooks/useDeviceHeartbeat': { useDeviceHeartbeat: value => { calls.push(['device', value]); return { ready: false }; } },
+    '../hooks/useDeviceHeartbeat': { useDeviceHeartbeat: value => { calls.push(['device', value]); return device; } },
+    './partner/DeviceSessions': { DeviceAccessGate: () => React.createElement('section', { 'data-device-error': true }) },
     '../hooks/useSaasSubscription': { useSaasSubscription: value => { calls.push(['subscription', value]); return { loading: false, subscription: null }; } },
     '../hooks/useSupportUnread': { useSupportUnread: value => { calls.push(['unread', value]); return { total: 0 }; } },
     '../hooks/useCheckoutCash': { useCheckoutCash: (...args) => { calls.push(['cash', args[5]]); return { refresh() { throw new Error('Unexpected cash read'); } }; } },
-    '../hooks/useSessionDraft': { useSessionDraftState: (_key, initial) => React.useState(initial) },
+    '../hooks/useSessionDraft': { useSessionDraftState: (_key, initial) => React.useState(initial), SessionDraftProvider: () => null },
     '../lib/partnerSync': { branchDirectoryRows: rows => rows },
     '../lib/storeTheme': { storeTheme: () => ({}) },
+    '../lib/saas': { canUseSaasFeature: () => modulesAllowed },
     '../lib/checkoutCash': cashExports,
     '../lib/moduleLoading': { moduleLoader: () => () => { throw new Error('Unexpected module prefetch'); } },
     './partner/HelpModule': { HelpModule: props => React.createElement('section', { 'data-help': true },
@@ -119,6 +123,27 @@ test('the real PartnerPanel renders its own menus while all operational hooks an
     assert.equal(renderer.root.findAllByProps({ 'data-help': true }).length, 0);
     await act(async () => renderer.root.findByProps({ 'aria-label': 'Trocar operador por PIN' }).props.onClick());
     assert.deepEqual(requests, ['employee']);
+    const unlockedProps = { accessLocked: false, pinOperator: null, user, identity, identityError: null,
+      segment: 'assistencia', onBack() {} };
+    calls.length = 0;
+    await act(async () => renderer.update(React.createElement(exports.PartnerPanel, unlockedProps)));
+    assert.equal(renderer.root.findAllByProps({ className: 'partner-panel sidebar-layout partner-pdv-mode' }).length, 1);
+    assert.equal(renderer.root.findAllByProps({ 'aria-busy': 'true' }).length, 1);
+    assert.equal(renderer.root.findAllByProps({ 'data-device-error': true }).length, 0);
+    await act(async () => renderer.root.findByProps({ 'aria-label': 'Cadastros' }).props.onPointerEnter());
+    assert.ok(calls.filter(([kind]) => kind === 'data').every(([, value]) => value === null));
+    assert.ok(calls.filter(([kind]) => kind === 'cash').every(([, value]) => value === false));
+    await act(async () => renderer.root.findByProps({ 'aria-label': 'Cadastros' }).props.onClick());
+    device.error = 'Limite de dispositivos atingido';
+    await act(async () => renderer.update(React.createElement(exports.PartnerPanel, { ...unlockedProps })));
+    assert.equal(renderer.root.findAllByProps({ 'data-device-error': true }).length, 1);
+    device.error = null;
+    device.ready = true;
+    modulesAllowed = false;
+    await act(async () => renderer.update(React.createElement(exports.PartnerPanel, { ...unlockedProps })));
+    assert.equal(renderer.root.findAllByProps({ 'data-device-error': true }).length, 0);
+    assert.equal(renderer.root.findAllByProps({ 'aria-busy': 'true' }).length, 0);
+    assert.equal(calls.filter(([kind]) => kind === 'data').at(-1)[1], identity);
   } finally { await act(async () => renderer.unmount()); }
 });
 
