@@ -952,7 +952,8 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
             <p className="pdv-selection-notice" role="alert">{selectionNotice}</p>
           )}
 
-          <div className="pdv-product-search-results" aria-label="Resultados da pesquisa">
+          {!search.trim() && <p className="pdv-search-hint">Pesquise pelo nome, SKU ou código de barras para ver os produtos.</p>}
+          <div className="pdv-product-search-results" aria-label="Resultados da pesquisa" hidden={!search.trim()}>
           <div className="pdv-product-grid">
             {filtered.length === 0 ? (
               <p className="empty-row">

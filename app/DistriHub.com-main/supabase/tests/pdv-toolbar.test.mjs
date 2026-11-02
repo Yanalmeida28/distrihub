@@ -47,6 +47,19 @@ const props = {
 let renderer;
 afterEach(async () => { if (renderer) await act(async () => renderer.unmount()); renderer = null; });
 const controls = () => renderer.root.findByProps({ 'aria-label': 'Opções da venda' });
+test('product results stay hidden until a search and clearing it preserves the cart',async()=>{
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(module.exports.Checkout,props));});
+ const results=()=>renderer.root.findByProps({'aria-label':'Resultados da pesquisa'});
+ const search=()=>renderer.root.findByProps({'aria-label':'Buscar produto por nome, SKU ou código de barras'});
+ assert.equal(results().props.hidden,true);
+ await act(async()=>search().props.onChange({target:{value:'   '}}));assert.equal(results().props.hidden,true);
+ await act(async()=>search().props.onChange({target:{value:props.products[0].name}}));assert.equal(results().props.hidden,false);
+ await act(async()=>renderer.root.findByProps({className:'pdv-product-card'}).props.onClick());
+ await act(async()=>search().props.onChange({target:{value:''}}));assert.equal(results().props.hidden,true);
+ assert.ok(renderer.root.findByProps({'aria-label':'Carrinho'}).findByProps({'aria-label':'Remover '+props.products[0].name}));
+ await act(async()=>search().props.onChange({target:{value:'produto-inexistente-xyz'}}));
+ assert.equal(results().props.hidden,false);assert.match(JSON.stringify(results().findByProps({className:'empty-row'}).children),/Nenhum produto/);
+});
 
 test('checkout places customer type and customer picker in the same layout row', async () => {
   await act(async () => { renderer = TestRenderer.create(React.createElement(module.exports.Checkout, props)); });
