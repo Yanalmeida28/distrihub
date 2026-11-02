@@ -3538,3 +3538,19 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .sales-history-filters label { flex: 1 1 calc(50% - 8px); }
   .partner-panel .sales-history-filters label:first-child { flex-basis: 100%; }
 }
+
+
+/* Painel único no carrinho do PDV: uma superfície, sem cartões internos. */
+.partner-panel .pdv-checkout-layout .pdv-right{border:0;box-shadow:none;background:var(--dh-surface,#102638)}
+.partner-panel .pdv-checkout-layout .pdv-right :is(.pdv-cart-main,.pdv-sale-scroll,.pdv-form,.pdv-form-section,.pdv-cart-table-wrap,.b2b-credit-summary,.split-payment-panel){background:transparent;border:0;border-radius:0;box-shadow:none}
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-main{padding:0}
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-sale-scroll{padding-top:12px}
+.partner-panel .pdv-checkout-layout .pdv-right :is(.b2b-credit-summary,.split-payment-panel){padding:12px 0;margin:0}
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-total-bar{background:transparent!important;border:0!important;border-top:1px solid var(--dh-border,#29465f)!important;border-radius:0!important;box-shadow:none!important;padding:16px 0!important}
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-table :is(th,td){background:transparent;box-shadow:none}
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-form :is(input,select){background:transparent}
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-form select option{background:var(--dh-surface,#102638);color:var(--dh-text,#edf5fc)}
+@media(max-width:768px){
+  .partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-table tbody{gap:0}
+  .partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-table tr{border:0;border-bottom:1px solid var(--dh-border,#29465f);border-radius:0;background:transparent;padding:12px 0}
+}
