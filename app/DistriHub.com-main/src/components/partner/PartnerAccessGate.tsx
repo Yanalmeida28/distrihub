@@ -6,6 +6,7 @@ import type { PartnerIdentity } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { authorizeOwner, authorizePin, rememberOperatorAccess, revokeOperatorSession, type PartnerAccess, type PinOperator } from '../../lib/partnerAccess';
 import { OperatorSelectionStore, OperatorSessionStore } from '../../lib/checkoutCash';
+import './SinglePanelModal.css';
 
 type Mode = 'employee' | 'owner';
 type Props = {
@@ -191,15 +192,15 @@ export function PinAccessDialog({ mode, identity, user, onAuthorize, onSwitchAcc
   }
   const owner = mode === 'owner';
   return <div className="modal-backdrop" onClick={close}>
-    <div className="modal-content operator-selection-modal" role="dialog" aria-modal="true"
+    <div className={owner ? 'modal-content single-panel-modal' : 'modal-content operator-selection-modal'} role="dialog" aria-modal="true"
       aria-labelledby="operator-access-title" onClick={event => event.stopPropagation()}>
-      <div className="modal-header"><h3 id="operator-access-title">
+      <div className={owner ? 'single-panel-header' : 'modal-header'}><h3 id="operator-access-title">
         {owner ? <Shield size={18} /> : <UserCheck size={18} />}{' '}
         {owner ? 'Acesso do proprietário' : 'Acesso do colaborador'}</h3>
         {onClose && <button type="button" aria-label="Fechar" disabled={busy} onClick={close}><X size={18} /></button>}
       </div>
-      <div className="rma-form">
-        <form onSubmit={submit} className="rma-form">
+      <div className={owner ? 'single-panel-body' : 'rma-form'}>
+        <form onSubmit={submit} className={owner ? 'single-panel-form' : 'rma-form'}>
           {!owner ? <>
             <p>Selecione seu nome e digite o PIN para entrar diretamente na sua filial.</p>
             <label>Colaborador<select aria-label="Colaborador" value={selected} disabled={busy || loading} onChange={event => setSelected(event.target.value)} required>
@@ -217,11 +218,11 @@ export function PinAccessDialog({ mode, identity, user, onAuthorize, onSwitchAcc
               onChange={event => setPassword(event.target.value)} required disabled={busy} /></label>
           </>}
           {error && <p role="alert" className="otp-error-msg">{error}</p>}
-          <button className="module-submit-btn" disabled={busy || (!owner && (loading || Boolean(directoryError) || !directory.some(row => row.active)))}>
+          <button className={owner ? 'single-panel-confirm' : 'module-submit-btn'} disabled={busy || (!owner && (loading || Boolean(directoryError) || !directory.some(row => row.active)))}>
             {busy ? 'Conferindo…' : owner ? identity.salespersonId ? 'Entrar com a conta do proprietário' : 'Confirmar proprietário' : 'Entrar na minha filial'}
           </button>
-          {onClose && <button type="button" className="rma-advance-btn" disabled={busy} onClick={close}>Cancelar</button>}
-          {!onClose && <button type="button" className="rma-advance-btn" disabled={busy} onClick={() => void exitAccount()}>Sair da conta</button>}
+          {onClose && <button type="button" className={owner ? 'single-panel-secondary' : 'rma-advance-btn'} disabled={busy} onClick={close}>Cancelar</button>}
+          {!onClose && <button type="button" className={owner ? 'single-panel-secondary' : 'rma-advance-btn'} disabled={busy} onClick={() => void exitAccount()}>Sair da conta</button>}
         </form>
       </div>
     </div>

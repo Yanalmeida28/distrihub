@@ -53,7 +53,7 @@ function harness({ reply = { data: [employee], error: null }, scope = { can_acce
   vm.runInNewContext(helperSource, { exports: api, Error, setTimeout: callback => { callback(); }, require: name => name === './supabase' ? deps : require(name) });
   const components = {};
   vm.runInNewContext(gateSource, { exports: components, Error, sessionStorage,
-    require: name => name === '../../lib/supabase' ? deps : name === '../../lib/partnerAccess' ? api
+    require: name => name.endsWith('.css') ? {} : name === '../../lib/supabase' ? deps : name === '../../lib/partnerAccess' ? api
       : name === '../../lib/checkoutCash' ? cashExports
       : name === '../../hooks/useDeviceHeartbeat' ? { useDeviceHeartbeat: () => device } : require(name),
   });
