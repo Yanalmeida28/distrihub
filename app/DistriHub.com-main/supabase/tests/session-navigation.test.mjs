@@ -26,7 +26,7 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
   function admin({ onBack }) { return React.createElement('button', { onClick: onBack, 'data-panel': 'master' }, 'Sair do app'); }
   function login(props) { return React.createElement('div', { 'data-panel': 'login', 'data-recovery': props.recoveryMode }); }
   const dependencies = {
-    './components/AppUpdateNotice': { AppUpdateNotice: () => null },
+    './components/AppUpdateNotice': { AppUpdateNotice: props => React.createElement('aside', { 'data-update-notice': props.expectedUserId }) },
     './hooks/useAuth': { useAuth: () => auth, readWithJwtRecovery: clockHelpers.readWithJwtRecovery },
     './hooks/useSuperAdminAuth': { useSuperAdminAuth: () => ({}) },
     './hooks/useCart': { useCart: () => ({ cart: [], cartCount: 0, cartTotal: 0 }) },
@@ -52,6 +52,25 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
     async update(changes) { auth = { ...auth, ...changes }; await act(async () => renderer.update(React.createElement(exports.default))); },
     async close() { await act(async () => renderer.unmount()); } };
 }
+
+test('update notice only mounts inside an authenticated panel, never on landing, login or recovery', async () => {
+  const visitor=await harness({user:null});
+  assert.equal(visitor.renderer.root.findAllByType('aside').length,0);
+  await act(async()=>visitor.renderer.root.findByProps({'data-panel':'hub'}).props.onClick());
+  assert.ok(visitor.renderer.root.findByProps({'data-panel':'login'}));
+  assert.equal(visitor.renderer.root.findAllByType('aside').length,0);
+  await visitor.close();
+  const signed=await harness();
+  assert.ok(signed.renderer.root.findByProps({'data-update-notice':'owner'}));
+  await act(async()=>signed.renderer.root.findByProps({'data-panel':'partner'}).props.onClick());
+  assert.equal(signed.renderer.root.findAllByType('aside').length,0);
+  await signed.close();
+  for(const settings of [{recovery:true},{permissionError:new Error('denied')},{loading:true}]) {
+    const blocked=await harness(settings);
+    assert.equal(blocked.renderer.root.findAllByType('aside').length,0);
+    await blocked.close();
+  }
+});
 
 test('switching accounts ends the current session and requires a new login', async () => {
   const h = await harness();

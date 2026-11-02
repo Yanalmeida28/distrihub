@@ -30,7 +30,7 @@ function LoadingScreen({ label }: { label: string }) {
 
 function App() {
   const auth = useAuth();
-  return <><AppUpdateNotice expectedUserId={auth.user?.id ?? null} /><AppContent auth={auth} /></>;
+  return <AppContent auth={auth} />;
 }
 
 function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
@@ -184,6 +184,8 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
 
   return (
     <div className="app-shell">
+      {sessionUserId && !auth.passwordRecovery && (view === 'partner' || view === 'admin' || (view === 'super-admin' && superAdminUnlocked)) &&
+        <AppUpdateNotice expectedUserId={sessionUserId} />}
       {navigationError && <p role="alert" className="otp-error-msg">{navigationError}</p>}
       {view === 'hub' && (
         <HubHome
