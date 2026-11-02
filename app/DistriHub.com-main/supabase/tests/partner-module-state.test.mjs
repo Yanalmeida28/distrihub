@@ -16,6 +16,7 @@ test('trocar módulos preserva rascunhos; revogar acesso desmonta a tela', async
     visitedTabs: new Set(['cadastros','pdv']), blockedTabs: [], activeTab: 'cadastros', accessLocked: false,
     saas: {subscription: {}}, canUseSaasFeature: () => true,
     partner: {resourcesReady:true,loading:false},
+    deviceSession: {ready:true},
   });
   vm.runInContext(ts.transpileModule(code + '\nexports.renderTab=renderTab;', {
     compilerOptions: {module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX},
@@ -41,6 +42,10 @@ test('trocar módulos preserva rascunhos; revogar acesso desmonta a tela', async
   context.blockedTabs=['pdv'];
   await act(async () => renderer.update(screen()));
   assert.equal(renderer.root.findAllByProps({'aria-label':'venda'}).length,0);
+  context.deviceSession.ready=false;
+  await act(async () => renderer.update(screen()));
+  assert.equal(renderer.root.findAllByType('input').length,0);
+  context.deviceSession.ready=true;
   context.accessLocked=true;
   await act(async () => renderer.update(screen()));
   assert.equal(renderer.root.findAllByType('input').length,0);
