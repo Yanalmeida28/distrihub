@@ -2678,6 +2678,7 @@ function ReplenishmentSubTab({ products, sales, selectedBranchId, onReplenishSto
   const [quantity, setQuantity] = useSessionDraftState('replenishment:quantity', '');
   const [unitCost, setUnitCost] = useSessionDraftState('replenishment:unit-cost', '');
   const [reason, setReason] = useSessionDraftState('replenishment:reason', '');
+  const [expandedClass, setExpandedClass] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -2895,11 +2896,14 @@ function ReplenishmentSubTab({ products, sales, selectedBranchId, onReplenishSto
             { label: 'N', description: 'Sem receita registrada', items: classUnclassified },
           ] as const).map(({ label, description, items }) => (
             <section key={label} className={`replenishment-class-card replenishment-class-${label.toLowerCase()}`} aria-label={`Produtos Classe ${label}`}>
-              <div className="replenishment-class-header">
+              <button type="button" className="replenishment-class-header" aria-expanded={expandedClass === label}
+                aria-controls={`abc-products-${label}`} onClick={() => setExpandedClass(current => current === label ? null : label)}>
                 <div><h5>{label === 'N' ? 'Sem classificação' : `Classe ${label}`}</h5><span>{description}</span></div>
                 <span className="replenishment-class-count">{items.length} {items.length === 1 ? 'produto' : 'produtos'}</span>
-              </div>
-              {items.length === 0 ? <p className="admin-empty-hint">Nenhum produto nesta classe.</p> : (
+                <span className="replenishment-class-toggle" aria-hidden="true">{expandedClass === label ? '−' : '+'}</span>
+              </button>
+              <div id={`abc-products-${label}`} hidden={expandedClass !== label}>
+              {expandedClass === label && (items.length === 0 ? <p className="admin-empty-hint">Nenhum produto nesta classe.</p> : (
                 <div className="replenishment-class-products">
                   {items.map((p) => {
                     const lowStock = p.stock <= (p.minStock || 0);
@@ -2924,7 +2928,8 @@ function ReplenishmentSubTab({ products, sales, selectedBranchId, onReplenishSto
                     );
                   })}
                 </div>
-              )}
+              ))}
+              </div>
             </section>
           ))}
         </div>

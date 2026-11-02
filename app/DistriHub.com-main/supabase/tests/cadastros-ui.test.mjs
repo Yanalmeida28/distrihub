@@ -14,7 +14,7 @@ const productNamesModule={exports:{}};
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/productNames.ts',import.meta.url),'utf8')),{exports:productNamesModule.exports});
 const invoice={invoiceKey:'1'.repeat(44),supplier:{name:'Fornecedor',document:'12345678000199'},items:[{name:'Produto',sku:'P1',qty:2,cost:12.5}]};
 const exports={};
-vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/CadastrosModule.tsx',import.meta.url),'utf8')+'\nexports.Suppliers=SuppliersSubTab;exports.Xml=XmlSubTab;exports.Categories=CategoriesSubTab;exports.Combos=CombosSubTab;exports.Profile=CustomerProfileModal;exports.Products=ProductsSubTab;'),{
+vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/CadastrosModule.tsx',import.meta.url),'utf8')+'\nexports.Suppliers=SuppliersSubTab;exports.Xml=XmlSubTab;exports.Categories=CategoriesSubTab;exports.Combos=CombosSubTab;exports.Profile=CustomerProfileModal;exports.Products=ProductsSubTab;exports.Replenishment=ReplenishmentSubTab;'),{
  exports,Error,document:{body:{}},window:{confirm:()=>true,innerWidth:1024,innerHeight:768},require(name){
   if(name==='react-dom')return {createPortal:children=>children};
   if(name==='./ImportExportModule')return {ExportButtons:()=>null};
@@ -32,6 +32,25 @@ vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/
 let renderer;
 afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=null;});
 const rendered=()=>JSON.stringify(renderer.toJSON());
+test('mobile ABC opens only the selected class and can collapse it without changing the desktop analysis',async()=>{
+ const products=['A','B','C','N'].map(id=>({id,name:'Produto '+id,stock:10,min_stock:0,is_service:false}));
+ const sales=[{status:'concluida',items:['A','B','C'].map((id,index)=>({product_id:id,quantity:1,unit_price:[700,200,100][index]}))}];
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Replenishment,{products,sales,selectedBranchId:'branch',onReplenishStock:async()=>{throw new Error('No write expected');}}));});
+ const mobile=()=>renderer.root.findByProps({className:'replenishment-class-cards'});
+ const articles=()=>mobile().findAllByType('article');
+ const toggle=label=>mobile().findByProps({'aria-label':'Produtos Classe '+label}).findByProps({className:'replenishment-class-header'});
+ assert.equal(articles().length,0);
+ await act(async()=>toggle('A').props.onClick());
+ assert.equal(articles().length,1);assert.match(articles()[0].findByType('strong').children.join(''),/Produto A/);
+ assert.equal(toggle('A').props['aria-expanded'],true);
+ await act(async()=>toggle('B').props.onClick());
+ assert.equal(articles().length,1);assert.match(articles()[0].findByType('strong').children.join(''),/Produto B/);
+ assert.equal(toggle('A').props['aria-expanded'],false);
+ await act(async()=>toggle('B').props.onClick());assert.equal(articles().length,0);
+ await act(async()=>toggle('N').props.onClick());assert.equal(articles().length,1);
+ assert.match(articles()[0].findByType('strong').children.join(''),/Produto N/);
+ assert.equal(renderer.root.findByProps({className:'stock-table-wrap replenishment-analysis-table'}).findByType('tbody').findAllByType('tr').length,4);
+});
 const submit=()=>renderer.root.findByType('form').props.onSubmit({preventDefault(){}});
 test('product list remains usable while suppliers load and prevents saving an incomplete supplier selection',async()=>{
  let writes=0;
