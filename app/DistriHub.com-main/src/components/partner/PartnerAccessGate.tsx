@@ -192,25 +192,25 @@ export function PinAccessDialog({ mode, identity, user, onAuthorize, onSwitchAcc
   }
   const owner = mode === 'owner';
   return <div className="modal-backdrop" onClick={close}>
-    <div className={owner ? 'modal-content single-panel-modal' : 'modal-content operator-selection-modal'} role="dialog" aria-modal="true"
+    <div className="modal-content single-panel-modal" role="dialog" aria-modal="true"
       aria-labelledby="operator-access-title" onClick={event => event.stopPropagation()}>
-      <div className={owner ? 'single-panel-header' : 'modal-header'}><h3 id="operator-access-title">
+      <div className="single-panel-header"><h3 id="operator-access-title">
         {owner ? <Shield size={18} /> : <UserCheck size={18} />}{' '}
         {owner ? 'Acesso do proprietário' : 'Acesso do colaborador'}</h3>
         {onClose && <button type="button" aria-label="Fechar" disabled={busy} onClick={close}><X size={18} /></button>}
       </div>
-      <div className={owner ? 'single-panel-body' : 'rma-form'}>
-        <form onSubmit={submit} className={owner ? 'single-panel-form' : 'rma-form'}>
+      <div className="single-panel-body">
+        <form onSubmit={submit} className="single-panel-form">
           {!owner ? <>
             <p>Selecione seu nome e digite o PIN para entrar diretamente na sua filial.</p>
             <label>Colaborador<select aria-label="Colaborador" value={selected} disabled={busy || loading} onChange={event => setSelected(event.target.value)} required>
               <option value="">{loading ? 'Carregando…' : 'Selecione seu nome'}</option>
               {directory.map(row => <option key={row.id} value={row.id} disabled={!row.active}>{row.name} — {row.branch_name ?? 'Filial não definida'}{row.can_access_all_branches ? ' · Todas as filiais autorizadas' : ''}{!row.active ? ' · Inativo' : ''}</option>)}
             </select></label>
-            <button type="button" className="rma-advance-btn" disabled={busy || loading} onClick={() => setRetry(value => value + 1)}>Atualizar operadores</button>
-            <label><Lock size={14} /> PIN de acesso<input aria-label="PIN de acesso" type="password" inputMode="numeric" autoComplete="off"
+            <button type="button" className="single-panel-secondary" disabled={busy || loading} onClick={() => setRetry(value => value + 1)}>Atualizar operadores</button>
+            <label><span><Lock size={14} /> PIN de acesso</span><input aria-label="PIN de acesso" type="password" inputMode="numeric" autoComplete="off"
               value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, ''))} minLength={4} maxLength={8} required disabled={busy} /></label>
-            {directoryError && <p role="alert">{directoryError} <button type="button" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></p>}
+            {directoryError && <p role="alert">{directoryError} <button type="button" className="single-panel-secondary" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></p>}
             {!loading && !directoryError && directory.length === 0 && <p role="status">Nenhum colaborador ativo disponível nesta conta. Verifique o cadastro na Área do proprietário.</p>}
           </> : identity.salespersonId ? <p>Para liberar o acesso geral, entre com a conta do proprietário.</p> : <>
             <p>Informe a senha da Área do proprietário para liberar todas as filiais. Se ainda não cadastrou uma senha exclusiva em Configurações, use sua senha de login.</p>
@@ -218,11 +218,11 @@ export function PinAccessDialog({ mode, identity, user, onAuthorize, onSwitchAcc
               onChange={event => setPassword(event.target.value)} required disabled={busy} /></label>
           </>}
           {error && <p role="alert" className="otp-error-msg">{error}</p>}
-          <button className={owner ? 'single-panel-confirm' : 'module-submit-btn'} disabled={busy || (!owner && (loading || Boolean(directoryError) || !directory.some(row => row.active)))}>
+          <button className="single-panel-confirm" disabled={busy || (!owner && (loading || Boolean(directoryError) || !directory.some(row => row.active)))}>
             {busy ? 'Conferindo…' : owner ? identity.salespersonId ? 'Entrar com a conta do proprietário' : 'Confirmar proprietário' : 'Entrar na minha filial'}
           </button>
-          {onClose && <button type="button" className={owner ? 'single-panel-secondary' : 'rma-advance-btn'} disabled={busy} onClick={close}>Cancelar</button>}
-          {!onClose && <button type="button" className={owner ? 'single-panel-secondary' : 'rma-advance-btn'} disabled={busy} onClick={() => void exitAccount()}>Sair da conta</button>}
+          {onClose && <button type="button" className="single-panel-secondary" disabled={busy} onClick={close}>Cancelar</button>}
+          {!onClose && <button type="button" className="single-panel-secondary" disabled={busy} onClick={() => void exitAccount()}>Sair da conta</button>}
         </form>
       </div>
     </div>

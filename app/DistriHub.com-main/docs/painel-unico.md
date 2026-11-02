@@ -1,6 +1,6 @@
 # Referência visual: painel único
 
-O Acesso do Proprietário é a referência para novos modais e futuras revisões do DistriHub.
+Os acessos do Proprietário e do Colaborador usam este padrão e são a referência para novos modais e futuras revisões do DistriHub.
 
 - Uma superfície escura, com cantos arredondados; sem cartões ou molduras internos.
 - Título e descrição diretamente no painel; hierarquia por tipografia e espaçamento.
