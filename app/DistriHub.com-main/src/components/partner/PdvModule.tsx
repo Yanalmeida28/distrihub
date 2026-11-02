@@ -1075,7 +1075,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                 </div>
                 <div className="pdv-form-section pdv-payment-section">
                   <div className="form-row">
-                    <label>
+                    <label className="pdv-payment-method-field">
                       Forma de Pagamento
                       <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} disabled={!canCheckout}>
                         <option value="pix">PIX</option>
@@ -1096,7 +1096,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                   </div>
                 </div>
                 <div className="pdv-form-section pdv-delivery-section">
-                  <label>
+                  <label className="pdv-delivery-type-field">
                     Tipo de atendimento
                     <select aria-label="Tipo de atendimento da venda" value={deliveryType} onChange={event => setDeliveryType(event.target.value as DeliveryType)}>
                       <option value="balcao">Balcão</option>

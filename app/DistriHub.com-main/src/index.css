@@ -3554,3 +3554,15 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-table tbody{gap:0}
   .partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-table tr{border:0;border-bottom:1px solid var(--dh-border,#29465f);border-radius:0;background:transparent;padding:12px 0}
 }
+
+
+/* Campos lado a lado e uma única câmera no PDV mobile. */
+@media(max-width:768px){
+  .partner-panel .pdv-checkout-layout .pdv-form{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .partner-panel .pdv-checkout-layout .pdv-customer-section{grid-column:1/-1;grid-row:1}
+  .partner-panel .pdv-checkout-layout .pdv-customer-fields{grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:10px}
+  .partner-panel .pdv-checkout-layout .pdv-payment-method-field{grid-column:1;grid-row:2}
+  .partner-panel .pdv-checkout-layout .pdv-delivery-type-field{grid-column:2;grid-row:2}
+  .partner-panel .pdv-checkout-layout .pdv-form :is(input,select){width:100%;min-height:44px;font-size:16px}
+  .partner-panel .pdv-checkout-layout .pdv-camera-button{display:none}
+}
