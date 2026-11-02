@@ -3566,3 +3566,6 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .pdv-checkout-layout .pdv-form :is(input,select){width:100%;min-height:44px;font-size:16px}
   .partner-panel .pdv-checkout-layout .pdv-camera-button{display:none}
 }
+
+/* Delimita o carrinho sem recriar cartões nas opções da venda. */
+.partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-main{padding:12px;border:1px solid #49677f;border-radius:12px;margin-bottom:8px}
