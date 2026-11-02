@@ -192,11 +192,13 @@ function SalesHistoryContent({ companyId, branchId = null, isActive = true, curr
   return (<>
     <div className="orders-filter-row sales-history-filters">
       <label>Buscar venda<input type="search" name="sales-history-search" maxLength={200} autoComplete="off" data-lpignore="true" data-1p-ignore="true" disabled={!!cancelTarget} value={search} onChange={e => { if (!cancelTarget) setSearch(e.target.value); }} placeholder="Cliente, número da venda, série ou IMEI" /></label>
-      <label>De<input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
-      <label>Até<input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></label>
+      <div className="date-range-fields" role="group" aria-label="Período do histórico">
+        <label>Data inicial<input type="date" aria-label="Data inicial do histórico" value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
+        <label>Data final<input type="date" aria-label="Data final do histórico" value={endDate} onChange={e => setEndDate(e.target.value)} /></label>
+      </div>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option><option value="aberta">Aberta</option><option value="devolucao">Devolução</option></select></label>
       <button className="rma-advance-btn" onClick={() => { const today = localDate(new Date()); setStartDate(today); setEndDate(today); }}>Hoje</button>
-      <button className="rma-advance-btn" onClick={() => { setStartDate(''); setEndDate(''); }}>Todo o período</button>
+      <button type="button" className="rma-advance-btn" onClick={() => { setStartDate(''); setEndDate(''); }}>Limpar período</button>
     </div>
     {historyError && <p role="alert" className="otp-error-msg">{historyError}<button className="rma-advance-btn" onClick={() => setHistoryVersion(value => value + 1)}>Tentar novamente</button></p>}
     {serverMode && !currentHistory ? !historyError && <p role="status">Carregando histórico...</p> : <p>{serverMode ? currentHistory?.total ?? 0 : filteredSales.length} vendas encontradas no período. Total concluído: <strong>{money.format(serverMode ? currentHistory?.completedTotal ?? 0 : filteredSales.filter(s => s.status === 'concluida').reduce((sum, s) => sum + Number(s.total), 0))}</strong></p>}

@@ -51,7 +51,7 @@ test('sales history filters local day, period and status without limiting to ten
   try {
     const rows = () => view.root.findByType('tbody').findAllByType('tr');
     assert.equal(rows().length, 13);
-    act(() => view.root.findAllByType('button').find(b => b.children.includes('Todo o período')).props.onClick());
+    act(() => view.root.findAllByType('button').find(b => b.children.includes('Limpar período')).props.onClick());
     assert.equal(rows().length, 14);
     act(() => view.root.findByType('select').props.onChange({ target: { value: 'concluida' } }));
     assert.equal(rows().length, 13);

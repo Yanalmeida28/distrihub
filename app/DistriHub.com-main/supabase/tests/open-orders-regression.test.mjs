@@ -54,9 +54,13 @@ test('business date filter includes all of the Sao Paulo day and excludes adjoin
  for(const date of ['2026-10-14T02:59:59.999Z','2026-10-15T03:00:00Z','invalid'])assert.equal(filters.orderMatchesDate(date,'2026-10-14','2026-10-14'),false);
 });
 test('actual filter retains today midday and rejects inverted range visibly',async()=>{
- await mount();await act(async()=>{const dates=view.root.findAllByProps({type:'date'});dates[0].props.onChange({target:{value:'2026-10-14'}});dates[1].props.onChange({target:{value:'2026-10-14'}});});
+ await mount({sales:[sale,{...sale,id:'older',created_at:'2026-10-13T15:00:00Z'}]});await act(async()=>{const dates=view.root.findAllByProps({type:'date'});dates[0].props.onChange({target:{value:'2026-10-14'}});dates[1].props.onChange({target:{value:'2026-10-14'}});});
  await act(async()=>button('Pesquisar').props.onClick());assert.equal(view.root.findAllByType('sale-actions').length,1);
  await act(async()=>view.root.findAllByProps({type:'date'})[0].props.onChange({target:{value:'2026-10-15'}}));await act(async()=>button('Pesquisar').props.onClick());assert.match(rendered(),/data inicial deve ser/);
+ await act(async()=>button('Limpar período').props.onClick());
+ assert.ok(view.root.findAllByProps({type:'date'}).every(input=>input.props.value===''));
+ assert.equal(view.root.findAllByType('sale-actions').length,2);
+ assert.doesNotMatch(rendered(),/data inicial deve ser/);
 });
 test('owner can self-authorize without registered supervisors or a PIN',async()=>{
  const calls=[];await mount({onCancelSale:async(...args)=>calls.push(args)});await act(async()=>view.root.findByType('sale-actions').props.onCancel());

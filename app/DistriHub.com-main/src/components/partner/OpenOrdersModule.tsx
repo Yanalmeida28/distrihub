@@ -218,6 +218,11 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
     setFilterError(null);
   }
 
+  function clearPeriod() {
+    setDateStart(''); setDateEnd(''); setFilterError(null);
+    setAppliedFilters(current => current ? { ...current, dateStart: '', dateEnd: '' } : null);
+  }
+
   const totalAmount = displayedOrders.reduce((sum, s) => sum + saleChargeTotal(s), 0);
   const pendingCount = displayedOrders.filter((s) => s.payment_status === 'pendente' || s.status === 'pre_venda').length;
 
@@ -329,14 +334,16 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
       {/* Filter Bar */}
       <div className="orders-filter-bar">
         <div className="orders-filter-row">
+          <div className="date-range-fields" role="group" aria-label="Período dos pedidos">
           <label className="orders-filter-field">
             <Calendar size={14} /> Data inicial
-            <input type="date" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
+            <input type="date" aria-label="Data inicial dos pedidos" value={dateStart} onChange={(e) => setDateStart(e.target.value)} />
           </label>
           <label className="orders-filter-field">
             <Calendar size={14} /> Data final
-            <input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
+            <input type="date" aria-label="Data final dos pedidos" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} />
           </label>
+          </div>
           <label className="orders-filter-field">
             Identificador do pedido
             <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="Nº do pedido" />
@@ -347,6 +354,7 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
           </label>
         </div>
         <div className="orders-filter-actions">
+          <button type="button" className="rma-advance-btn" onClick={clearPeriod}>Limpar período</button>
           <button className="rma-advance-btn" onClick={() => setShowAdvanced(!showAdvanced)}>
             <Filter size={14} /> Opções de pesquisa
           </button>

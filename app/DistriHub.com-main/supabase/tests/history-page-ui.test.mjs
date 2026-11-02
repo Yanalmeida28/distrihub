@@ -99,6 +99,6 @@ test('initial date and Today use Sao Paulo even when the browser is in UTC',asyn
  class FixedDate extends Date{constructor(...args){super(...(args.length?args:['2026-10-15T01:00:00Z']));}}
  const h=await harness(()=>response([],0,0),{},FixedDate);
  try{await h.flush();assert.equal(h.calls[0].args.p_start,'2026-10-14');
-  await act(async()=>button(h,'Todo o período').props.onClick());await h.flush();await act(async()=>button(h,'Hoje').props.onClick());await h.flush();assert.equal(h.calls.at(-1).args.p_end,'2026-10-14');
+  await act(async()=>button(h,'Limpar período').props.onClick());await h.flush();await act(async()=>button(h,'Hoje').props.onClick());await h.flush();assert.equal(h.calls.at(-1).args.p_end,'2026-10-14');
  }finally{await h.close();if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}
 });

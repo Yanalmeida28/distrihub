@@ -3569,3 +3569,9 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 
 /* Delimita o carrinho sem recriar cartões nas opções da venda. */
 .partner-panel .pdv-checkout-layout .pdv-right .pdv-cart-main{padding:12px;border:1px solid #49677f;border-radius:12px;margin-bottom:8px}
+
+/* Datas sempre lado a lado em Pedidos e Histórico. */
+.partner-panel .date-range-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;flex:1 1 290px;min-width:0;max-width:100%;align-items:end}
+.partner-panel .date-range-fields>label{display:flex;flex-direction:column;gap:6px;min-width:0;margin:0}
+.partner-panel .date-range-fields input[type=date]{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px}
+@media(max-width:768px){.partner-panel .orders-filter-row>.date-range-fields{flex:0 0 auto;width:100%}.partner-panel .sales-history-filters .date-range-fields>label:first-child{flex-basis:auto}}
