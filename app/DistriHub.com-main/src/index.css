@@ -2659,6 +2659,12 @@ html, body {
 .open-order-editor .pdv-cart-item { gap: 8px; flex-wrap: wrap; }
 .open-order-editor .pdv-cart-item > div:first-child { min-width: 0; overflow-wrap: anywhere; }
 .open-order-editor .pdv-item-controls { margin-left: auto; }
+/* Separação dos produtos ao editar pedidos em aberto. */
+.open-order-editor .pdv-cart-items{gap:4px}
+.open-order-editor .pdv-cart-item{padding:14px 0;border-bottom:1px solid #49677f}
+.open-order-editor .open-order-editor-results{gap:8px;padding:2px}
+.open-order-editor .open-order-editor-results>button{margin:0;padding:10px 12px;border:1px solid #49677f;border-radius:8px;text-align:left;white-space:normal;overflow-wrap:anywhere;min-height:44px}
+
 .partner-panel .pdv-presale-layout { align-items: start; gap: 12px; }
 .pdv-presale-layout .pdv-left,
 .pdv-presale-layout .pdv-right { min-width: 0; }
