@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Upload, FileText, Download, Table, FileSpreadsheet, File, Check, X, ArrowRight,
   Users,
@@ -11,6 +11,7 @@ import { buildCsv, escapeHtml } from '../../lib/exportSafety';
 type ImportTarget = 'produtos' | 'clientes';
 
 type Props = {
+  canImportExport?: boolean;
   products: PartnerProduct[];
   customers: PartnerCustomer[];
   selectedBranchId?: string | null;
@@ -269,8 +270,9 @@ function exportProductsCSV(products: PartnerProduct[]) {
   downloadFile(csv, 'produtos.csv', 'text/csv;charset=utf-8');
 }
 
-async function exportProductsExcel(products: PartnerProduct[]) {
+async function exportProductsExcel(products: PartnerProduct[], canContinue = () => true) {
   const XLSX = await import('xlsx');
+  if (!canContinue()) return;
   const headers = ['Nome', 'SKU', 'Custo', 'Varejo', 'Atacado', 'Estoque', 'Categoria'];
   const rows = products.map((p) => [
     p.name, p.sku ?? '', p.cost_price, p.sale_price,
@@ -299,8 +301,9 @@ function exportCustomersCSV(customers: PartnerCustomer[]) {
   downloadFile(csv, 'clientes.csv', 'text/csv;charset=utf-8');
 }
 
-async function exportCustomersExcel(customers: PartnerCustomer[]) {
+async function exportCustomersExcel(customers: PartnerCustomer[], canContinue = () => true) {
   const XLSX = await import('xlsx');
+  if (!canContinue()) return;
   const headers = ['Nome', 'CPF/CNPJ', 'WhatsApp', 'E-mail', 'Endereço', 'Bairro', 'Cidade', 'Tipo'];
   const rows = customers.map((c) => [
     c.name, c.document ?? '', c.phone ?? '', c.email ?? '',
@@ -319,14 +322,23 @@ function exportCustomersPDF(customers: PartnerCustomer[]) {
   win.print();
 }
 
-export function ExportButtons({ target, products, customers }: { target: ImportTarget; products: PartnerProduct[]; customers: PartnerCustomer[] }) {
+type ExportProps = { allowed?: boolean; target: ImportTarget; products: PartnerProduct[]; customers: PartnerCustomer[] };
+
+export function ExportButtons(props: ExportProps) {
+  if (props.allowed !== true) return null;
+  return <AuthorizedExportButtons {...props} />;
+}
+
+function AuthorizedExportButtons({ target, products, customers }: ExportProps) {
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [exportError, setExportError] = useState('');
   const [exporting, setExporting] = useState(false);
   const exportLock = useRef(false);
-  async function runExport(action: () => Promise<void>) {
+  async function runExport(action: (canContinue: () => boolean) => Promise<void>) {
     if (exportLock.current) return;
     exportLock.current = true; setExporting(true); setExportError('');
-    try { await action(); }
+    try { await action(() => active.current); }
     catch { setExportError('Não foi possível gerar a planilha. Confira a conexão e tente novamente.'); }
     finally { exportLock.current = false; setExporting(false); }
   }
@@ -334,7 +346,7 @@ export function ExportButtons({ target, products, customers }: { target: ImportT
     return (
       <div className="export-btn-group">
         {exportError && <p role="alert">{exportError}</p>}
-        <button className="rma-advance-btn" disabled={exporting} onClick={() => void runExport(() => exportProductsExcel(products))} title="Exportar para Excel">
+        <button className="rma-advance-btn" disabled={exporting} onClick={() => void runExport(canContinue => exportProductsExcel(products, canContinue))} title="Exportar para Excel">
           <FileSpreadsheet size={14} /> Excel
         </button>
         <button className="rma-advance-btn" onClick={() => exportProductsCSV(products)} title="Exportar CSV">
@@ -349,7 +361,7 @@ export function ExportButtons({ target, products, customers }: { target: ImportT
   return (
     <div className="export-btn-group">
       {exportError && <p role="alert">{exportError}</p>}
-      <button className="rma-advance-btn" disabled={exporting} onClick={() => void runExport(() => exportCustomersExcel(customers))} title="Exportar para Excel">
+      <button className="rma-advance-btn" disabled={exporting} onClick={() => void runExport(canContinue => exportCustomersExcel(customers, canContinue))} title="Exportar para Excel">
         <FileSpreadsheet size={14} /> Excel
       </button>
       <button className="rma-advance-btn" onClick={() => exportCustomersCSV(customers)} title="Exportar CSV">
@@ -362,7 +374,14 @@ export function ExportButtons({ target, products, customers }: { target: ImportT
   );
 }
 
-export function ImportExportModule({ products, customers, selectedBranchId, onAddProduct, onUpdateProduct, onAddCustomer }: Props) {
+export function ImportExportModule(props: Props) {
+  if (props.canImportExport !== true) return null;
+  return <AuthorizedImportExportModule {...props} />;
+}
+
+function AuthorizedImportExportModule({ products, customers, selectedBranchId, onAddProduct, onUpdateProduct, onAddCustomer }: Props) {
+  const active = useRef(true);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [target, setTarget] = useState<ImportTarget>('produtos');
   const [parsed, setParsed] = useState<ParsedData | null>(null);
   const [fileName, setFileName] = useState('');
@@ -482,6 +501,7 @@ export function ImportExportModule({ products, customers, selectedBranchId, onAd
   }
 
   function handleImport() {
+    if (!active.current) return;
     if (!parsed) return;
     if (duplicateFields.length > 0) {
       setMapWarning(`Mapeamento ambíguo: os campos ${duplicateFields.map((f) => `"${fieldLabels[f] ?? f}"`).join(', ')} foram associados a mais de uma coluna. Corrija antes de importar.`);
@@ -738,6 +758,7 @@ export function ImportExportModule({ products, customers, selectedBranchId, onAd
       let fail = 0;
 
       for (const item of prepared) {
+        if (!active.current) return;
         try {
           if (item.kind === 'produto') {
             if (item.existingProductId) {
@@ -935,7 +956,7 @@ export function ImportExportModule({ products, customers, selectedBranchId, onAd
         <p style={{ color: '#7f97a9', fontSize: '13px', marginBottom: '12px' }}>
           Baixe os dados cadastrados em formato Excel, CSV ou PDF:
         </p>
-        <ExportButtons target={target} products={products} customers={customers} />
+        <ExportButtons allowed target={target} products={products} customers={customers} />
       </div>
     </div>
   );

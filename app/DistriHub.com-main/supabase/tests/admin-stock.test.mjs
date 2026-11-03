@@ -23,6 +23,7 @@ const registrationProps = (planId, extra = {}) => ({
 const buttonText = button => button.children.filter(value => typeof value === 'string').join('').trim();
 const collaboratorShortcut = renderer => renderer.root.findAllByType('button').some(button => buttonText(button) === 'Colaboradores');
 const collaboratorEditor = renderer => renderer.root.findAllByType('button').some(button => buttonText(button).includes('Adicionar colaborador'));
+
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/components/partner/CadastrosModule.tsx', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
 }).outputText, {
@@ -168,3 +169,20 @@ test('filial mostra colaboradores locais e globais, sem incluir outra filial', a
 });
 
 
+
+test('import and XML shortcuts require explicit permission, including restored tabs and permission revocation', async () => {
+  for (const initialTab of ['importar', 'xml']) {
+    let renderer;
+    const props = registrationProps('profissional', { initialTab, canManageSalespeople: false });
+    await act(async () => { renderer = TestRenderer.create(React.createElement(exports.CadastrosModule, props)); });
+    const transferShortcuts = () => renderer.root.findAllByType('button').filter(button => /Importar|Entrada via XML/.test(buttonText(button)));
+    assert.equal(transferShortcuts().length, 0);
+    assert.equal(renderer.root.findAllByProps({ type: 'file' }).length, 0);
+    await act(async () => renderer.update(React.createElement(exports.CadastrosModule, { ...props, canImportExport: true })));
+    assert.equal(transferShortcuts().length, 2);
+    await act(async () => renderer.update(React.createElement(exports.CadastrosModule, { ...props, canImportExport: false })));
+    assert.equal(transferShortcuts().length, 0);
+    assert.equal(renderer.root.findAllByProps({ type: 'file' }).length, 0);
+    await act(async () => renderer.unmount());
+  }
+});

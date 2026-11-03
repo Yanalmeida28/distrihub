@@ -221,6 +221,7 @@ test('executive PDF escapes names, SKU and category; executive CSV protects form
   }, '\nexports.ExecutiveDashboard=ExecutiveDashboard;');
   const marker = '<img src=x onerror="alert(1)">'; let renderer;
   await act(async () => { renderer = TestRenderer.create(React.createElement(ExecutiveDashboard, {
+    canExport: true,
     sales: [{ id: 'sale', status: 'concluida', created_at: new Date().toISOString(), total: 20, customer_name: '=1+1;Cliente',
       items: [{ product_id: 'product', name: marker, quantity: 1, unit_price: 20 }] }],
     products: [{ id: 'product', name: marker, sku: marker, category: marker, cost_price: 10, stock: 1 }],

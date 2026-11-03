@@ -65,6 +65,7 @@ class AdminErrorBoundary extends Component<
 }
 
 type Props = {
+  canImportExport?: boolean;
   onDataScopeChange?: (tab: string) => void;
   onReportScopeChange?: (tab: string) => void;
   intelligenceAllowed?: boolean;
@@ -188,6 +189,7 @@ const sidebarSections: {
 ];
 
 export function AdminModule({
+  canImportExport = false,
   onDataScopeChange, onReportScopeChange,
   intelligenceAllowed = false, intelligenceDataReady = false, intelligenceDataError, lastSyncedAt,
   renderSettings,
@@ -217,12 +219,14 @@ export function AdminModule({
         onSelectBranch={onSelectBranch}
         onNavigate={onNavigate}
         ownerView={ownerView}
+        canImportExport={canImportExport}
       />
     </AdminErrorBoundary>
   );
 }
 
 function AdminModuleInner({
+  canImportExport = false,
   onDataScopeChange, onReportScopeChange,
   intelligenceAllowed = false, intelligenceDataReady = false, intelligenceDataError, lastSyncedAt,
   renderSettings,
@@ -234,15 +238,18 @@ function AdminModuleInner({
   const allowed = (module: string) => module === 'inteligencia'
     ? intelligenceAllowed && ownerView && Boolean(userId) && ['relatorios', 'financeiro'].every(feature => allowedModules.includes(feature))
     : module === 'dashboard' || allowedModules.includes(module);
-  const ownerPages = ['permissoes', 'dispositivos', 'gestao-dados'];
+  const ownerPages = ['permissoes', 'dispositivos'];
   const visibleSections = sidebarSections.filter(section => allowed(section.id)).map(section => ({
-    ...section, items: section.items.filter(item => ownerView || !('page' in item && ownerPages.includes(item.page ?? ''))),
+    ...section, items: section.items.filter(item =>
+      (ownerView || !('page' in item && ownerPages.includes(item.page ?? '')))
+      && (canImportExport || (item.id !== 'importar' && item.page !== 'gestao-dados'))),
   }));
   const [expandedSection, setExpandedSection] = useState<AdminSection>('dashboard');
   const [activeAdminTab, setActiveAdminTab] = useState<AdminTab>('dashboard');
   const [activeItemId, setActiveItemId] = useState('visao-geral');
   const currentModule = ['dashboard', 'cadastros', 'relatorios', 'inteligencia', 'fiscal', 'financeiro'].includes(activeAdminTab) ? activeAdminTab : 'configuracoes';
-  const canViewCurrent = allowed(currentModule) && (ownerView || !ownerPages.includes(activeAdminTab));
+  const canViewCurrent = allowed(currentModule) && (ownerView || !ownerPages.includes(activeAdminTab))
+    && (canImportExport || (activeItemId !== 'importar' && activeAdminTab !== 'gestao-dados'));
   const [branchFilter, setBranchFilter] = useState(selectedBranchId);
   const [reportsInitialTab, setReportsInitialTab] = useState<'vendas' | 'sem-giro'>('vendas');
   useEffect(() => { if (isActive) onDataScopeChange?.(activeAdminTab); }, [activeAdminTab, isActive, onDataScopeChange]);
@@ -260,6 +267,7 @@ function AdminModuleInner({
   }
 
   function handleItemClick(item: { id: string; label: string; tab?: string; page?: AdminPage }) {
+    if (!canImportExport && (item.id === 'importar' || item.page === 'gestao-dados')) return;
     const module = item.tab ?? (item.page === 'dashboard' ? 'dashboard' : 'configuracoes');
     if (!allowed(module) || (!ownerView && ownerPages.includes(item.page ?? ''))) return;
     onDataScopeChange?.(item.tab ?? item.page ?? 'dashboard');
@@ -329,6 +337,7 @@ function AdminModuleInner({
           {!canViewCurrent ? <p role="alert">Acesso a esta seção indisponível para este usuário ou assinatura. Selecione outra seção.</p> : <>
           {activeAdminTab === 'dashboard' && (
             <ExecutiveDashboard
+              canExport={canImportExport}
               isActive={isActive}
               sales={sales}
               products={products}
@@ -348,6 +357,7 @@ function AdminModuleInner({
           )}
           {activeAdminTab === 'relatorios' && (
             <ReportsModule
+              canExport={canImportExport}
               isActive={isActive}
               onDataScopeChange={onReportScopeChange}
               companyUserId={userId ?? null}
@@ -438,7 +448,7 @@ function AdminModuleInner({
           {activeAdminTab === 'permissoes' && (ownerView ? <><p>Gerencie a equipe, os acessos aos módulos, a função, a filial e o PIN de cada usuário. Clique em Editar para marcar os módulos permitidos e salve as alterações. As ações continuam limitadas pela função.</p>{renderCadastros?.('vendedores')}</> : <p role="alert">Somente o proprietário pode administrar os acessos.</p>)}
           {activeAdminTab === 'auditoria' && <AuditTrail sales={sales} salespeople={salespeople} />}
           {activeAdminTab === 'dispositivos' && (ownerView ? <AdminDeviceRegistry isActive={isActive} userId={userId} branchId={branchFilter} branches={branches} /> : <p role="alert">Somente o proprietário pode consultar os terminais da loja.</p>)}
-          {activeAdminTab === 'gestao-dados' && (ownerView ? <AdminDataExports products={products} sales={sales} customers={customers} branchId={branchFilter} extra={{ branches, suppliers, categories, invoices: scopedInvoices, stock_movements: movements, payables: scopedPayables }} /> : <p role="alert">Somente o proprietário pode exportar os dados administrativos.</p>)}
+          {activeAdminTab === 'gestao-dados' && (canImportExport ? <AdminDataExports allowed products={products} sales={sales} customers={customers} branchId={branchFilter} extra={{ branches, suppliers, categories, invoices: scopedInvoices, stock_movements: movements, payables: scopedPayables }} /> : <p role="alert">Somente o proprietário e administradores podem exportar os dados administrativos.</p>)}
           {activeAdminTab === 'configuracoes' && (
             renderSettings?.()
           )}
@@ -474,8 +484,10 @@ function GrowthBadge({ pct }: { pct: number | null }) {
 /* ============ Executive Dashboard ============ */
 
 function ExecutiveDashboard({
+  canExport = false,
   isActive = true, sales, products, movements = [], salespeople = [], customers, branches, branchFilter, onBranchChange, onOpenStagnantStock,
 }: {
+  canExport?: boolean;
   isActive?: boolean;
   sales: PartnerSale[];
   products: PartnerProduct[];
@@ -664,6 +676,7 @@ function ExecutiveDashboard({
   }, [currentSales, salespeople]);
 
   function exportCSV() {
+    if (!canExport) return;
     const headers = ['Data', 'Cliente', 'Total', 'Custo', 'Lucro estimado', 'Pagamento', 'Vendedor', 'Custo histórico'];
     const rows = currentSales.map((s) => {
       const sp = salespeople.find((p) => p.id === s.salesperson_id);
@@ -691,6 +704,7 @@ function ExecutiveDashboard({
   }
 
   function exportPDF() {
+    if (!canExport) return;
     const win = window.open('', '_blank');
     if (!win) return;
     const html = `
@@ -761,12 +775,12 @@ function ExecutiveDashboard({
               <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="admin-date-input" />
             </>
           )}
-          <button className="admin-export-btn" disabled={Boolean(range.error)} onClick={exportPDF}>
+          {canExport && <button className="admin-export-btn" disabled={Boolean(range.error)} onClick={exportPDF}>
             <FileText size={14} /> PDF
-          </button>
-          <button className="admin-export-btn" disabled={Boolean(range.error)} onClick={exportCSV}>
+          </button>}
+          {canExport && <button className="admin-export-btn" disabled={Boolean(range.error)} onClick={exportCSV}>
             <Download size={14} /> Excel
-          </button>
+          </button>}
         </div>
       </div>
 

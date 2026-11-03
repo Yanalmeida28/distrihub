@@ -31,6 +31,22 @@ const base={sales:[],products:[],movements:[],salespeople:[],customers:[],branch
 const sale={id:'sale',user_id:'owner',branch_id:'A',customer_id:'customer',customer_name:'Cliente',items:[],status:'concluida',total:100,payment_method:'dinheiro',created_at:'2026-08-01T12:00:00Z',completed_at:'2026-10-15T12:00:00Z'};
 const pills=r=>r.root.findAll(node=>typeof node.props.className==='string'&&node.props.className.startsWith('period-pill'));
 
+test('administrators can reach data exports while staff cannot retain an open export page after revocation', async()=>{
+ const {AdminModule}=harness().load('components/partner/AdminModule.tsx');
+ const props={...base,userId:'owner',ownerView:false,allowedModules:['configuracoes'],canImportExport:true};
+ let r;await act(async()=>{r=Renderer.create(React.createElement(AdminModule,props));});
+ const settingsSection=r.root.findAll(node=>node.props.className?.startsWith?.('admin-sidebar-section-header'))[1];
+ await act(async()=>settingsSection.props.onClick());
+ const item=r.root.findAllByType('button').find(button=>button.children.filter(child=>typeof child==='string').join('').includes('Exportar Dados'));
+ assert.ok(item);
+ await act(async()=>item.props.onClick());
+ assert.equal(r.root.findAllByProps({role:'alert'}).length,0);
+ await act(async()=>r.update(React.createElement(AdminModule,{...props,canImportExport:false})));
+ assert.equal(r.root.findAllByProps({role:'alert'}).length,1);
+ assert.doesNotMatch(JSON.stringify(r.toJSON()),/Exportar Dados/);
+ await act(async()=>r.unmount());
+});
+
 test('Admin periods include the full Sao Paulo civil day, reject invalid ranges and compare complete days',()=>{
  const helpers=harness().load('lib/adminDashboard.ts');const range=helpers.getAdminPeriodRange('custom','2026-10-15','2026-10-15');
  assert.equal(range.start.toISOString(),'2026-10-15T03:00:00.000Z');assert.equal(range.end.toISOString(),'2026-10-16T03:00:00.000Z');assert.equal(range.prevStart.toISOString(),'2026-10-14T03:00:00.000Z');
@@ -42,7 +58,7 @@ test('Admin periods include the full Sao Paulo civil day, reject invalid ranges 
 
 test('Dashboard uses completion dates, covers every long-range sale and hides invalid results/exports',async()=>{
  const {ExecutiveDashboard}=harness().load('components/partner/AdminModule.tsx');let r;
- await act(async()=>{r=Renderer.create(React.createElement(ExecutiveDashboard,{...base,sales:[sale]}));});
+ await act(async()=>{r=Renderer.create(React.createElement(ExecutiveDashboard,{...base,canExport:true,sales:[sale]}));});
  const revenue=()=>r.root.findAllByProps({className:'report-card admin-kpi-card'})[0].findByType('strong').children.join('');assert.match(revenue(),/100,00/);
  await act(async()=>pills(r)[4].props.onClick());let dates=r.root.findAllByType('input').filter(n=>n.props.type==='date');
  await act(async()=>dates[0].props.onChange({target:{value:'2026-01-01'}}));await act(async()=>dates[1].props.onChange({target:{value:'2026-10-15'}}));

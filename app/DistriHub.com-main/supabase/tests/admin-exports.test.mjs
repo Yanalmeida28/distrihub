@@ -23,6 +23,7 @@ vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/componen
 test('exportações geram arquivos reais, removem credenciais do JSON e protegem CSV de fórmulas', async () => {
   let renderer;
   await act(async () => { renderer = TestRenderer.create(React.createElement(exports.AdminDataExports, {
+    allowed: true,
     branchId: 'branch', products: [{ name: 'Produto', sku: 'p', stock: 2, sale_price: 5, cost_price: 3 }],
     sales: [{ id: 'sale', customer_name: '=HYPERLINK("url")', total: 10, status: 'concluida' }],
     customers: [{ id: 'customer', name: 'Cliente' }], extra: { collaborators: [{ name: 'Colaborador', pin_hash: 'secret', new_pin: '1234' }] },

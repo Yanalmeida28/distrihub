@@ -24,6 +24,7 @@ import { useStagnantStock } from '../../hooks/useStagnantStock';
 import { CrmWorkspace } from './CrmWorkspace';
 
 type Props = {
+  canExport?: boolean;
   isActive?: boolean;
   onDataScopeChange?: (tab: string) => void;
   companyUserId?: string | null;
@@ -81,7 +82,7 @@ const roleLabels: Record<SalespersonRole, string> = {
   logistica: 'Logística / Entregador',
 };
 
-export function ReportsModule({ isActive = true, onDataScopeChange, sales, products, customers, salespeople, movements = [], companyUserId = null, branchId = null, invoices = [], initialTab = 'vendas' }: Props) {
+export function ReportsModule({ canExport = false, isActive = true, onDataScopeChange, sales, products, customers, salespeople, movements = [], companyUserId = null, branchId = null, invoices = [], initialTab = 'vendas' }: Props) {
   const [tab, setTab] = useState<ReportTab>(initialTab);
   const [range, setRange] = useState<SalesRange>('30d');
   const [startDate, setStartDate] = useState(() => localDateInput(new Date(Date.now() - 30 * 86_400_000)));
@@ -110,6 +111,7 @@ export function ReportsModule({ isActive = true, onDataScopeChange, sales, produ
   );
 
   function exportCsv() {
+    if (!canExport) return;
     if (!visibleSales.length) {
       setRangeError('Não há vendas concluídas no período selecionado para exportar.');
       return;
@@ -161,7 +163,7 @@ export function ReportsModule({ isActive = true, onDataScopeChange, sales, produ
             <label>Até <input aria-label="Data final do relatório" type="date" value={endDate} onChange={(event) => { setEndDate(event.target.value); setRangeError(null); }} min={startDate} /></label>
           </>
         )}
-        {tab === 'vendas' && (
+        {canExport && tab === 'vendas' && (
           <button type="button" className="module-action-btn" onClick={exportCsv}>
             <Download size={15} /> Exportar vendas CSV
           </button>
@@ -181,10 +183,10 @@ export function ReportsModule({ isActive = true, onDataScopeChange, sales, produ
           {productFilter && <small>Totais das vendas que contêm o produto selecionado, incluindo os demais itens dessas vendas.</small>}
         </div>}
         {tab === 'vendas' && <SalesReport sales={visibleSales} products={products} salespeople={salespeople} />}
-        {tab === 'financeiro' && <FinancialReport sales={visibleSales} allSales={completedSales} products={products} />}
-        {tab === 'estoque' && <StockReport products={products} sales={visibleSales} />}
-        {tab === 'sem-giro' && <StagnantStockReport isActive={isActive} products={products} sales={sales} movements={movements} />}
-        {tab === 'crm' && <><CrmReport customers={customers} sales={visibleSales} /><CrmWorkspace customers={customers} sales={completedSales} invoices={invoices} salespeople={salespeople} companyUserId={companyUserId} branchId={branchId} /></>}
+        {tab === 'financeiro' && <FinancialReport canExport={canExport} sales={visibleSales} allSales={completedSales} products={products} />}
+        {tab === 'estoque' && <StockReport canExport={canExport} products={products} sales={visibleSales} />}
+        {tab === 'sem-giro' && <StagnantStockReport canExport={canExport} isActive={isActive} products={products} sales={sales} movements={movements} />}
+        {tab === 'crm' && <><CrmReport canExport={canExport} customers={customers} sales={visibleSales} /><CrmWorkspace customers={customers} sales={completedSales} invoices={invoices} salespeople={salespeople} companyUserId={companyUserId} branchId={branchId} /></>}
         {(tab === 'vendas' || tab === 'financeiro') && <details><summary>Vendas que compõem os totais ({visibleSales.length})</summary><div className="stock-table-wrap"><table className="rma-table"><thead><tr><th>Venda</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th>Total</th></tr></thead><tbody>{visibleSales.map(s=><tr key={s.id}><td>#{s.id.slice(0,8)}</td><td>{new Date(s.created_at).toLocaleString('pt-BR')}</td><td>{s.customer_name}</td><td>{s.payment_method}</td><td>{money.format(s.total)}</td></tr>)}</tbody></table></div></details>}
       </div>
     </div>
@@ -378,7 +380,7 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
   );
 }
 
-function FinancialReport({ sales, allSales, products }: { sales: PartnerSale[]; allSales: PartnerSale[]; products: PartnerProduct[] }) {
+function FinancialReport({ canExport = false, sales, allSales, products }: { canExport?: boolean; sales: PartnerSale[]; allSales: PartnerSale[]; products: PartnerProduct[] }) {
   const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
@@ -448,9 +450,9 @@ function FinancialReport({ sales, allSales, products }: { sales: PartnerSale[]; 
   return (
     <div>
       <div className="orders-filter-row" style={{ justifyContent: 'flex-end', marginBottom: '12px' }}>
-        <button type="button" className="module-action-btn" onClick={() => downloadReportCsv('relatorio-financeiro', financialRows)}>
+        {canExport && <button type="button" className="module-action-btn" onClick={() => { if (canExport) downloadReportCsv('relatorio-financeiro', financialRows); }}>
           <Download size={15} /> Exportar relatório financeiro CSV
-        </button>
+        </button>}
       </div>
       <p>Comparativo e histórico mensal: meses do calendário. Os demais totais seguem o período selecionado. Margens de vendas antigas sem custo histórico são estimadas.</p>
       <div className="report-cards">
@@ -522,7 +524,7 @@ function FinancialReport({ sales, allSales, products }: { sales: PartnerSale[]; 
   );
 }
 
-function StagnantStockReport({ isActive = true, products, sales, movements }: { isActive?: boolean; products: PartnerProduct[]; sales: PartnerSale[]; movements: StockMovement[] }) {
+function StagnantStockReport({ canExport = false, isActive = true, products, sales, movements }: { canExport?: boolean; isActive?: boolean; products: PartnerProduct[]; sales: PartnerSale[]; movements: StockMovement[] }) {
   const [level, setLevel] = useState<StagnantLevel | 'todos'>('todos');
   const [query, setQuery] = useState('');
   const summary = useStagnantStock(products, sales, movements, isActive);
@@ -550,9 +552,9 @@ function StagnantStockReport({ isActive = true, products, sales, movements }: { 
   return (
     <div>
       <div className="orders-filter-row" style={{ justifyContent: 'flex-end', marginBottom: '12px' }}>
-        <button type="button" className="module-action-btn" onClick={() => downloadReportCsv('relatorio-estoque-sem-giro', stagnantRows)}>
+        {canExport && <button type="button" className="module-action-btn" onClick={() => { if (canExport) downloadReportCsv('relatorio-estoque-sem-giro', stagnantRows); }}>
           <Download size={15} /> Exportar produtos sem giro CSV
-        </button>
+        </button>}
       </div>
       <div className="report-cards">
         <div className="report-card">
@@ -623,7 +625,7 @@ function StagnantStockReport({ isActive = true, products, sales, movements }: { 
   );
 }
 
-function StockReport({ products, sales }: { products: PartnerProduct[]; sales: PartnerSale[] }) {
+function StockReport({ canExport = false, products, sales }: { canExport?: boolean; products: PartnerProduct[]; sales: PartnerSale[] }) {
   const physicalProducts = useMemo(() => products.filter((product) => !product.is_service), [products]);
   const totalInvested = physicalProducts.reduce((s, p) => s + p.cost_price * p.stock, 0);
   const totalRetailValue = physicalProducts.reduce((s, p) => s + p.sale_price * p.stock, 0);
@@ -682,9 +684,9 @@ function StockReport({ products, sales }: { products: PartnerProduct[]; sales: P
   return (
     <div>
       <div className="orders-filter-row" style={{ justifyContent: 'flex-end', marginBottom: '12px' }}>
-        <button type="button" className="module-action-btn" onClick={() => downloadReportCsv('relatorio-estoque', stockRows)}>
+        {canExport && <button type="button" className="module-action-btn" onClick={() => { if (canExport) downloadReportCsv('relatorio-estoque', stockRows); }}>
           <Download size={15} /> Exportar estoque CSV
-        </button>
+        </button>}
       </div>
       <div className="report-cards">
         <div className="report-card">
@@ -748,7 +750,7 @@ function StockReport({ products, sales }: { products: PartnerProduct[]; sales: P
   );
 }
 
-function CrmReport({ customers, sales }: { customers: PartnerCustomer[]; sales: PartnerSale[] }) {
+function CrmReport({ canExport = false, customers, sales }: { canExport?: boolean; customers: PartnerCustomer[]; sales: PartnerSale[] }) {
   const now = new Date();
   const currentMonth = now.getMonth();
 
@@ -785,9 +787,9 @@ function CrmReport({ customers, sales }: { customers: PartnerCustomer[]; sales: 
   return (
     <div>
       <div className="orders-filter-row" style={{ justifyContent: 'flex-end', marginBottom: '12px' }}>
-        <button type="button" className="module-action-btn" onClick={() => downloadReportCsv('relatorio-crm', crmRows)}>
+        {canExport && <button type="button" className="module-action-btn" onClick={() => { if (canExport) downloadReportCsv('relatorio-crm', crmRows); }}>
           <Download size={15} /> Exportar CRM CSV
-        </button>
+        </button>}
       </div>
       <p>Ranking pelo período selecionado. Aniversariantes do mês atual.</p>
       <h4 className="report-section-title"><Trophy size={16} /> Top 5 Clientes</h4>

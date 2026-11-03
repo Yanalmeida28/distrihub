@@ -32,6 +32,7 @@ type PartnerCustomerUpdate = Partial<
 };
 
 type Props = {
+  canImportExport?: boolean;
   suppliersReady?: boolean;
   findProductDuplicates: (name: string, branchId: string) => Promise<PartnerProduct[]>;
   canManageSalespeople?: boolean;
@@ -104,6 +105,7 @@ function getActionPopoverPosition(event: React.MouseEvent<HTMLButtonElement>, wi
 }
 
 export function CadastrosModule({
+  canImportExport = false,
   adminTarget,
   canManageSalespeople = false,
   planId,
@@ -121,9 +123,13 @@ export function CadastrosModule({
   const parentDraftScope = useSessionDraftScope();
   const [subTab, setSubTab] = useSessionDraftState<SubTab>(`cadastros:${adminTarget ?? 'principal'}:active-subtab`, initialTab);
   const showSalespeopleOutsideAdmin = canManageSalespeople && planId === 'basico';
+  const availableSubTabs = subTabs.filter(tab => canImportExport || !['importar', 'xml'].includes(tab.id));
   const visibleSubTabs = showSalespeopleOutsideAdmin
-    ? [...subTabs, { id: 'vendedores' as const, label: 'Colaboradores', icon: Users }]
-    : subTabs;
+    ? [...availableSubTabs, { id: 'vendedores' as const, label: 'Colaboradores', icon: Users }]
+    : availableSubTabs;
+  useEffect(() => {
+    if (!canImportExport && !adminTarget && ['importar', 'xml'].includes(subTab)) setSubTab('produtos');
+  }, [canImportExport, adminTarget, subTab, setSubTab]);
   useEffect(() => {
     if (!adminTarget && subTab === 'vendedores' && !showSalespeopleOutsideAdmin) setSubTab('produtos');
   }, [adminTarget, subTab, showSalespeopleOutsideAdmin, setSubTab]);
@@ -170,6 +176,7 @@ export function CadastrosModule({
         {adminTarget !== 'estoque' && (adminTarget ? subTab === 'produtos' : visitedSubTabs.has('produtos')) && (
           <div hidden={subTab !== 'produtos'}>
           <ProductsSubTab
+            canExport={canImportExport}
             products={filteredProducts.filter(product => productType === 'todos' || product.is_service === (productType === 'servico'))}
             isActive={isActive && subTab === 'produtos'}
             defaultIsService={productType === 'servico'}
@@ -193,7 +200,7 @@ export function CadastrosModule({
           <CategoriesSubTab categories={categories} branches={branches} selectedBranchId={selectedBranchId} products={filteredProducts} onAdd={onAddCategory} onAssign={onUpdateCategory} onDelete={onDeleteCategory} />
           </div>
         )}
-        {(adminTarget ? subTab === 'xml' : visitedSubTabs.has('xml')) && <div hidden={subTab !== 'xml'}><XmlSubTab selectedBranchId={selectedBranchId} onImport={onImportXml} /></div>}
+        {canImportExport && (adminTarget ? subTab === 'xml' : visitedSubTabs.has('xml')) && <div hidden={subTab !== 'xml'}><XmlSubTab selectedBranchId={selectedBranchId} onImport={onImportXml} /></div>}
         {(adminTarget ? subTab === 'combos' : visitedSubTabs.has('combos')) && (
           <div hidden={subTab !== 'combos'}>
           <CombosSubTab combos={combos.filter(combo => combo.items.every(item => filteredProducts.some(product => product.id === item.product_id)))} products={filteredProducts} onAdd={onAddCombo} onDelete={onDeleteCombo} />
@@ -207,6 +214,7 @@ export function CadastrosModule({
         {(adminTarget ? subTab === 'clientes' : visitedSubTabs.has('clientes')) && (
           <div hidden={subTab !== 'clientes'}>
           <CustomersSubTab
+            canExport={canImportExport}
             customers={customers}
             branches={branches}
             isActive={isActive && subTab === 'clientes'}
@@ -241,9 +249,10 @@ export function CadastrosModule({
           <ReplenishmentSubTab products={products} sales={sales} selectedBranchId={selectedBranchId} onReplenishStock={onReplenishStock} />
           </div>
         )}
-        {(adminTarget ? subTab === 'importar' : visitedSubTabs.has('importar')) && (
+        {canImportExport && (adminTarget ? subTab === 'importar' : visitedSubTabs.has('importar')) && (
           <div hidden={subTab !== 'importar'}>
           <ImportExportModule
+            canImportExport={canImportExport}
             products={products}
             customers={customers}
             selectedBranchId={selectedBranchId}
@@ -296,7 +305,8 @@ function StockAdjustmentSubTab({ products, branchId, onUpdate }: {
   </div>;
 }
 
-function ProductsSubTab({ suppliersReady = true, defaultIsService = false, isActive = true, products, allProducts, branches, selectedBranchId, categories, suppliers, onAddSupplier, onAddProduct, findProductDuplicates, onUpdateProduct, onDeleteProduct }: {
+function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsService = false, isActive = true, products, allProducts, branches, selectedBranchId, categories, suppliers, onAddSupplier, onAddProduct, findProductDuplicates, onUpdateProduct, onDeleteProduct }: {
+  canExport?: boolean;
   suppliersReady?: boolean;
   defaultIsService?: boolean;
   isActive?: boolean;
@@ -483,7 +493,7 @@ function ProductsSubTab({ suppliersReady = true, defaultIsService = false, isAct
         <button className="module-action-btn" onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancelar' : <><Plus size={16} /> Novo {itemLabel}</>}
         </button>
-        <ExportButtons target="produtos" products={products} customers={[]} />
+        <ExportButtons allowed={canExport} target="produtos" products={products} customers={[]} />
       </div>
       {deleteError && <p role="alert" className="otp-error-msg">{deleteError}</p>}
       {productNotice && <p role="status">{productNotice}</p>}
@@ -1224,7 +1234,8 @@ function ModifiersSubTab({ modifiers, products, onAdd, onDelete }: {
   );
 }
 
-function CustomersSubTab({ isActive = true, customers, branches, sales, rmaRequests, salespeople, selectedBranchId, onAdd, onUpdate, onDelete, onLoadCustomer }: {
+function CustomersSubTab({ canExport = false, isActive = true, customers, branches, sales, rmaRequests, salespeople, selectedBranchId, onAdd, onUpdate, onDelete, onLoadCustomer }: {
+  canExport?: boolean;
   isActive?: boolean;
   rmaRequests: RmaRequest[];
   customers: PartnerCustomer[];
@@ -1432,7 +1443,7 @@ function CustomersSubTab({ isActive = true, customers, branches, sales, rmaReque
         }}>
           {showForm ? 'Cancelar' : <><Plus size={16} /> Novo Cliente</>}
         </button>
-        <ExportButtons target="clientes" products={[]} customers={customers} />
+        <ExportButtons allowed={canExport} target="clientes" products={[]} customers={customers} />
       </div>
       <input
         type="search"

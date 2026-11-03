@@ -35,6 +35,7 @@ import { usePartnerData } from '../hooks/usePartnerData';
 import { branchDirectoryRows } from '../lib/partnerSync';
 import { useSaasSubscription } from '../hooks/useSaasSubscription';
 import { canUseSaasFeature } from '../lib/saas';
+import { canTransferCompanyData } from '../lib/dataTransferAccess';
 import { DeviceAccessGate } from './partner/DeviceSessions';
 import { canViewBusinessIntelligence } from '../lib/businessIntelligence';
 import { useDeviceHeartbeat } from '../hooks/useDeviceHeartbeat';
@@ -419,6 +420,7 @@ export function PartnerPanel({
   const effectiveRole: SalespersonRole = activeSalesperson
     ? activeSalesperson.role
     : 'administrador';
+  const canImportExport = canTransferCompanyData(identity, accessLocked, deviceSession.ready, activeSalesperson);
 
   const operatorScope = `${identity?.authUserId}:${identity?.companyUserId}`;
   useEffect(() => { setManagedCashSession(null); }, [operatorScope, effectiveBranchId]);
@@ -1459,12 +1461,14 @@ export function PartnerPanel({
   }
 
   function renderCadastros(target?: AdminCadastrosTarget) {
+    if (target === 'importar' && !canImportExport) return <p role="alert">Importação e exportação disponíveis somente para o proprietário e administradores.</p>;
     if (target !== 'vendedores' && (blockedTabs.includes('cadastros') || !canUseSaasFeature(saas.subscription, 'cadastros'))) return <p role="alert">Acesso a Cadastros indisponível para este usuário ou assinatura.</p>;
     if (target === 'vendedores' && (blockedTabs.includes('administrativo') || !['administrador', 'gerente'].includes(effectiveRole))) {
       return <p role="alert">A gestão de colaboradores está disponível somente no Administrativo para administradores e gerentes.</p>;
     }
     return (
               <CadastrosModule
+                canImportExport={canImportExport}
                 key={target ?? 'principal'}
                 isActive={activeTab === (target ? 'administrativo' : 'cadastros')}
                 canManageSalespeople={Boolean(identity && !identity.salespersonId)}
@@ -1523,6 +1527,7 @@ export function PartnerPanel({
                   handleDeleteProduct
                 }
                 onImportXml={async (invoice, branchId) => {
+                  if (!canImportExport) throw new Error('Somente o proprietário e administradores podem importar dados.');
                   const { operatorId, operatorPin } = getOperatorContext();
                   await partner.importStockXml(invoice, branchId, operatorId, operatorPin);
                 }}
@@ -2202,6 +2207,7 @@ export function PartnerPanel({
                     tab as Tab,
                   )
                 }
+                canImportExport={canImportExport}
                 ownerView={Boolean(
                   identity &&
                   !identity.salespersonId &&
@@ -2344,6 +2350,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'relatorios'}>
               {renderTab('relatorios',
               <ReportsModule
+                canExport={canImportExport}
                 isActive={activeTab === 'relatorios'}
                 onDataScopeChange={setReportDataScope}
                 invoices={filteredInvoices}
