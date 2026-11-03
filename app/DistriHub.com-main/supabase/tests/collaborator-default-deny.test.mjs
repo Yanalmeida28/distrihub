@@ -68,7 +68,7 @@ test('only Basic plan registrations expose the owner collaborator shortcut', () 
   assert.match(partnerPanel, /canManageSalespeople={Boolean\(identity && !identity\.salespersonId\)}/);
   assert.match(partnerPanel, /planId={saas\.subscription\?\.effective_plan}/);
   assert.match(collaboratorForm, /showSalespeopleOutsideAdmin = canManageSalespeople && planId === 'basico'/);
-  assert.match(collaboratorForm, /showSalespeopleOutsideAdmin\s*\?\s*\[\.\.\.subTabs/);
+  assert.match(collaboratorForm, /showSalespeopleOutsideAdmin\s*\?\s*\[\.\.\.availableSubTabs/);
   assert.match(collaboratorForm, /label: 'Colaboradores'/);
   assert.match(collaboratorForm, /adminTarget === 'vendedores' \|\| \(!adminTarget && showSalespeopleOutsideAdmin\)/);
 });
