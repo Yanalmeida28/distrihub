@@ -1839,13 +1839,6 @@ export function PartnerPanel({
           </span>
         </nav>
 
-        {partner.loading && (
-          <div className="sidebar-footer">
-            <span className="partner-loading">
-              Carregando...
-            </span>
-          </div>
-        )}
       </aside>
 
       <div className="sidebar-main">
@@ -1991,8 +1984,8 @@ export function PartnerPanel({
 
             {visitedTabs.has('pedidos') && (
               <div hidden={activeTab !== 'pedidos'}>
-              {renderTab('pedidos', <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} />, ':catalog')}
-              {renderTab('pedidos',
+              {renderTab('pedidos', <>
+              <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} />
               <OpenOrdersModule
                 key={`${identity?.authUserId}:${identity?.companyUserId}:${effectiveBranchId}`}
                 isActive={activeTab === 'pedidos'}
@@ -2037,7 +2030,7 @@ export function PartnerPanel({
                   const { operatorId, operatorPin } = getOperatorContext();
                   await partner.mutateOpenOrder(id, 'delete', operatorId, operatorPin, supervisorId, supervisorPin);
                 }}
-              />)}
+              /></>)}
               </div>
             )}
 
