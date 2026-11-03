@@ -3575,3 +3575,15 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .date-range-fields>label{display:flex;flex-direction:column;gap:6px;min-width:0;margin:0}
 .partner-panel .date-range-fields input[type=date]{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:44px;font-size:16px}
 @media(max-width:768px){.partner-panel .orders-filter-row>.date-range-fields{flex:0 0 auto;width:100%}.partner-panel .sales-history-filters .date-range-fields>label:first-child{flex-basis:auto}}
+/* Desktop date filters keep both calendar fields readable. */
+@media(min-width:769px){
+  .partner-panel .orders-filter-row:has(>.date-range-fields){display:flex;flex-wrap:wrap;align-items:end}
+  .partner-panel .orders-filter-row>.date-range-fields{flex:2 1 360px;min-width:320px}
+  .partner-panel .orders-filter-row:has(>.date-range-fields)>label{flex:1 1 180px}
+  .partner-panel .sales-history-filters{display:flex;flex-wrap:wrap;align-items:end}
+  .partner-panel .sales-history-filters>label{flex:1 1 160px}
+  .partner-panel .sales-history-filters>label:first-child{flex:2 1 260px}
+  .partner-panel .sales-history-filters>.date-range-fields{flex:2 1 360px}
+  .partner-panel .sales-history-filters>button{flex:0 0 auto;min-height:44px;white-space:nowrap}
+  .partner-panel .sales-history-filters>label>:is(input,select){box-sizing:border-box;width:100%;min-height:44px}
+}
