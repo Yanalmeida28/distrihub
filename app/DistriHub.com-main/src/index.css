@@ -3587,26 +3587,26 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .sales-history-filters>button{flex:0 0 auto;min-height:44px;white-space:nowrap}
   .partner-panel .sales-history-filters>label>:is(input,select){box-sizing:border-box;width:100%;min-height:44px}
 }
-/* Cash overview fits the available width without an inner horizontal scrollbar. */
+/* Cash overview uses readable labeled records at every panel width. */
 .partner-panel .cash-overview{min-width:0;padding:14px}
 .partner-panel .cash-overview h4{margin:0 0 8px}
 .partner-panel .cash-overview .cash-summary{margin:10px 0}
 .partner-panel .cash-overview .cash-fields{margin:10px 0}
 .partner-panel .cash-overview .cash-fields>label{min-width:0}
-.partner-panel .cash-overview-table{width:100%;min-width:0;table-layout:fixed}
-.partner-panel .cash-overview-table :is(th,td){min-width:0;padding:8px 6px;white-space:normal;overflow-wrap:anywhere;font-size:12px;line-height:1.4}
-.partner-panel .cash-overview-table th{font-size:11px;letter-spacing:0;text-transform:none}
-.partner-panel .cash-overview-table button{min-width:0;max-width:100%;min-height:40px;padding:6px;white-space:normal;font-size:12px}
-@media(max-width:1100px){
-  .partner-panel .cash-overview-wrap{overflow:visible!important;border:0;background:transparent}
-  .partner-panel .cash-overview-table{display:block}
-  .partner-panel .cash-overview-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
-  .partner-panel .cash-overview-table tbody{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px}
-  .partner-panel .cash-overview-table tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px;border:1px solid var(--dh-border);border-radius:10px;background:var(--dh-surface)}
-  .partner-panel .cash-overview-table td{display:block;padding:0;border:0;font-size:13px}
-  .partner-panel .cash-overview-table td[data-label]::before{content:attr(data-label);display:block;margin-bottom:3px;font-size:11px;color:var(--dh-text-secondary)}
-  .partner-panel .cash-overview-table :is(.cash-overview-operator,.cash-overview-actions,.empty-row){grid-column:1/-1}
-  .partner-panel .cash-overview-table .cash-overview-operator{font-weight:600}
-  .partner-panel .cash-overview-table .cash-overview-actions::before{display:none}
-  .partner-panel .cash-overview-table button{width:100%;min-height:44px}
+.partner-panel .cash-overview-wrap{overflow:visible!important;border:0;background:transparent}
+.partner-panel .cash-overview-table{display:block;width:100%;min-width:0}
+.partner-panel .cash-overview-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.partner-panel .cash-overview-table tbody{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.partner-panel .cash-overview-table tr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr));gap:12px 16px;padding:14px;border:1px solid var(--dh-border);border-radius:10px;background:var(--dh-surface)}
+.partner-panel .cash-overview-table td{display:block;min-width:0;padding:0;border:0;white-space:normal;overflow-wrap:break-word;word-break:normal;font-size:14px;line-height:1.5}
+.partner-panel .cash-overview-table td[data-label]::before{content:attr(data-label);display:block;margin-bottom:4px;font-size:12px;line-height:1.5;color:var(--dh-text-secondary);white-space:normal}
+.partner-panel .cash-overview-table :is(.cash-overview-operator,.cash-overview-actions,.empty-row){grid-column:1/-1}
+.partner-panel .cash-overview-table .cash-overview-operator{font-size:15px;font-weight:600}
+.partner-panel .cash-overview-table .cash-overview-actions::before{display:none}
+.partner-panel .cash-overview-table .cash-overview-actions{justify-self:end}
+.partner-panel .cash-overview-table button{min-width:0;max-width:100%;min-height:44px;padding:8px 12px;white-space:normal;font-size:13px;line-height:1.4}
+@media(max-width:480px){
+  .partner-panel .cash-overview-table tr{gap:12px;padding:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .partner-panel .cash-overview-table .cash-overview-actions{justify-self:stretch}
+  .partner-panel .cash-overview-table button{width:100%}
 }
