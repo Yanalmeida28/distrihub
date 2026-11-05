@@ -11,10 +11,12 @@ type Props = {
   onEditItems?: () => void;
   onChangeCustomer?: () => void;
   onDownloadQuote?: () => void;
+  onShareQuote?: () => void;
 };
 
 export function SaleActionsMenu(props: Props) {
   const actions = [
+    ...(props.onShareQuote ? [{ label: 'Enviar orçamento em PDF', icon: MessageCircle, run: props.onShareQuote }] : []),
     ...(props.onChangeCustomer ? [{ label: 'Alterar cliente', icon: UserRound, run: props.onChangeCustomer }] : []),
     ...(props.onEditItems ? [{ label: 'Editar produtos', icon: Pencil, run: props.onEditItems }] : []),
     ...(props.onDownloadQuote ? [{ label: 'Baixar orçamento em PDF', icon: FileDown, run: props.onDownloadQuote }] : []),

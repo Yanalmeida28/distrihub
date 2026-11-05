@@ -98,3 +98,24 @@ export async function downloadOrderQuotePdf(sale: PrintableSale, details: Receip
   const { pdf, filename } = buildOrderQuotePdf(sale, details);
   await pdf.save(filename, { returnPromise: true });
 }
+
+/** Invoke directly from the click: file sharing requires transient user activation. */
+export async function shareOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails = {}): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  const { pdf, filename } = buildOrderQuotePdf(sale, details);
+  if (typeof navigator !== 'undefined' && typeof File !== 'undefined' && navigator.share && navigator.canShare) {
+    const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });
+    let supported = false;
+    try { supported = navigator.canShare({ files: [file] }); } catch { /* Download remains available. */ }
+    if (supported) {
+      try {
+        await navigator.share({ files: [file], title: filename.replace(/\.pdf$/, '') });
+        return 'shared';
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return 'cancelled';
+        if (!(error instanceof Error) || !['NotAllowedError', 'NotSupportedError', 'SecurityError'].includes(error.name)) throw error;
+      }
+    }
+  }
+  await pdf.save(filename, { returnPromise: true });
+  return 'downloaded';
+}

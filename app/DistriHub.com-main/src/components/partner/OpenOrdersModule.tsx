@@ -11,6 +11,7 @@ import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentE
 import { SaleActionsMenu } from './SaleActionsMenu';
 import { printSale, type ReceiptDetails } from '../../lib/salePrint';
 import { saleShareUrl } from '../../lib/saleShare';
+import { shareOrderQuotePdf, downloadOrderQuotePdf } from '../../lib/orderQuotePdf';
 
 type Props = {
   canEditPrice: boolean;
@@ -118,15 +119,20 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const quoteInFlight = useRef(false);
   const [downloadingQuote, setDownloadingQuote] = useState(false);
-  async function handleDownloadQuote(sale: PartnerSale) {
+  async function handleDownloadQuote(sale: PartnerSale, share = false) {
     if (!canApply() || quoteInFlight.current) return;
     quoteInFlight.current = true; setDownloadingQuote(true); setDocumentError(null); setShareNotice(null);
     try {
-      const { downloadOrderQuotePdf } = await import('../../lib/orderQuotePdf');
-      if (!canApply()) return;
-      await downloadOrderQuotePdf(sale, { ...receiptDetails,
+      const details = { ...receiptDetails,
         customer: customers.find(customer => customer.id === sale.customer_id),
-        salespersonName: salespeople.find(person => person.id === sale.salesperson_id)?.name });
+        salespersonName: salespeople.find(person => person.id === sale.salesperson_id)?.name };
+      if (share) {
+        const result = await shareOrderQuotePdf(sale, details);
+        if (canApply() && result !== 'cancelled') setShareNotice(result === 'shared' ? 'Orçamento encaminhado ao aplicativo escolhido.' : 'PDF baixado. Abra o arquivo e anexe ao WhatsApp ou e-mail do cliente.');
+        return;
+      }
+      if (!canApply()) return;
+      await downloadOrderQuotePdf(sale, details);
       if (canApply()) setShareNotice('Download do orçamento iniciado. Você pode compartilhar o arquivo PDF com o cliente.');
     } catch (error) {
       if (canApply()) setDocumentError(error instanceof Error ? error.message : 'Não foi possível gerar o PDF do orçamento.');
@@ -446,6 +452,7 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
                           </button>
                         )}
                         <SaleActionsMenu
+                          onShareQuote={!downloadingQuote ? () => { void handleDownloadQuote(s, true); } : undefined}
                           onDownloadQuote={!downloadingQuote ? () => { void handleDownloadQuote(s); } : undefined}
                           onChangeCustomer={canChangeCustomer && s.payment_status === 'pendente' && !s.online_payment ? () => {
                             if (!canApply() || finalizeInFlight.current || cancelInFlight.current || customerInFlight.current) return;

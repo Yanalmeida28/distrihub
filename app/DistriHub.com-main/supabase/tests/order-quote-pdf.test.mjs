@@ -49,3 +49,34 @@ test('descrição maior que uma página não é cortada nem cria loop; cliente d
 test('pedido concluído ou cancelado não é apresentado como orçamento em aberto', () => {
   for (const status of ['concluida', 'cancelada']) assert.throws(() => api.buildOrderQuotePdf({ ...sale, status }), /não está mais aberto/);
 });
+
+async function sharingHarness(navigator) {
+  const exports = {}, saved = [];
+  const { jsPDF } = require('jspdf');
+  vm.runInNewContext(compile(await readFile(new URL('../../src/lib/orderQuotePdf.ts', import.meta.url), 'utf8')), {
+    exports, Date, Intl, Error, File, navigator,
+    require: name => name === 'jspdf' ? {jsPDF: function(options) {const pdf = new jsPDF(options);pdf.save = async filename => {saved.push(filename);};return pdf;}}
+      : name === './pdv' ? pdv : name === '../utils' ? {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})} : require(name),
+  });
+  return {api:exports,saved};
+}
+test('share attaches a real PDF immediately and does not download or finalize the order', async () => {
+  let attached;
+  const {api,saved} = await sharingHarness({canShare:({files})=>files[0].type === 'application/pdf',share:async data=>{attached=data.files[0];}});
+  const pending = api.shareOrderQuotePdf(sale);
+  assert.equal(attached.name,'orcamento-000042.pdf');
+  assert.equal(await pending,'shared');
+  assert.equal(Buffer.from(await attached.arrayBuffer()).subarray(0,5).toString(),'%PDF-');
+  assert.deepEqual(saved,[]);assert.equal(sale.status,'pre_venda');
+});
+test('cancelled share never downloads or claims success', async () => {
+  const error = new Error('cancelled');error.name='AbortError';
+  const {api,saved} = await sharingHarness({canShare:()=>true,share:async()=>{throw error;}});
+  assert.equal(await api.shareOrderQuotePdf(sale),'cancelled');assert.deepEqual(saved,[]);
+});
+test('unsupported or permission-blocked sharing downloads the same quote', async () => {
+  const denied = new Error('blocked');denied.name='NotAllowedError';
+  for(const navigator of [{},{canShare:()=>false,share:async()=>{throw Error('must not share');}},{canShare:()=>true,share:async()=>{throw denied;}}]) {
+    const {api,saved}=await sharingHarness(navigator);assert.equal(await api.shareOrderQuotePdf(sale),'downloaded');assert.deepEqual(saved,['orcamento-000042.pdf']);
+  }
+});
