@@ -3610,3 +3610,26 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .cash-overview-table .cash-overview-actions{justify-self:stretch}
   .partner-panel .cash-overview-table button{width:100%}
 }
+
+/* Equal touch targets for the PDV checkout actions on narrow screens. */
+@media (max-width: 640px) {
+  .partner-panel .pdv-checkout-layout .pdv-checkout-actions { align-items: stretch; }
+  .partner-panel .pdv-checkout-layout .pdv-checkout-actions .pdv-checkout-btn {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 52px;
+    margin: 0;
+    padding: 10px 8px;
+    border-width: 1px;
+    border-style: solid;
+    font-size: 13px;
+    line-height: 1.3;
+    text-align: center;
+  }
+  .partner-panel .pdv-checkout-layout .pdv-checkout-actions .pdv-checkout-btn svg { flex-shrink: 0; }
+}
