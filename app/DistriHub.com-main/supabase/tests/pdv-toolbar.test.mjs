@@ -413,3 +413,23 @@ test('direct receipt printing awaits the saved sale and never opens a browser po
  const printButton=renderer.root.findAllByType('button').find(button=>button.props.className?.includes('pdv-checkout') && button.children.some(child=>typeof child==='string' && child.toLowerCase().includes('imprimir')));
  assert.ok(printButton);await act(async()=>printButton.props.onClick());assert.equal(calls,1);assert.equal(printed,1);
 });
+
+
+test('sale confirmation is emitted only after the server resolves, and never on failure', async () => {
+  for (const fail of [false, true]) {
+    let finish; const confirmations = [];
+    const Checkout = loadCheckout(React).Checkout;
+    await act(async () => { renderer = TestRenderer.create(React.createElement(Checkout, {
+      ...props, onSaleConfirmed: sale => confirmations.push(sale),
+      onCreateSale: () => new Promise((resolve, reject) => { finish = () => fail ? reject(new Error('Falha no servidor')) : resolve({id:'saved',sale_number:42}); }),
+    })); });
+    await act(async () => renderer.root.findByProps({className:'pdv-product-card'}).props.onClick());
+    let checkout;
+    await act(async () => { checkout = renderer.root.findByProps({className:'module-cancel-btn pdv-checkout-btn'}).props.onClick(); });
+    assert.equal(confirmations.length,0);
+    await act(async () => { finish(); await checkout; });
+    assert.equal(confirmations.length,fail?0:1);
+    if (!fail) assert.equal(confirmations[0].sale_number,42);
+    await act(async () => renderer.unmount()); renderer=null;
+  }
+});

@@ -383,6 +383,13 @@ export function PdvModule({
   const legacyParentDraftScope = useSessionDraftScope(true);
   const contextKey = `${selectedBranchId ?? 'all'}`;
   const [checkoutPreSale, setCheckoutPreSale] = useState<PartnerSale | null>(null);
+  const [saleNotice, setSaleNotice] = useState<PartnerSale | null>(null);
+  useEffect(() => {
+    if (!saleNotice) return;
+    const timeout = window.setTimeout(() => setSaleNotice(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [saleNotice]);
+  useEffect(() => { setSaleNotice(null); }, [selectedBranchId, activeSalespersonId, isActive]);
   const [savedRescueNotice, setSavedRescueNotice] = useState<string | null>(null);
   useEffect(() => {
     if (!preSaleToCheckout) return;
@@ -441,10 +448,18 @@ export function PdvModule({
       </div>}
       </div>
 
+      {saleNotice && isActive && <div className="pdv-sale-toast" role="status" aria-live="polite" aria-atomic="true">
+        <Check size={28} aria-hidden="true" />
+        <div><strong>Venda finalizada com sucesso!</strong>
+          <span>{saleNotice.sale_number ? 'Venda #' + saleNotice.sale_number + ' registrada. ' : ''}Pronto para uma nova venda.</span>
+        </div>
+        <button type="button" aria-label="Fechar confirmação da venda" onClick={() => setSaleNotice(null)}><X size={20}/></button>
+      </div>}
       {savedRescueNotice && <p className="sent-message" role="status">{savedRescueNotice}</p>}
       {checkoutPreSale && (
         <SessionDraftProvider key={checkoutPreSale.id} scope={`${parentDraftScope}:pdv:${contextKey}:rescued:${checkoutPreSale.id}`}>
         <PdvCheckout
+          onSaleConfirmed={setSaleNotice}
           rescuedSale={checkoutPreSale}
           products={products}
           customers={customers}
@@ -483,6 +498,7 @@ export function PdvModule({
       {(
         <div className="pdv-checkout-slot" hidden={Boolean(checkoutPreSale)}>
         <PdvCheckout
+          onSaleConfirmed={setSaleNotice}
           products={products}
           customers={customers}
           credits={credits}
@@ -511,7 +527,8 @@ export function PdvModule({
 
 /* ============ PDV Checkout ============ */
 
-function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendingSale, isActive = true, barcodeScannerEnabled = true, cameraScannerEnabled = false, salespeople, activeSalespersonId, selectedBranchId, canCheckout, canEditPrice, receiptDetails, onCreateSale, onCreatePreSale, onOpenOrders, rescuedSale, onExitRescue, onSavePreSale, onPreSaleSaved }: {
+function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendingSale, isActive = true, barcodeScannerEnabled = true, cameraScannerEnabled = false, salespeople, activeSalespersonId, selectedBranchId, canCheckout, canEditPrice, receiptDetails, onCreateSale, onCreatePreSale, onOpenOrders, rescuedSale, onExitRescue, onSavePreSale, onPreSaleSaved, onSaleConfirmed }: {
+  onSaleConfirmed?: (sale: PartnerSale) => void;
   onCreatePreSale?: Props['onCreatePreSale'];
   onOpenOrders?: () => void;
   rescuedSale?: PartnerSale;
@@ -862,6 +879,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
       });
       updateCart([], true); setFreightFee(0); setCustomerId(''); setCustomerName(''); setSalespersonId('');
       setCompleted(true);
+      onSaleConfirmed?.(confirmedSale);
       setClientType('varejo');
       setPriceTable('varejo');
       setPaymentMethod('pix');
