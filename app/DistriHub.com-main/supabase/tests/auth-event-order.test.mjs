@@ -10,7 +10,7 @@ const Renderer = require('react-test-renderer');
 const { act } = Renderer;
 const source = await readFile(new URL('../../src/hooks/useAuth.ts', import.meta.url), 'utf8');
 
-async function harness() {
+async function harness({employee=null}={}) {
   let state, listener, gate = null;
   const timers = [], reads = [];
   const client = { auth: {
@@ -19,7 +19,7 @@ async function harness() {
   }, from(table) {
     let user;
     return { select() { return this; }, eq(_key, value) { user = value; return this; }, order() { return this; }, limit() { return this; },
-      async maybeSingle() { reads.push({ table, user }); if (gate) await gate; return { data: table === 'partner_profiles' ? { id: user } : null, error: null }; },
+      async maybeSingle() { reads.push({ table, user }); if (gate) await gate; return { data: table === 'partner_profiles' ? { id: user } : employee, error: null }; },
     };
   } };
   const exports = {};
@@ -37,6 +37,34 @@ async function harness() {
     close: () => act(async () => view.unmount()),
   };
 }
+
+test('owner reuses the verified profile in the same login, but never across logouts', async () => {
+  const h=await harness();
+  try {
+    await act(async()=>{h.emit('SIGNED_IN','owner');h.flush();});
+    assert.equal(h.state.identity.companyUserId,'owner');
+    assert.equal(h.reads.filter(r=>r.table==='partner_profiles').length,1);
+    await act(async()=>{h.emit('SIGNED_OUT');h.flush();});
+    await act(async()=>{h.emit('SIGNED_IN','owner');h.flush();});
+    assert.equal(h.reads.filter(r=>r.table==='partner_profiles').length,2);
+  }finally{await h.close();}
+});
+
+test('employee still resolves its company profile and inactive membership cannot become owner', async () => {
+  const employee={id:'staff',user_id:'company',active:true,role:'caixa',branch_id:'branch'};
+  const h=await harness({employee});
+  try{
+    await act(async()=>{h.emit('SIGNED_IN','employee');h.flush();});
+    assert.equal(h.state.identity.companyUserId,'company');assert.equal(h.state.profile.id,'company');
+    assert.deepEqual(h.reads.filter(r=>r.table==='partner_profiles').map(r=>r.user),['company']);
+  }finally{await h.close();}
+  const inactive=await harness({employee:{...employee,active:false}});
+  try{
+    await act(async()=>{inactive.emit('SIGNED_IN','employee');inactive.flush();});
+    assert.equal(inactive.state.identity,null);assert.equal(inactive.state.profile,null);
+    assert.equal(inactive.reads.filter(r=>r.table==='partner_profiles').length,0);
+  }finally{await inactive.close();}
+});
 
 test('queued login cannot restore the user, profile or identity after logout', async () => {
   const h = await harness();

@@ -126,7 +126,7 @@ export function useAuth(): UseAuthReturn {
   const signupInProgressRef = useRef(false);
   const identityRequestRef = useRef(0);
 
-  const resolveIdentity = useCallback(async (authUserId: string, isCurrent: () => boolean = () => true): Promise<PartnerIdentity> => {
+  const resolveIdentity = useCallback(async (authUserId: string, isCurrent: () => boolean = () => true): Promise<{ identity: PartnerIdentity; ownerProfile?: PartnerProfile }> => {
     if (!supabase) {
       throw new Error('Supabase não configurado; não foi possível resolver a identidade do usuário.');
     }
@@ -153,18 +153,18 @@ export function useAuth(): UseAuthReturn {
         throw new Error('O vínculo do funcionário não possui uma empresa válida.');
       }
 
-      return {
+      return { identity: {
         authUserId,
         companyUserId: salesperson.user_id,
         role: salesperson.role,
         salespersonId: salesperson.id,
         branchId: salesperson.branch_id ?? null,
-      };
+      } };
     }
 
     const { data: ownerProfile, error: ownerError } = await readWithJwtRecovery(() => client
       .from('partner_profiles')
-      .select('id')
+      .select('*')
       .eq('id', authUserId)
       .limit(1)
       .maybeSingle(), isCurrent);
@@ -189,7 +189,11 @@ export function useAuth(): UseAuthReturn {
       if (createError) throw new Error(`Não foi possível concluir o cadastro: ${createError.message}`);
     }
 
-    return { authUserId, companyUserId: authUserId, role: 'administrador', salespersonId: null, branchId: null };
+    return {
+      identity: { authUserId, companyUserId: authUserId, role: 'administrador', salespersonId: null, branchId: null },
+      // Reuse this request's verified owner profile, never a cross-session cache.
+      ...(ownerProfile ? { ownerProfile: ownerProfile as PartnerProfile } : {}),
+    };
   }, []);
 
   const loadProfile = useCallback(async (userId: string, isCurrent: () => boolean = () => true): Promise<PartnerProfile | null> => {
@@ -248,11 +252,11 @@ export function useAuth(): UseAuthReturn {
 
       try {
         const isCurrent = () => !cancelled && requestId === identityRequestRef.current;
-        const identity = await resolveIdentity(session.user.id, isCurrent);
+        const { identity, ownerProfile } = await resolveIdentity(session.user.id, isCurrent);
 
         if (cancelled || requestId !== identityRequestRef.current) return;
 
-        const profile = await loadProfile(identity.companyUserId, isCurrent);
+        const profile = ownerProfile ?? await loadProfile(identity.companyUserId, isCurrent);
 
         if (cancelled || requestId !== identityRequestRef.current) return;
 
@@ -373,8 +377,8 @@ export function useAuth(): UseAuthReturn {
       if (!authData.user) return { error: 'Falha ao criar conta.' };
       if (!authData.session) return { error: null, needsEmailConfirmation: true };
 
-      const identity = await resolveIdentity(authData.user.id);
-      const profile = await loadProfile(identity.companyUserId);
+      const { identity, ownerProfile } = await resolveIdentity(authData.user.id);
+      const profile = ownerProfile ?? await loadProfile(identity.companyUserId);
       dispatch({ type: 'SET_IDENTITY', identity });
       dispatch({ type: 'SET_PROFILE', profile });
       dispatch({ type: 'SET_ERROR', error: null });

@@ -17,13 +17,15 @@ async function harness({failures=2,error=future,target='employee'}={}){
   async signOut(){signouts++;session=null;return {error:null};},
   async refreshSession(){refreshes++;return {data:{session},error:null};},
   async getUser(){return {data:{user:{...session.user,user_metadata:{business_name:'Store',whatsapp:'5511999999999'}}},error:null};},
- },from(table){let select,user;return {
-  select(value){select=value;return this;},eq(_key,value){user=value;return this;},order(){return this;},limit(){return this;},
+ },from(table){let user;return {
+  select(){return this;},eq(_key,value){user=value;return this;},order(){return this;},limit(){return this;},
   async maybeSingle(){
-   const kind=table==='partner_salespeople'?'employee':select==='id'?'owner':'profile';reads.push({kind,user});
+   // Owner validation now returns the full profile. The separate profile path
+   // remains necessary for employees loading their linked company's profile.
+   const kind=table==='partner_salespeople'?'employee':target==='profile'?'profile':'owner';reads.push({kind,user});
    if(gate)await gate;
    if(kind===target&&remaining-->0)return {data:null,error};
-   return {data:table==='partner_profiles'?{id:user,business_name:'Store'}:null,error:null};
+   return {data:table==='partner_profiles'?{id:user,business_name:'Store'}:target==='profile'?{id:'staff',user_id:'owner',role:'caixa',active:true,branch_id:'branch'}:null,error:null};
   },async upsert(value){writes.push(value);return {error:null};},
  };}};
  const exports={};
