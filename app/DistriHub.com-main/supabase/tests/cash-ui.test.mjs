@@ -23,7 +23,7 @@ afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=
 const ownerSession={id:randomUUID(),branch_id:'branch',actor_key:'owner',operator_name:'Proprietário',opened_at:new Date().toISOString(),closed_at:null,opening_amount:100};
 const employeeSession={...ownerSession,id:randomUUID(),actor_key:'employee',operator_name:'Funcionário'};
 const base={branchId:'branch',branchName:'Filial A',scopeKey:'owner:branch',sales:[],operatorId:null,operatorPin:null,salespeople:[]};
-async function harness({snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true},rpc,storage:providedStorage,props={}}={}){
+async function harness({snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true,can_view_overview:true},rpc,storage:providedStorage,props={}}={}){
  const values=new Map();const storage=providedStorage??{getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const calls=[],listeners=new Map();
  const events={addEventListener(name,fn){if(!listeners.has(name))listeners.set(name,new Set());listeners.get(name).add(fn);},removeEventListener(name,fn){listeners.get(name)?.delete(fn);},dispatchEvent(event){listeners.get(event.type)?.forEach(fn=>fn());}};
@@ -48,7 +48,7 @@ const submit=form=>form.props.onSubmit({preventDefault(){}});
 
 test('owner sees all open cash registers and opens an employee report without changing operator or operating session', async () => {
  const movement=(session,method,amount,kind='venda')=>({id:randomUUID(),session_id:session.id,kind,payment_method:method,amount,created_at:new Date().toISOString(),reason:'Teste'});
- const h=await harness({snapshot:{actor_key:'owner',can_manage:true,sessions:[ownerSession,employeeSession],movements:[movement(ownerSession,'dinheiro',20),movement(ownerSession,'dinheiro',5,'sangria'),movement(employeeSession,'pix',50),movement(employeeSession,'cartao',30)],sales:[]}});
+ const h=await harness({snapshot:{actor_key:'owner',can_manage:true,can_view_overview:true,sessions:[ownerSession,employeeSession],movements:[movement(ownerSession,'dinheiro',20),movement(ownerSession,'dinheiro',5,'sangria'),movement(employeeSession,'pix',50),movement(employeeSession,'cartao',30)],sales:[]}});
  const section=renderer.root.findByProps({'aria-label':'Visão geral dos caixas'});
  const text=JSON.stringify(section.toJSON?.()??renderer.toJSON());
  assert.match(text,/Funcionário/);assert.match(text,/Proprietário/);
@@ -64,7 +64,7 @@ test('owner sees all open cash registers and opens an employee report without ch
 
 test('cash coalesces simultaneous focus/visibility reads without duplicating RPC',async()=>{
  let release,reads=0;
- const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true};
+ const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true,can_view_overview:true};
  const h=await harness({rpc:()=>{reads++;return reads===1?{data:snapshot,error:null}:new Promise(resolve=>{release=resolve;});}});
  await act(async()=>{h.events.dispatchEvent(new Event('focus'));h.events.dispatchEvent(new Event('focus'));h.events.dispatchEvent(new Event('visibilitychange'));});
  assert.equal(reads,2);assert(release);
@@ -74,7 +74,7 @@ test('cash coalesces simultaneous focus/visibility reads without duplicating RPC
 
 test('cash-changed starts a fresh read even while an earlier focus read is pending',async()=>{
  let reads=0;const pending=[];
- const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true};
+ const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true,can_view_overview:true};
  const h=await harness({rpc:()=>{reads++;return reads===1?{data:snapshot,error:null}:new Promise(resolve=>pending.push(resolve));}});
  await act(async()=>h.events.dispatchEvent(new Event('focus')));assert.equal(reads,2);
  await act(async()=>h.events.dispatchEvent(new Event('distrihub:cash-changed')));assert.equal(reads,3);
@@ -106,11 +106,31 @@ test('ordinary employees never receive the management overview, and failed reads
  assert.equal(renderer.root.findAllByProps({'aria-label':'Visão geral dos caixas'}).length,0);
  await act(async()=>renderer.unmount());renderer=null;
  let failed=false;
- const h=await harness({snapshot:{actor_key:'owner',sessions:[ownerSession],movements:[],sales:[],can_manage:true},rpc:()=>failed?{data:null,error:{message:'Leitura indisponível'}}:undefined});
+ const h=await harness({snapshot:{actor_key:'owner',sessions:[ownerSession],movements:[],sales:[],can_manage:true,can_view_overview:true},rpc:()=>failed?{data:null,error:{message:'Leitura indisponível'}}:undefined});
  assert.equal(renderer.root.findAllByProps({'aria-label':'Visão geral dos caixas'}).length,1);
  failed=true;
  await act(async()=>h.events.dispatchEvent(new Event('focus')));
  assert.equal(renderer.root.findAllByProps({'aria-label':'Visão geral dos caixas'}).length,0);
+});
+
+test('operational management does not grant overview',async()=>{
+ const h=await harness({snapshot:{actor_key:'manager',can_manage:true,can_view_overview:false,sessions:[],movements:[],sales:[]},props:{operatorId:'manager',operatorPin:'9876'}});
+ assert.equal(renderer.root.findAllByType(overview.CashOverview).length,0);
+ await act(async()=>h.events.dispatchEvent(new Event('focus')));
+ assert.equal(renderer.root.findAllByType(overview.CashOverview).length,0);
+});
+
+test('missing overview flag denies dashboard even if legacy management is granted',async()=>{
+ await harness({snapshot:{actor_key:'owner',can_manage:true,sessions:[],movements:[],sales:[]}});
+ assert.equal(renderer.root.findAllByType(overview.CashOverview).length,0);
+});
+
+test('overview permission revocation removes dashboard after server refresh',async()=>{
+ let allowed=true;
+ const h=await harness({rpc:()=>({data:{actor_key:'owner',can_manage:true,can_view_overview:allowed,sessions:[],movements:[],sales:[]},error:null})});
+ assert.equal(renderer.root.findAllByType(overview.CashOverview).length,1);
+ allowed=false;await act(async()=>h.events.dispatchEvent(new Event('focus')));
+ assert.equal(renderer.root.findAllByType(overview.CashOverview).length,0);
 });
 
 test('uncertain cash attempt is released only after definitive rejection and locked server reconciliation says absent',async()=>{
@@ -141,7 +161,7 @@ test('reconciliation failure retains the UUID and blocks new operations',async()
 
 test('all operation fields reset on branch change and a late old-context failure is ignored',async()=>{
  let complete;
- const h=await harness({snapshot:{actor_key:'owner',sessions:[ownerSession],movements:[],can_manage:true},rpc:name=>name==='mutate_partner_cash_register'?new Promise(resolve=>{complete=resolve;}):undefined});
+ const h=await harness({snapshot:{actor_key:'owner',sessions:[ownerSession],movements:[],can_manage:true,can_view_overview:true},rpc:name=>name==='mutate_partner_cash_register'?new Promise(resolve=>{complete=resolve;}):undefined});
  const movement=()=>renderer.root.findAllByType('form')[0];
  await act(async()=>{movement().findAllByType('input')[0].props.onChange({target:{value:'80'}});movement().findAllByType('input')[1].props.onChange({target:{value:'Retirada da filial A'}});});
  let pending;await act(async()=>{pending=submit(movement());});
@@ -161,7 +181,7 @@ test('cash refreshes after new sales and on activation, and inactive screen skip
 });
 
 test('owner selects employee cash and closes using the supervised endpoint with the actual logged-in identity',async()=>{
- const h=await harness({snapshot:{actor_key:'owner',sessions:[employeeSession],movements:[],can_manage:true},rpc:name=>name==='supervised_mutate_partner_cash_register'?{data:employeeSession.id,error:null}:undefined});
+ const h=await harness({snapshot:{actor_key:'owner',sessions:[employeeSession],movements:[],can_manage:true,can_view_overview:true},rpc:name=>name==='supervised_mutate_partner_cash_register'?{data:employeeSession.id,error:null}:undefined});
  await act(async()=>renderer.root.findByProps({'aria-label':'Caixa para operar'}).props.onChange({target:{value:employeeSession.id}}));
  const closing=renderer.root.findAllByType('form')[2];
  await act(async()=>closing.findAllByType('input')[0].props.onChange({target:{value:'100'}}));
@@ -173,7 +193,7 @@ test('owner selects employee cash and closes using the supervised endpoint with 
 
 test('cash report shows employee sales returned by the cash RPC even if panel sales are empty',async()=>{
  const id=randomUUID();
- await harness({snapshot:{actor_key:'owner',sessions:[employeeSession],movements:[{id:randomUUID(),session_id:employeeSession.id,kind:'venda',payment_method:'pix',amount:50,sale_id:id,created_at:new Date().toISOString(),reason:'Venda',performed_by:'seller',performed_by_name:'Ana Vendedora'}],sales:[{id,sale_number:123,customer_name:'Cliente do funcionário',status:'concluida',total:50}],can_manage:true}});
+ await harness({snapshot:{actor_key:'owner',sessions:[employeeSession],movements:[{id:randomUUID(),session_id:employeeSession.id,kind:'venda',payment_method:'pix',amount:50,sale_id:id,created_at:new Date().toISOString(),reason:'Venda',performed_by:'seller',performed_by_name:'Ana Vendedora'}],sales:[{id,sale_number:123,customer_name:'Cliente do funcionário',status:'concluida',total:50}],can_manage:true,can_view_overview:true}});
  assert.match(rendered(),/Cliente do funcionário/);assert.match(rendered(),/123/);
  assert.match(rendered(),/Finalizado por/);assert.match(rendered(),/Ana Vendedora/);
 });

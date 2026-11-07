@@ -69,8 +69,24 @@ before(async () => {
   await db.exec(await read('../migrations/20261015013718_fix_sales_history_cancellation_and_completion.sql'));
   await db.exec(await read('../migrations/20261017172437_shared_branch_checkout_operator_history.sql'));
   await db.exec(await read('../migrations/20261029164610_separate_checkout_cash_permissions.sql'));
+  await db.exec(await read('../migrations/20261107145447_restrict_cash_overview_visibility.sql'));
 });
 after(() => db.close());
+
+test('overview is owner/admin only; manager keeps operational permission without overview',async()=>{
+ const readCash=async(id=null,pin=null)=>(await sql('select public.read_partner_cash_register($1,$2,$3) result',[branch,id,pin])).rows[0].result;
+ assert.equal((await readCash()).can_view_overview,true);
+ assert.equal((await readCash(employee,'1234')).can_view_overview,false);
+ const managed=await readCash(manager,'9876');assert.equal(managed.can_manage,true);assert.equal(managed.can_view_overview,false);
+ await sql("update partner_salespeople set role='administrador' where id=$1",[manager]);
+ assert.equal((await readCash(manager,'9876')).can_view_overview,true);
+ await sql("update partner_salespeople set role='vendedor' where id=$1",[manager]);
+ assert.equal((await readCash(manager,'9876')).can_view_overview,false);
+ await assert.rejects(readCash(manager,'wrong'));
+ await login(other);await assert.rejects(readCash(manager,'9876'));
+ await login(null);await assert.rejects(readCash());
+ assert.equal((await sql("select has_function_privilege('anon','public.read_partner_cash_register(uuid,uuid,text)','execute') allowed")).rows[0].allowed,false);
+});
 
 async function splitSale(extra = {}) {
   const r = {id:randomUUID(),method:'misto',status:'concluida',fee:15,

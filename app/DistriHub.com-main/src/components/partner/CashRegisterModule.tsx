@@ -45,6 +45,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
   const [pending, setPending] = useState<CashRequest | null>(null);
   const [actorKey, setActorKey] = useState('');
   const [canManage, setCanManage] = useState(false);
+  const [canViewOverview, setCanViewOverview] = useState(false);
   const [cashSales, setCashSales] = useState<PartnerSale[]>([]);
   const inFlight = useRef(false);
   const reportRef = useRef<HTMLElement | null>(null);
@@ -70,13 +71,14 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
       setMovements(data.movements ?? []);
       setActorKey(data.actor_key);
       setCanManage(data.can_manage === true);
+      setCanViewOverview(data.can_view_overview === true);
       setCashSales(data.sales ?? []);
     }
   }, [branchId, operatorId, operatorPin, scopeKey]);
 
   useEffect(() => {
     setLoading(true); setError(null); setNotice(null); setSessions([]); setMovements([]);
-    setActorKey(''); setCanManage(false); setCashSales([]);
+    setActorKey(''); setCanManage(false); setCanViewOverview(false); setCashSales([]);
     setSelectedId(''); setSupervisorPin(''); setCounted(''); setNotes('');
     setOpening('0'); setAmount(''); setKind('sangria'); setReason(''); setSupervisorId('');
     setRefundSaleId(''); setRefundMethod(''); setRefundAmount(''); setRefundReason('');
@@ -239,7 +241,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
     }}><RefreshCw size={14} /> Atualizar</button>
     {error && <p className="otp-error-msg" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {canManage && !loading && !error && <CashOverview key={branchId} branchId={branchId} branchName={branchName} sessions={sessions} movements={movements}
+    {canManage && canViewOverview && !loading && !error && <CashOverview key={branchId} branchId={branchId} branchName={branchName} sessions={sessions} movements={movements}
       onViewReport={id => { setSelectedId(id); reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} />}
     {canManage && onManageSession && <section className="cash-card">
       <label>Caixa para operar<select aria-label="Caixa para operar" value={managedSessionId ?? ''} disabled={busy || loading || Boolean(pending)} onChange={e => {
