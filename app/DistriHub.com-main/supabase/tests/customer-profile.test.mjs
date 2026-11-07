@@ -30,6 +30,16 @@ vm.runInNewContext(ts.transpileModule(source+'\nexports.CustomerProfile=Customer
 let renderer;
 afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=null;draftInitialValues.clear();});
 const customer={id:'customer',name:'Cliente',user_id:'owner',branch_id:null,person_type:'PF',customer_type:'varejo',credit_limit:0,allow_credit:false};
+
+test('customer history requests its data on demand, not while opening the directory',async()=>{
+ let requests=0;
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Customers,{customers:[customer],branches:[],sales:[],salespeople:[],rmaRequests:[],onAdd:async()=>{},onUpdate:async()=>{},onDelete:async()=>{},onLoadCustomer:async()=>customer,onRequestHistory:()=>{requests++;}}));});
+ assert.equal(requests,0);
+ const actions=renderer.root.findByProps({'aria-label':'Ações de Cliente'});
+ await act(async()=>actions.props.onClick({currentTarget:{getBoundingClientRect:()=>({left:0,right:300,top:100,bottom:140})}}));
+ const history=renderer.root.findAllByType('button').find(b=>b.children.some(c=>typeof c==='string'&&c.includes('Histórico de Compras')));
+ await act(async()=>history.props.onClick());assert.equal(requests,1);
+});
 test('customer actions open and close the enlarged saved photo without entering edit or saving',async()=>{
  let writes=0;
  const full={...customer,photo_url:'owner/customer/photo.png'};

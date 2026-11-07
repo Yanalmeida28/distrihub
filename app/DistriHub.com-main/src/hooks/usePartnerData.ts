@@ -5,7 +5,7 @@ import { InvoicePaymentAttempts, FinancialOperationAttempts, type FinancialRecov
 import type { XmlStockImport } from '../lib/cadastroXml';
 import { OperationAttempts } from '../lib/operationAttempts';
 import type { RmaPhotoFile } from '../components/partner/RmaPhotoUpload';
-import { mergePartnerChange, PartnerDataVersions, PartnerLoadCache, partnerResources, partnerRequiredResources, withLoadTimeout, type PartnerCollection } from '../lib/partnerSync';
+import { mergePartnerChange, PartnerDataVersions, PartnerLoadCache, PartnerReadFlight, partnerResources, partnerRequiredResources, withLoadTimeout, type PartnerCollection } from '../lib/partnerSync';
 import { productFiscalPatch } from '../lib/productPersistence';
 import { findProductNameDuplicates } from '../lib/productNames';
 import { splitPaymentError, billedSaleError, saleChargeTotal, validSalePrice, isDefinitiveSaleRejection, PdvSaleAttemptStore, pdvErrorMessage, type CustomerCredit } from '../lib/pdv';
@@ -289,6 +289,7 @@ export function usePartnerData(identity: PartnerIdentity | null, syncBranchId: s
   const [pendingSale, setPendingSale] = useState<PartnerSale | null>(null);
   const saleInFlight = useRef(false);
   const pdvRequestId = useRef(0);
+  const pdvReadFlight = useRef(new PartnerReadFlight());
   const identityScope = identity ? identity.authUserId + ':' + identity.companyUserId : '';
   const identityScopeRef = useRef(identityScope);
   identityScopeRef.current = identityScope;
@@ -1540,7 +1541,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
   );
 
   // One authorized snapshot: current branch records plus company-wide credit totals.
-  const refreshPdv = useCallback(async (branchId: string) => {
+  const refreshPdv = useCallback(async (branchId: string, reusePending = false) => {
     const currentIdentity = requireIdentity();
     ensureEmployeeBranch(currentIdentity, branchId);
     const scope = currentIdentity.authUserId + ':' + currentIdentity.companyUserId;
@@ -1549,7 +1550,11 @@ read('sales', (signal) => fetchAllPages((from, to) => client
     const readRevision = dataRevisionRef.current.begin(['products', 'sales', 'invoices', 'movements']);
     setPdvCredits([]);
     if (!isSupabaseConfigured || !supabase) throw new Error('Sincronização do PDV requer Supabase.');
-    const { data: snapshot, error: syncError } = await supabase.rpc('get_partner_pdv_snapshot', { p_branch_id: branchId });
+    const { data: snapshot, error: syncError } = await pdvReadFlight.current.run(
+      JSON.stringify([scope, currentIdentity.salespersonId, branchId]), signal => {
+        const query = supabase!.rpc('get_partner_pdv_snapshot', { p_branch_id: branchId });
+        return typeof query.abortSignal === 'function' ? query.abortSignal(signal) : query;
+      }, reusePending);
     if (syncError) throw syncError;
     if (!snapshot || !Array.isArray(snapshot.credits) || !Array.isArray(snapshot.products)
       || !Array.isArray(snapshot.sales) || !Array.isArray(snapshot.invoices) || !Array.isArray(snapshot.movements)) {
@@ -1608,6 +1613,8 @@ read('sales', (signal) => fetchAllPages((from, to) => client
     syncInFlight.current = true;
     setSyncing(true);
     try {
+      // Realtime reconciliation can follow a remote write: it must not join
+      // a snapshot that began before that write was committed.
       if (syncBranchId && (resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current))) await refreshPdv(syncBranchId);
       else { await loadData(true); return; }
       if (scope === identityScopeRef.current) {

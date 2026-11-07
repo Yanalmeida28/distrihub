@@ -5,6 +5,7 @@ import { isDefinitiveSaleRejection, pdvErrorMessage } from '../../lib/pdv';
 import { CashRequestStore, cashAmount, cashBusinessDay, cashDaySalesTotal, cashPaymentLabels, cashTotals, printCashReport, type CashMovement, type CashRequest, type CashSession } from '../../lib/cashRegister';
 import { money } from '../../utils';
 import { CashOverview } from './CashOverview';
+import { PartnerReadFlight } from '../../lib/partnerSync';
 import type { PartnerSale, PartnerSalesperson } from '../../types';
 
 type Props = {
@@ -48,16 +49,20 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
   const inFlight = useRef(false);
   const reportRef = useRef<HTMLElement | null>(null);
   const generation = useRef(0);
+  const reads = useRef(new PartnerReadFlight());
   const context = useRef({ branchId, operatorId, operatorPin, scopeKey });
   context.current = { branchId, operatorId, operatorPin, scopeKey };
   const invalidateReads = useCallback(() => { generation.current++; }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (reusePending = false) => {
     if (!supabase) throw new Error('Conecte-se para usar o controle de caixa.');
     const request = ++generation.current;
-    const { data, error } = await supabase.rpc('read_partner_cash_register', {
-      p_branch_id: branchId, p_salesperson_id: operatorId, p_pin: operatorPin,
-    });
+    const { data, error } = await reads.current.run(JSON.stringify([scopeKey, branchId, operatorId, operatorPin]), signal => {
+      const query = supabase!.rpc('read_partner_cash_register', {
+        p_branch_id: branchId, p_salesperson_id: operatorId, p_pin: operatorPin,
+      });
+      return typeof query.abortSignal === 'function' ? query.abortSignal(signal) : query;
+    }, reusePending);
     if (error) throw error;
     if (!data || typeof data.actor_key !== 'string' || !Array.isArray(data.sessions) || !Array.isArray(data.movements)) throw new Error('Não foi possível conferir os dados do Caixa. Atualize antes de operar.');
     if (request === generation.current) {
@@ -67,7 +72,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
       setCanManage(data.can_manage === true);
       setCashSales(data.sales ?? []);
     }
-  }, [branchId, operatorId, operatorPin]);
+  }, [branchId, operatorId, operatorPin, scopeKey]);
 
   useEffect(() => {
     setLoading(true); setError(null); setNotice(null); setSessions([]); setMovements([]);
@@ -84,20 +89,22 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
   useEffect(() => {
     if (!isActive || !branchId) { invalidateReads(); setLoading(false); return; }
     let active = true;
-    const sync = () => {
+    const sync = (reusePending = true) => {
       setLoading(true);
-      void refresh().then(() => { if (active) setError(null); })
+      void refresh(reusePending).then(() => { if (active) setError(null); })
         .catch(e => { if (active) setError(pdvErrorMessage(e)); })
         .finally(() => { if (active) setLoading(false); });
     };
     const visible = () => { if (document.visibilityState === 'visible') sync(); };
+    const focused = () => sync();
+    const changed = () => sync(false);
     sync();
-    window.addEventListener('focus', sync);
-    window.addEventListener('distrihub:cash-changed', sync);
+    window.addEventListener('focus', focused);
+    window.addEventListener('distrihub:cash-changed', changed);
     document.addEventListener('visibilitychange', visible);
     return () => {
       active = false; invalidateReads();
-      window.removeEventListener('focus', sync); window.removeEventListener('distrihub:cash-changed', sync);
+      window.removeEventListener('focus', focused); window.removeEventListener('distrihub:cash-changed', changed);
       document.removeEventListener('visibilitychange', visible);
     };
   }, [refresh, isActive, branchId, sales, invalidateReads]);

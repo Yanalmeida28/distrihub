@@ -222,6 +222,7 @@ export function CadastrosModule({
             rmaRequests={rmaRequests}
             salespeople={salespeople}
             onLoadCustomer={onLoadCustomer}
+            onRequestHistory={() => onDataScopeChange?.('clientes-historico')}
             selectedBranchId={selectedBranchId}
             onAdd={onAddCustomer}
             onUpdate={onUpdateCustomer}
@@ -1234,7 +1235,8 @@ function ModifiersSubTab({ modifiers, products, onAdd, onDelete }: {
   );
 }
 
-function CustomersSubTab({ canExport = false, isActive = true, customers, branches, sales, rmaRequests, salespeople, selectedBranchId, onAdd, onUpdate, onDelete, onLoadCustomer }: {
+function CustomersSubTab({ canExport = false, isActive = true, customers, branches, sales, rmaRequests, salespeople, selectedBranchId, onAdd, onUpdate, onDelete, onLoadCustomer, onRequestHistory }: {
+  onRequestHistory?: () => void;
   canExport?: boolean;
   isActive?: boolean;
   rmaRequests: RmaRequest[];
@@ -1595,8 +1597,8 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
                         {openCustomerActionId === c.id && customerActionPosition && createPortal(
                           <div className="product-actions-popover customer-actions-popover" style={customerActionPosition} role="menu">
                             <button type="button" onClick={() => { openEditForm(c); setOpenCustomerActionId(null); }}><Pencil size={15} /> Editar</button>
-                            <button type="button" onClick={async () => { setOpenCustomerActionId(null); try { await onLoadCustomer(c.id); setProfileCustomerId(c.id); } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível carregar os dados do cliente.'); } }}><UserCircle size={15} /> Detalhes</button>
-                            <button type="button" onClick={() => { setHistoryCustomerId(c.id); setOpenCustomerActionId(null); }}><History size={15} /> Histórico de Compras / Extrato</button>
+                            <button type="button" onClick={async () => { setOpenCustomerActionId(null); try { await onLoadCustomer(c.id); onRequestHistory?.(); setProfileCustomerId(c.id); } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível carregar os dados do cliente.'); } }}><UserCircle size={15} /> Detalhes</button>
+                            <button type="button" onClick={() => { onRequestHistory?.(); setHistoryCustomerId(c.id); setOpenCustomerActionId(null); }}><History size={15} /> Histórico de Compras / Extrato</button>
                             <button type="button" className="danger" onClick={async () => { setOpenCustomerActionId(null); if (!window.confirm(`Deseja excluir o cliente "${c.name}"?`)) return; try { await onDelete(c.id); } catch (error) { window.alert(error instanceof Error ? error.message : 'Não foi possível excluir o cliente.'); } }}><Trash2 size={15} /> Excluir</button>
                           </div>, globalThis.document.body
                         )}

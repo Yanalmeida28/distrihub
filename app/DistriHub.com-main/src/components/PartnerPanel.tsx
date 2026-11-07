@@ -389,7 +389,7 @@ export function PartnerPanel({
     if (!deviceSession.ready || !effectiveBranchId || partner.loading || (activeTab !== 'pdv' && activeTab !== 'pedidos')) return;
     let active = true;
     setPdvReadError(null);
-    void refreshPdv(effectiveBranchId).catch(error => { if (active) setPdvReadError(pdvErrorMessage(error)); });
+    void refreshPdv(effectiveBranchId, true).catch(error => { if (active) setPdvReadError(pdvErrorMessage(error)); });
     return () => { active = false; };
   }, [deviceSession.ready, effectiveBranchId, activeTab, partner.loading, refreshPdv]);
 
@@ -1426,7 +1426,8 @@ export function PartnerPanel({
     if (accessLocked || !deviceSession.ready) return;
     if (blockedTabs.includes(tab) || !canUseSaasFeature(saas.subscription, tab)) return;
     void tabCodeLoaders[tab]().catch(() => {});
-    void partner.prefetchModule(tab === 'cadastros' ? 'cadastros:' + cadastroDataScope : tab === 'administrativo' ? 'administrativo:' + adminDataScope : tab === 'relatorios' ? 'relatorios:' + reportDataScope : tab);
+    // Hover/focus/touch downloads module code only. Data follows actual
+    // navigation, so passing across the menu cannot saturate database reads.
     if (tab === 'historico') void loadOrderHistoryModule().catch(() => {});
     if (tab === 'pedidos') void loadCatalogOrdersModule().catch(() => {});
   }

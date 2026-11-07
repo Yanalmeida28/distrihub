@@ -997,11 +997,11 @@ test('returning to cached products immediately releases the previous modules loa
   for(const table of ['partner_invoices','rma_requests_v2','partner_rma_credit_applications'])assert.equal(h.queries.includes(table),true,table+' must still load for finance');
  });
 
- test('menu prefetch loads only the destination resources and the subsequent tab uses them without another query',async()=>{
+ test('explicit data prefetch loads only the destination resources and the subsequent tab uses them without another query',async()=>{
   const h=await harness({resourceScope:'cadastros:produtos',initialCustomers:[{id:'customer',user_id:'owner',name:'Customer'}],rpc:async()=>({data:null,error:null})});
-  await act(async()=>h.current.prefetchModule('caixa'));
+  await act(async()=>h.current.prefetchModule('pedidos'));
   assert.equal(h.current.loading,false);assert.equal(h.current.customers.length,1);
-  const reads=h.queries.length;await h.setScope('caixa');
+  const reads=h.queries.length;await h.setScope('pedidos');
   assert.equal(h.queries.length,reads);assert.equal(h.current.resourcesReady,true);
  });
 

@@ -91,6 +91,35 @@ test('products open before slow suppliers; supplier editor is still unready', as
  assert.equal(h.current.resourcesReady,true);
  assert.equal(h.current.suppliersReady,true);
 });
+
+test('cash shell does not wait for company-wide customers or historical sales',async()=>{
+ const h=await harness({resourceScope:'caixa',rpc:async()=>({data:null,error:null})});
+ assert.equal(h.current.resourcesReady,true);assert.equal(h.current.loading,false);
+ for(const table of ['partner_customers','partner_sales','partner_products','rma_requests_v2'])assert.equal(h.queries.includes(table),false,table);
+ assert(h.queries.includes('partner_branches'));assert(h.queries.includes('partner_salespeople'));
+});
+
+test('customer directory opens without history and loads complete sales/returns when requested',async()=>{
+ const h=await harness({resourceScope:'cadastros:clientes',initialCustomers:[{id:'customer',user_id:'owner',name:'Cliente'}],initialSales:[{id:'sale',user_id:'owner',customer_id:'customer'}],rpc:async()=>({data:null,error:null})});
+ assert.equal(h.current.customers.length,1);assert.equal(h.current.resourcesReady,true);
+ assert.equal(h.queries.includes('partner_sales'),false);assert.equal(h.queries.includes('rma_requests_v2'),false);
+ await h.setScope('cadastros:clientes-historico');
+ for(const table of ['partner_sales','rma_requests_v2','partner_rma_credit_applications'])assert(h.queries.includes(table),table);
+ assert.equal(h.current.sales[0].id,'sale');assert.equal(h.current.resourcesReady,true);
+});
+
+test('PDV concurrent navigation reads share RPC, but explicit refresh after write cannot reuse old result',async()=>{
+ const pending=[];let calls=0;
+ const h=await harness({resourceScope:'suporte',rpc:()=>{calls++;return new Promise(resolve=>pending.push(resolve));}});
+ let first,joined,fresh;
+ await act(async()=>{first=h.current.refreshPdv('branch',true);joined=h.current.refreshPdv('branch',true);});
+ assert.equal(calls,1);
+ await act(async()=>{fresh=h.current.refreshPdv('branch');});assert.equal(calls,2);
+ const snapshot={credits:[],products:[{id:'new-stock',user_id:'owner',branch_id:'branch',stock:1}],sales:[],invoices:[],movements:[]};
+ await act(async()=>{pending[1]({data:snapshot,error:null});await fresh;});
+ await act(async()=>{pending[0]({data:{...snapshot,products:[{id:'old-stock',user_id:'owner',stock:99}]},error:null});await first;await joined;});
+ assert.equal(h.current.products[0].id,'new-stock');
+});
 test('automatic reconciliation preserves secondary failure while finance stays unready', async () => {
  let fail=true;
  const h=await harness({resourceScope:'suporte',rpc:async()=>({data:null,error:null}),readResult:(table,fallback)=>table==='partner_rma_credit_applications'&&fail?{data:null,error:{message:'audit unavailable'}}:fallback});

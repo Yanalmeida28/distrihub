@@ -11,14 +11,17 @@ const moduleCollections: Record<string, PartnerCollection[]> = {
   cadastros: ['products', 'categories', 'suppliers'],
   'cadastros:produtos': ['products', 'categories', 'suppliers'],
   'cadastros:categorias': ['categories'], 'cadastros:fornecedores': ['suppliers'],
-  'cadastros:clientes': ['customers', 'sales', 'rmas'], 'cadastros:vendedores': [],
+  'cadastros:clientes': ['customers'],
+  'cadastros:clientes-historico': ['customers', 'sales', 'rmas'], 'cadastros:vendedores': [],
   'cadastros:xml': ['products', 'categories', 'suppliers'],
   'cadastros:importar': ['products', 'categories', 'suppliers', 'customers'],
   'cadastros:combos': ['products', 'combos'], 'cadastros:modificadores': ['modifiers'],
   'cadastros:reposicao': ['products', 'sales'],
   pdv: ['products', 'customers', 'categories', 'combos', 'modifiers'],
   pedidos: ['products', 'customers', 'sales'],
-  caixa: ['customers', 'sales'], os: ['products', 'customers'],
+  // Cash RPC returns its own authorized sales and movements; do not gate it
+  // on downloading the company's complete customer/sales directories.
+  caixa: [], os: ['products', 'customers'],
   rma: ['products', 'customers', 'sales', 'rmas'],
   historico: ['customers', 'orders'],
   suporte: [], 'white-label': [], configuracoes: [],
@@ -80,6 +83,20 @@ export class PartnerLoadCache {
     });
     this.pending.set(key, request);
     void request.finally(() => { if (this.pending.get(key) === request) this.pending.delete(key); }).catch(() => {});
+    return request;
+  }
+}
+
+// Share only explicitly requested concurrent reads, never a completed snapshot.
+// A post-mutation refresh defaults to fresh and cannot join a pre-mutation read.
+export class PartnerReadFlight {
+  private pending: { key: string; request: Promise<unknown> } | null = null;
+  run<T>(key: string, loader: (signal: AbortSignal) => PromiseLike<T>, reusePending = false): Promise<T> {
+    if (reusePending && this.pending?.key === key) return this.pending.request as Promise<T>;
+    const controller = new AbortController();
+    const request = withLoadTimeout(() => loader(controller.signal), 'A consulta demorou demais. Tente atualizar novamente.')
+      .finally(() => { controller.abort(); if (this.pending?.request === request) this.pending = null; });
+    this.pending = { key, request };
     return request;
   }
 }

@@ -16,6 +16,7 @@ vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/
   : name === '../../utils' ? { money: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }) } : require(name),
 });
 const pdv={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts',import.meta.url),'utf8')),{exports:pdv,Error});
+const sync={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/partnerSync.ts',import.meta.url),'utf8')),{exports:sync,AbortController,setTimeout,clearTimeout});
 const source=compile(await readFile(new URL('../../src/components/partner/CashRegisterModule.tsx',import.meta.url),'utf8'));
 let renderer;
 afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=null;});
@@ -32,6 +33,7 @@ async function harness({snapshot={actor_key:'owner',sessions:[],movements:[],sal
   if(name==='../../lib/cashRegister')return cash;
   if(name==='./CashOverview')return overview;
   if(name==='../../lib/pdv')return pdv;
+  if(name==='../../lib/partnerSync')return sync;
   if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};
   return require(name);
  }});
@@ -58,6 +60,27 @@ test('owner sees all open cash registers and opens an employee report without ch
  assert.equal(renderer.root.findByProps({'aria-label':'Caixa para operar'}).props.value,'');
  assert.equal(h.calls.some(call=>call.name.includes('mutate')||call.name.includes('refund')),false);
  assert.ok(h.calls.every(call=>call.args.p_salesperson_id===null));
+});
+
+test('cash coalesces simultaneous focus/visibility reads without duplicating RPC',async()=>{
+ let release,reads=0;
+ const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true};
+ const h=await harness({rpc:()=>{reads++;return reads===1?{data:snapshot,error:null}:new Promise(resolve=>{release=resolve;});}});
+ await act(async()=>{h.events.dispatchEvent(new Event('focus'));h.events.dispatchEvent(new Event('focus'));h.events.dispatchEvent(new Event('visibilitychange'));});
+ assert.equal(reads,2);assert(release);
+ await act(async()=>release({data:snapshot,error:null}));
+ assert.doesNotMatch(rendered(),/Carregando caixa/);
+});
+
+test('cash-changed starts a fresh read even while an earlier focus read is pending',async()=>{
+ let reads=0;const pending=[];
+ const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true};
+ const h=await harness({rpc:()=>{reads++;return reads===1?{data:snapshot,error:null}:new Promise(resolve=>pending.push(resolve));}});
+ await act(async()=>h.events.dispatchEvent(new Event('focus')));assert.equal(reads,2);
+ await act(async()=>h.events.dispatchEvent(new Event('distrihub:cash-changed')));assert.equal(reads,3);
+ await act(async()=>pending[1]({data:snapshot,error:null}));
+ await act(async()=>pending[0]({data:{...snapshot,actor_key:'old-context'},error:null}));
+ assert.doesNotMatch(rendered(),/Carregando caixa/);
 });
 
 test('overview filters branch, preserves closed snapshots and pages results without counting closed cash as open money', async () => {

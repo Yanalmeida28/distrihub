@@ -8,8 +8,24 @@ import * as jsx from 'react/jsx-runtime';
 import ts from '../../node_modules/typescript/lib/typescript.js';
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText;
 const timers=new Map();let timerId=0;
-const helpers={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/partnerSync.ts',import.meta.url),'utf8')),{exports:helpers,setTimeout(callback){timers.set(++timerId,callback);return timerId;},clearTimeout(id){timers.delete(id);}});
+const helpers={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/partnerSync.ts',import.meta.url),'utf8')),{exports:helpers,AbortController,setTimeout(callback){timers.set(++timerId,callback);return timerId;},clearTimeout(id){timers.delete(id);}});
 const modules={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/moduleLoading.ts',import.meta.url),'utf8')),{exports:modules,require:()=>helpers});
+
+test('pending reads share only same context, forced post-mutation reads stay fresh and timeout aborts',async()=>{
+ const flight=new helpers.PartnerReadFlight();let calls=0,finishOld,finishFresh;
+ const old=flight.run('branch-a',()=>{calls++;return new Promise(resolve=>{finishOld=resolve;});},true);
+ assert.equal(flight.run('branch-a',()=>{calls++;},true),old);
+ const fresh=flight.run('branch-a',()=>{calls++;return new Promise(resolve=>{finishFresh=resolve;});});
+ assert.notEqual(fresh,old);assert.equal(flight.run('branch-a',()=>{},true),fresh);
+ await Promise.resolve();assert.equal(calls,2);
+ finishOld('old');await old;
+ assert.equal(flight.run('branch-a',()=>{},true),fresh);
+ finishFresh('fresh');assert.equal(await fresh,'fresh');
+ let signal;const stalled=flight.run('branch-b',s=>{signal=s;return new Promise(()=>{});},true);
+ await Promise.resolve();const failure=assert.rejects(stalled,/demorou demais/);
+ for(const callback of [...timers.values()])callback();await failure;assert.equal(signal.aborted,true);
+ assert.equal(await flight.run('branch-b',()=>Promise.resolve('retry'),true),'retry');
+});
 
 test('module code prefetch is shared, a failed download can retry, and stalled imports have a deadline',async()=>{
  let calls=0;let fail=true;
