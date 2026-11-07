@@ -78,6 +78,48 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],r
     flushTimers(){for(const [id,callback] of [...timeouts]){timeouts.delete(id);callback();}},
   };
 }
+for(const resourceScope of ['pdv','cadastros:produtos','pedidos'])test(`profile update during initial ${resourceScope} load cannot leave the screen loading until another tab is opened`,async()=>{
+ let first,profileReads=0;
+ const h=await harness({resourceScope,rpc:async()=>({data:null,error:null}),readResult:(table,fallback)=>{
+  if(table!=='partner_profiles')return fallback;
+  profileReads++;
+  if(profileReads===1)return new Promise(resolve=>{first=resolve;});
+  return {data:{id:'owner',business_name:'Current profile'},error:null};
+ }});
+ assert.equal(h.current.resourcesReady,false);
+ await act(async()=>h.emit('partner_profiles','UPDATE',{id:'owner',business_name:'Current profile'}));
+ await act(async()=>first({data:{id:'owner',business_name:'Old profile'},error:null}));
+ assert.equal(h.current.resourcesReady,true);assert.equal(h.current.loading,false);
+ assert.equal(h.current.profile.business_name,'Current profile');assert.equal(profileReads,2);
+});
+
+test('recovery is bounded and exposes a retryable error if both initial reads are superseded',async()=>{
+ const pending=[];let reads=0;
+ const h=await harness({resourceScope:'pdv',rpc:async()=>({data:null,error:null}),readResult:(table,fallback)=>{
+  if(table!=='partner_profiles')return fallback;reads++;return new Promise(resolve=>pending.push(resolve));
+ }});
+ for(let i=0;i<2;i++){
+  await act(async()=>h.emit('partner_profiles','UPDATE',{id:'owner',business_name:'Updated '+i}));
+  await act(async()=>pending[i]({data:{id:'owner',business_name:'Old '+i},error:null}));
+ }
+ assert.equal(reads,2);assert.equal(h.current.resourcesReady,false);assert.equal(h.current.loading,false);
+ assert.match(h.current.error,/mudaram durante o carregamento/);
+});
+
+test('a slow optional supplier cannot delay recovery of the required profile',async()=>{
+ let first,supplier;let reads=0;
+ const h=await harness({resourceScope:'cadastros:produtos',rpc:async()=>({data:null,error:null}),readResult:(table,fallback)=>{
+  if(table==='partner_suppliers')return new Promise(resolve=>{supplier=resolve;});
+  if(table!=='partner_profiles')return fallback;
+  if(++reads===1)return new Promise(resolve=>{first=resolve;});
+  return {data:{id:'owner',business_name:'Current'},error:null};
+ }});
+ await act(async()=>h.emit('partner_profiles','UPDATE',{id:'owner',business_name:'Current'}));
+ await act(async()=>first({data:{id:'owner',business_name:'Old'},error:null}));
+ assert.equal(h.current.resourcesReady,true);assert.equal(h.current.loading,false);assert.equal(h.current.suppliersReady,false);
+ await act(async()=>supplier({data:[],error:null}));
+});
+
 test('products open before slow suppliers; supplier editor is still unready', async () => {
  let release;
  const h = await harness({resourceScope:'suporte',rpc:async()=>({data:null,error:null}),readResult:(table,fallback)=>table==='partner_suppliers'?new Promise(resolve=>{release=resolve;}):table==='partner_products'?{data:[{id:'audit-product',user_id:'owner',stock:1}],error:null}:fallback});

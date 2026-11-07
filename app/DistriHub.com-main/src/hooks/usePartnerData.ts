@@ -773,7 +773,15 @@ read('sales', (signal) => fetchAllPages((from, to) => client
     if (!background) setError(null);
     setLoading(!ready() && !background);
     const results = await Promise.all(keys.map(async key => {
-      const failure = await loadBatch([key], force);
+      let failure = await loadBatch([key], force);
+      const needsRecovery = () => Boolean(identityScopeRef.current) && mountedRef.current && generation === requestIdRef.current
+        && activeScope === resourceScopeRef.current
+        && partnerRequiredResources(activeScope).includes(key) && !loadCacheRef.current.has(key);
+      // Realtime or a newer authorized snapshot can invalidate an initial read.
+      // Discarding that response is correct, but it must not leave an unloaded
+      // collection behind a permanent spinner. Retry only that read, once.
+      if (!failure && needsRecovery()) failure = await loadBatch([key], true);
+      if (!failure && needsRecovery()) failure = 'Os dados mudaram durante o carregamento. Tente carregar novamente.';
       if (mountedRef.current && generation === requestIdRef.current && ready()) setLoading(false);
       return failure;
     }));
