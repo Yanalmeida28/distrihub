@@ -51,6 +51,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
   const reportRef = useRef<HTMLElement | null>(null);
   const generation = useRef(0);
   const reads = useRef(new PartnerReadFlight());
+  const hasSnapshot = useRef(false);
   const context = useRef({ branchId, operatorId, operatorPin, scopeKey });
   context.current = { branchId, operatorId, operatorPin, scopeKey };
   const invalidateReads = useCallback(() => { generation.current++; }, []);
@@ -67,6 +68,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
     if (error) throw error;
     if (!data || typeof data.actor_key !== 'string' || !Array.isArray(data.sessions) || !Array.isArray(data.movements)) throw new Error('Não foi possível conferir os dados do Caixa. Atualize antes de operar.');
     if (request === generation.current) {
+      hasSnapshot.current = true;
       setSessions(data.sessions ?? []);
       setMovements(data.movements ?? []);
       setActorKey(data.actor_key);
@@ -77,6 +79,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
   }, [branchId, operatorId, operatorPin, scopeKey]);
 
   useEffect(() => {
+    hasSnapshot.current = false;
     setLoading(true); setError(null); setNotice(null); setSessions([]); setMovements([]);
     setActorKey(''); setCanManage(false); setCanViewOverview(false); setCashSales([]);
     setSelectedId(''); setSupervisorPin(''); setCounted(''); setNotes('');
@@ -241,7 +244,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
     }}><RefreshCw size={14} /> Atualizar</button>
     {error && <p className="otp-error-msg" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {canManage && canViewOverview && !loading && !error && <CashOverview key={branchId} branchId={branchId} branchName={branchName} sessions={sessions} movements={movements}
+    {canManage && canViewOverview && hasSnapshot.current && !error && <CashOverview key={branchId} branchId={branchId} branchName={branchName} sessions={sessions} movements={movements}
       onViewReport={id => { setSelectedId(id); reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} />}
     {canManage && onManageSession && <section className="cash-card">
       <label>Caixa para operar<select aria-label="Caixa para operar" value={managedSessionId ?? ''} disabled={busy || loading || Boolean(pending)} onChange={e => {
@@ -260,16 +263,16 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
     {pending && <section className="cash-card"><p>Há uma operação com resultado ainda não confirmado: {pending.action} · {money.format(pending.amount)}. Confirme antes de iniciar outra operação.</p>
       {authorization()}<button className="module-submit-btn" disabled={busy || loading} onClick={() => void mutate(pending.action, true)}>Confirmar operação pendente</button>
     </section>}
-    {loading ? <p>Carregando caixa...</p> : <>
+    {loading && !hasSnapshot.current ? <p>Carregando caixa...</p> : <>
       {!current && !error && otherOpenSessions.length > 0 && <p role="status">Há caixas abertos de {otherOpenSessions.map(session => session.operator_name).join(', ')}. Você pode finalizar vendas no PDV usando o caixa aberto da filial; o colaborador ficará registrado em cada venda.</p>}
       {!current && !managedSessionId && actorKey && <section className="cash-card"><h4>Abrir caixa</h4><p>Informe o dinheiro disponível para troco. Pré-vendas não entram no saldo até serem finalizadas.</p>
         <form onSubmit={e => { e.preventDefault(); void mutate('abrir'); }} className="cash-fields">
-          <label>Troco inicial (R$)<input inputMode="decimal" value={opening} onChange={e => setOpening(e.target.value)} disabled={busy} required /></label>
-          <button className="module-submit-btn" disabled={busy || Boolean(pending)}>{busy ? 'Aguarde...' : 'Abrir caixa'}</button>
+          <label>Troco inicial (R$)<input inputMode="decimal" value={opening} onChange={e => setOpening(e.target.value)} disabled={busy || loading} required /></label>
+          <button className="module-submit-btn" disabled={busy || loading || Boolean(pending)}>{busy ? 'Aguarde...' : 'Abrir caixa'}</button>
         </form>
       </section>}
       {current && <section className="cash-card"><h4>Caixa aberto · {current.operator_name}</h4><p>Aberto em {new Date(current.opened_at).toLocaleString('pt-BR')}</p>
-        <fieldset disabled={busy || Boolean(pending)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        <fieldset disabled={busy || loading || Boolean(pending)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <form onSubmit={e => { e.preventDefault(); void mutate('movimentar'); }}>
           <h4>Registrar movimentação</h4><div className="cash-fields">
             <label>Tipo<select value={kind} onChange={e => setKind(e.target.value as typeof kind)} disabled={busy}><option value="sangria">Sangria (retirada)</option><option value="suprimento">Suprimento (entrada)</option></select></label>

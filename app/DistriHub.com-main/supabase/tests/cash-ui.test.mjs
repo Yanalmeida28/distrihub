@@ -62,6 +62,25 @@ test('owner sees all open cash registers and opens an employee report without ch
  assert.ok(h.calls.every(call=>call.args.p_salesperson_id===null));
 });
 
+test('cash background refresh preserves mounted overview, filters and report instead of collapsing the page',async()=>{
+ let release,reads=0;
+ const snapshot={actor_key:'owner',sessions:[ownerSession],movements:[],sales:[],can_manage:true,can_view_overview:true};
+ const h=await harness({rpc:()=>++reads===1?{data:snapshot,error:null}:new Promise(resolve=>{release=resolve;})});
+ const overviewNode=renderer.root.findByProps({'aria-label':'Visão geral dos caixas'});
+ const search=renderer.root.findByProps({'aria-label':'Buscar operador nos caixas'});
+ await act(async()=>search.props.onChange({target:{value:'Proprietário'}}));
+ const form=renderer.root.findAllByType('form')[0];
+ await act(async()=>h.events.dispatchEvent(new Event('focus')));
+ assert.equal(renderer.root.findByProps({'aria-label':'Visão geral dos caixas'}),overviewNode);
+ assert.equal(renderer.root.findAllByType('form')[0],form);
+ assert.equal(renderer.root.findByProps({'aria-label':'Buscar operador nos caixas'}).props.value,'Proprietário');
+ assert.doesNotMatch(rendered(),/Carregando caixa/);
+ assert.equal(renderer.root.findByProps({'aria-label':'Caixa para operar'}).props.disabled,true);
+ await act(async()=>release({data:snapshot,error:null}));
+ assert.equal(renderer.root.findByProps({'aria-label':'Visão geral dos caixas'}),overviewNode);
+ assert.equal(renderer.root.findByProps({'aria-label':'Buscar operador nos caixas'}).props.value,'Proprietário');
+});
+
 test('cash coalesces simultaneous focus/visibility reads without duplicating RPC',async()=>{
  let release,reads=0;
  const snapshot={actor_key:'owner',sessions:[],movements:[],sales:[],can_manage:true,can_view_overview:true};
