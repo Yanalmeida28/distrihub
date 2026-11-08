@@ -12,7 +12,9 @@ const pdv={},filters={},editor={},mod={};
 let quoteCalls=[]; let quoteFailure=null; let quotePending=null;
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts',import.meta.url),'utf8')),{exports:pdv});
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/openOrderFilters.ts',import.meta.url),'utf8')),{exports:filters,Intl,Date});
+let directEmail=false, emailPending=null; const emailCalls=[];
 const load=name=>{
+ if(name==='../../lib/orderEmail')return {get directOrderEmailEnabled(){return directEmail;},sendOrderQuoteEmail:async id=>{emailCalls.push(id);if(emailPending)await emailPending;return 'Aceito pelo serviço de e-mail';}};
  if(name==='../../lib/pdv')return pdv;
  if(name==='../../lib/openOrderFilters')return filters;
  if(name==='../../utils')return {money:{format:String}};
@@ -98,4 +100,17 @@ test('late failure from unmounted order view cannot contaminate a fresh branch v
 test('item editor separates merchandise and freight and displays the exact charged total',async()=>{
  await act(async()=>{view=TestRenderer.create(React.createElement(editor.OpenOrderItemsEditor,{canEditPrice:false,sale,products:[product],onSave:async()=>{},onClose(){}}));});
  assert.equal(view.root.findByProps({className:'pdv-total-bar'}).findByType('strong').children.join(''),'115');assert.match(rendered(),/Subtotal:/);assert.match(rendered(),/Frete:/);
+});
+
+test('direct quote email submits only the saved ID and blocks double click while sending',async()=>{
+ directEmail=true;emailCalls.length=0;let release;emailPending=new Promise(resolve=>{release=resolve;});
+ try {
+  await mount();
+  const actions=()=>view.root.findByType('sale-actions').props;
+  await act(async()=>{actions().onEmail();actions().onEmail();});
+  assert.deepEqual(emailCalls,['order-one']);
+  assert.ok(rendered().includes('Enviando'));
+  await act(async()=>{release();await emailPending;});
+  assert.ok(rendered().includes('Aceito pelo servi\u00e7o de e-mail'));
+ } finally {directEmail=false;emailPending=null;}
 });

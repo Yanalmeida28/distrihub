@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 import { CatalogOrderRejected, saveCatalogOrder } from '../lib/catalogOrders';
 import { OperationAttempts } from '../lib/operationAttempts';
 import { money } from '../utils';
-export type CatalogCartItem = { id: string; name: string; quantity: number; sale_price: number; stock?: number };
+export type CatalogCartItem = { id: string; name: string; quantity: number; sale_price: number };
 type Draft = { cart: { id: string; quantity: number }[]; businessName: string; contact: string; deliveryAddress: string; paymentMethod: string; deliveryMethod: string };
-export function PublicCatalogCheckout({ slug, branchId, cart, userId, onSignIn, onQuantity, onComplete }: { slug: string; branchId: string; cart: CatalogCartItem[]; userId: string | null; onSignIn?: (email: string, password: string) => Promise<{ error: string | null }>; onQuantity: (id: string, amount: number) => void; onComplete: () => void }) {
+export function PublicCatalogCheckout({ slug, branchSlug, branchId, cart, userId, onSignIn, onQuantity, onComplete }: { slug: string; branchSlug?: string | null; branchId: string; cart: CatalogCartItem[]; userId: string | null; onSignIn?: (email: string, password: string) => Promise<{ error: string | null }>; onQuantity: (id: string, amount: number) => void; onComplete: () => void }) {
   const [name, setName] = useState(''); const [contact, setContact] = useState(''); const [address, setAddress] = useState('');
   const [delivery, setDelivery] = useState('balcao'); const [payment, setPayment] = useState('pix');
   const [email, setEmail] = useState(''); const [password, setPassword] = useState('');
@@ -34,10 +34,10 @@ export function PublicCatalogCheckout({ slug, branchId, cart, userId, onSignIn, 
   return <section className="public-catalog-checkout" aria-label="Seu pedido">
     <h2>Seu pedido</h2>{error && <p role="alert">{error}</p>}
     {result && <p role="status">Pedido #{result.id.slice(0, 8)} recebido pela loja. Total dos produtos: {money.format(result.total)}. Aguarde a confirmação de disponibilidade e pagamento.</p>}
-    {cart.map(item => <div key={item.id} className="public-cart-row"><strong>{item.name}</strong><span>{money.format(item.sale_price)}</span><label>Quantidade<input type="number" min={0} max={item.stock} value={item.quantity} disabled={busy || !!pending} onChange={e => onQuantity(item.id, Number(e.target.value))} /></label></div>)}
+    {cart.map(item => <div key={item.id} className="public-cart-row"><strong>{item.name}</strong><span>{money.format(item.sale_price)}</span><label>Quantidade<input type="number" min={0} value={item.quantity} disabled={busy || !!pending} onChange={e => onQuantity(item.id, Number(e.target.value))} /></label></div>)}
     <p>Total dos produtos: {money.format(cart.reduce((sum, item) => sum + item.quantity * item.sale_price, 0))}</p>
     {!userId ? <form onSubmit={async e => { e.preventDefault(); if (!onSignIn || busy) return; setBusy(true); setError(''); try { const result = await onSignIn(email, password); if (result.error) setError(result.error); else setPassword(''); } catch { setError('Não foi possível entrar.'); } finally { setBusy(false); } }}>
-      <p>Entre na sua conta para enviar o pedido.</p><label>E-mail<input type="email" required autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} /></label><label>Senha<input type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} /></label><button type="submit" disabled={busy}>Entrar</button><a href="/?cadastro=1" onClick={() => window.sessionStorage.setItem('distrihub-catalog-return', `/catalogo?loja=${encodeURIComponent(slug)}`)}>Criar uma conta</a>
+      <p>Entre na sua conta para enviar o pedido.</p><label>E-mail<input type="email" required autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} /></label><label>Senha<input type="password" required autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} /></label><button type="submit" disabled={busy}>Entrar</button><a href="/?cadastro=1" onClick={() => window.sessionStorage.setItem('distrihub-catalog-return', `/catalogo?loja=${encodeURIComponent(slug)}${branchSlug ? `&filial=${encodeURIComponent(branchSlug)}` : ''}`)}>Criar uma conta</a>
     </form> : <form onSubmit={submit}><fieldset disabled={busy || !!pending}>
       <label>Seu nome / empresa<input required minLength={2} maxLength={200} value={name} onChange={e => setName(e.target.value)} /></label><label>Telefone / WhatsApp<input type="tel" required minLength={5} maxLength={100} value={contact} onChange={e => setContact(e.target.value)} /></label>
       <label>Recebimento<select value={delivery} onChange={e => setDelivery(e.target.value)}><option value="balcao">Retirar na loja</option><option value="entrega">Solicitar entrega — frete a combinar</option></select></label>

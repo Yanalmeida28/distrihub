@@ -31,6 +31,7 @@ before(async () => {
   const visibility = (await readdir(dir)).find(name => name.endsWith('_enforce_public_catalog_visibility.sql'));
   assert.ok(visibility);
   await db.exec(await readFile(new URL(visibility, dir), 'utf8'));
+  await db.exec(await readFile(new URL('20261108195815_hide_public_catalog_stock_quantities.sql', dir), 'utf8'));
   const legacySource = await readFile(new URL('20261012195624_fix_audited_operations.sql', dir), 'utf8');
   const legacyWrapper = legacySource.match(/CREATE FUNCTION public\.read_public_catalog_v2[\s\S]*?GRANT EXECUTE ON FUNCTION public\.read_public_catalog_v2\(text,text\) TO anon,authenticated;/);
   assert.ok(legacyWrapper);
@@ -44,7 +45,7 @@ before(async () => {
 });
 after(() => db.close());
 
-test('hidden stock and SKU are omitted from every public catalog projection for anonymous and authenticated callers', async () => {
+test('inventory is always private and SKU visibility is respected from every public catalog projection for anonymous and authenticated callers', async () => {
   try {
     for (const role of ['anon', 'authenticated']) for (const [showStock, showSku] of [[false, false], [true, false], [false, true], [true, true]]) {
       await db.exec('RESET ROLE');
@@ -57,10 +58,9 @@ test('hidden stock and SKU are omitted from every public catalog projection for 
       for (const response of [result, legacy, v2]) {
         assert.equal(response.products.length, 1);
         const product = response.products[0];
-        assert.equal(Object.hasOwn(product, 'stock'), showStock);
+        assert.equal(Object.hasOwn(product, 'stock'), false);
         assert.equal(Object.hasOwn(product, 'sku'), showSku);
         assert.equal(product.available, true);
-        if (showStock) assert.equal(product.stock, 3);
         if (showSku) assert.equal(product.sku, 'R-1');
       }
       assert.equal((await page({ branchId: neighborhood, search: 'R-1' })).total, showSku ? 1 : 0);
@@ -74,22 +74,22 @@ test('hidden stock and SKU are omitted from every public catalog projection for 
   }
 });
 
-test('all 1005 products are reachable in deterministic non-overlapping pages', async () => {
+test('all 1006 products are reachable in deterministic non-overlapping pages', async () => {
   const ids = [];
   let offset = 0;
   do {
     const result = await page({ branchId: center, offset });
-    assert.equal(result.total, 1005);
+    assert.equal(result.total, 1006);
     assert.ok(result.products.length <= 100);
     ids.push(...result.products.map(product => product.id));
     offset = result.next_offset;
   } while (offset !== null);
-  assert.equal(ids.length, 1005);
-  assert.equal(new Set(ids).size, 1005);
+  assert.equal(ids.length, 1006);
+  assert.equal(new Set(ids).size, 1006);
   const repeat = await page({ branchId: center });
   assert.deepEqual(repeat.products.map(product => product.id), ids.slice(0, 100));
   const last = await page({ branchId: center, offset: 1000 });
-  assert.equal(last.products.length, 5);
+  assert.equal(last.products.length, 6);
   assert.equal(last.next_offset, null);
 });
 
@@ -105,7 +105,10 @@ test('branch and literal case-insensitive search apply before pagination', async
   assert.equal(result.total, 1);
   assert.equal(result.products[0].sku, 'SKU-1005');
   assert.equal((await page({ branchId: center, search: '%' })).total, 0);
-  assert.equal((await page({ branchId: center, search: 'Sem saldo' })).total, 0);
+  const unavailable = await page({ branchId: center, search: 'Sem saldo' });
+  assert.equal(unavailable.total, 1);
+  assert.equal(unavailable.products[0].available, false);
+  assert.equal(Object.hasOwn(unavailable.products[0], 'stock'), false);
   assert.equal((await page({ branchId: center, search: 'Serviço' })).total, 0);
 });
 
@@ -124,4 +127,28 @@ test('disabled stores, foreign and inactive branches do not expose products or p
   assert.ok(result.branches.every(branch => branch.id !== inactive && branch.id !== foreign));
   for (const key of ['user_id', 'cost_price']) assert.ok(!JSON.stringify(result).includes(key));
   await assert.rejects(query('SELECT * FROM public.partner_products'), /permission denied/);
+});
+
+test('all public APIs represent zero, negative and unknown stock as unavailable without leaking counts', async () => {
+  try {
+    await db.exec('RESET ROLE');
+    await query("INSERT INTO public.partner_products(user_id,branch_id,name,sale_price,stock,is_service) VALUES($1,$2,'Negative stock',10,-2,false),($1,$2,'Unknown stock',10,NULL,false)",[owner,neighborhood]);
+    await db.exec('SET ROLE anon');
+    for (const sql of [
+      "SELECT public.read_public_catalog_page('loja','Bairro') AS data",
+      "SELECT public.read_public_store_catalog('loja','Bairro') AS data",
+      "SELECT public.read_public_catalog_v2('loja','Bairro') AS data"
+    ]) {
+      const products=(await query(sql)).rows[0].data.products;
+      assert.equal(products.length,3);
+      for(const product of products) {
+        assert.equal(product.available,product.name==='Raro');
+        assert.equal(Object.hasOwn(product,'stock'),false);
+      }
+    }
+  } finally {
+    await db.exec('RESET ROLE');
+    await query("DELETE FROM public.partner_products WHERE name IN ('Negative stock','Unknown stock')");
+    await db.exec('SET ROLE anon');
+  }
 });

@@ -1,5 +1,9 @@
 project_id = "distrihub"
 
+[functions.order-quote-email]
+# JWT validated with auth.getUser; authorization is independently checked in SQL.
+verify_jwt = false
+
 [functions.saas-checkout]
 # The handler authenticates the user's access token with auth.getUser().
 verify_jwt = false

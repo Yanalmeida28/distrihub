@@ -2373,6 +2373,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'white-label'}>
               {renderTab('white-label',
               <WhiteLabelModule
+                branches={partner.branches}
                 receiptDetails={{ companyName: partner.branches.find(branch => branch.id === effectiveBranchId)?.name || partner.profile?.account_name || partner.profile?.name, companyDocument: partner.profile?.document, companyAddress: partner.branches.find(branch => branch.id === effectiveBranchId)?.address }}
                 settings={
                   storeSettings

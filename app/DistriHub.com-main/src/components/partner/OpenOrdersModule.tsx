@@ -10,6 +10,7 @@ import { money } from '../../utils';
 import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentError, pdvErrorMessage, saleChargeTotal } from '../../lib/pdv';
 import { SaleActionsMenu } from './SaleActionsMenu';
 import { printSale, type ReceiptDetails } from '../../lib/salePrint';
+import { directOrderEmailEnabled, sendOrderQuoteEmail } from '../../lib/orderEmail';
 import { saleShareUrl } from '../../lib/saleShare';
 import { shareOrderQuotePdf, downloadOrderQuotePdf } from '../../lib/orderQuotePdf';
 
@@ -153,7 +154,17 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
     }
   }
 
-  function handleShare(sale: PartnerSale, channel: 'whatsapp' | 'email') {
+  const emailInFlight = useRef(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  async function handleShare(sale: PartnerSale, channel: 'whatsapp' | 'email') {
+    if (!canApply() || emailInFlight.current) return;
+    if (channel === 'email' && directOrderEmailEnabled) {
+      emailInFlight.current = true; setSendingEmail(true); setDocumentError(null); setShareNotice('Enviando orçamento por e-mail...');
+      try { const message = await sendOrderQuoteEmail(sale.id); if (canApply()) setShareNotice(message); }
+      catch (error) { if (canApply()) { setShareNotice(null); setDocumentError(error instanceof Error ? error.message : 'Falha ao confirmar o envio.'); } }
+      finally { emailInFlight.current = false; if (canApply()) setSendingEmail(false); }
+      return;
+    }
     setDocumentError(null);
     setShareNotice(null);
     try {
@@ -462,7 +473,7 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
                           onPrintReceipt={() => handlePrint(s, 'receipt')}
                           onPrintLabel={() => handlePrint(s, 'label')}
                           onWhatsApp={() => handleShare(s, 'whatsapp')}
-                          onEmail={() => handleShare(s, 'email')}
+                          onEmail={() => { if (!sendingEmail) void handleShare(s, 'email'); }}
                           onCancel={() => requestCancel(s)}
                         />
                       </div>

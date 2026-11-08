@@ -46,7 +46,7 @@ test('catalog personalization controls welcome text, stock, SKU and contact with
   assert.equal(calls[0].args.p_branch_slug,'Centro');
 });
 
-test('hidden stock does not prevent adding products or editing quantities, while disclosed stock remains a limit', async () => {
+test('public cart never exposes or derives its quantity limit from inventory', async () => {
   const Component = component(async () => ({ error: null, data: page([
     { id: 'hidden', branch_id: 'a', name: 'Hidden stock', sale_price: 10, available: true },
     { id: 'shown', branch_id: 'a', name: 'Shown stock', sale_price: 10, stock: 2, available: true },
@@ -62,7 +62,8 @@ test('hidden stock does not prevent adding products or editing quantities, while
   await act(async () => { checkout().onQuantity('hidden', 12); checkout().onQuantity('shown', 12); });
   assert.equal(checkout().cart.find(item => item.id === 'hidden').quantity, 12);
   assert.equal(checkout().cart.find(item => item.id === 'hidden').stock, undefined);
-  assert.equal(checkout().cart.find(item => item.id === 'shown').quantity, 2);
+  assert.equal(Object.hasOwn(checkout().cart.find(item => item.id === 'shown'), 'stock'), false);
+  assert.equal(checkout().cart.find(item => item.id === 'shown').quantity, 12);
   await act(async () => checkout().onQuantity('hidden', 0));
   assert.ok(!checkout().cart.some(item => item.id === 'hidden'));
 });
@@ -149,4 +150,32 @@ test('navigating to an unavailable store clears the previous store details',asyn
   assert.ok(output.includes('Este catálogo está indisponível'));
   assert.ok(!output.includes('Loja anterior'));
   assert.equal(renderer.root.findAllByType('select').length,0);
+});
+
+ test('catalog displays availability only and disables ordering unavailable products', async () => {
+  const Component = component(async () => ({error:null, data:page([
+    {id:'a',name:'Available item',sale_price:10,available:true,stock:9876},
+    {id:'b',name:'Unavailable item',sale_price:10,available:false,stock:0}
+  ])}));
+  await act(async () => { renderer = TestRenderer.create(React.createElement(Component,{slug:'loja'})); });
+  const output = JSON.stringify(renderer.toJSON());
+  assert.ok(output.includes('Dispon\u00edvel'));
+  assert.ok(output.includes('Indispon\u00edvel'));
+  assert.ok(!output.includes('9876'));
+  assert.ok(!output.includes('em estoque'));
+  const buttons = renderer.root.findAllByType('button').filter(b=>b.children.includes(' Adicionar ao pedido'));
+  assert.equal(buttons.length,2);
+  assert.equal(buttons[0].props.disabled,false);
+  assert.equal(buttons[1].props.disabled,true);
+});
+
+test('a direct branch link stays fixed without a branch selector', async () => {
+  const calls=[];
+  const Component=component(async(name,args)=>{calls.push(args);return {error:null,data:page([product('Item da filial')],{branch:{id:'a',name:'Centro'},selected_branch_id:'a'})};});
+  await act(async()=>{renderer=TestRenderer.create(React.createElement(Component,{slug:'loja',branchSlug:'Centro'}));});
+  assert.equal(calls[0].p_branch_slug,'Centro');
+  assert.equal(renderer.root.findAllByType('select').length,0);
+  const checkout=renderer.root.findAll(node=>typeof node.type==='function'&&Array.isArray(node.props.cart))[0].props;
+  assert.equal(checkout.branchId,'a');
+  assert.equal(checkout.branchSlug,'Centro');
 });

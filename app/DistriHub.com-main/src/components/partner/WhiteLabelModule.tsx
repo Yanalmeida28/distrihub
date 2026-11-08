@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, ImagePlus, Palette, Printer, Upload, Wand2 } from 'lucide-react';
-import type { PartnerCustomer, StoreSettings, StorePersonalization } from '../../types';
+import type { PartnerBranch, PartnerCustomer, StoreSettings, StorePersonalization } from '../../types';
 import { printSale, type ReceiptDetails } from '../../lib/salePrint';
+import { CatalogShareLinks } from './CatalogShareLinks';
 import { normalizeColor, storeTheme } from '../../lib/storeTheme';
 import { receiptPreferences, panelPreferences, panelStyle, catalogPreferences, catalogWhatsappUrl } from '../../lib/personalization';
 
@@ -9,12 +10,13 @@ type WhiteLabelModuleProps = {
   settings: StoreSettings;
   onUpdate: (settings: Partial<StoreSettings>) => Promise<unknown>;
   receiptDetails?: ReceiptDetails;
+  branches?: Pick<PartnerBranch, 'id' | 'name' | 'is_active'>[];
 };
 
 const presetColors = ['#3193e5', '#2563eb', '#199863', '#0f766e', '#7c3aed', '#a21caf', '#be185d', '#e3829b', '#c2410c', '#e6a06d', '#ca8a04', '#5fd0d1', '#475569', '#97aabc'];
 const navigationColors = ['#0f2747', '#0f172a', '#1e293b', '#14532d', '#134e4a', '#3b0764', '#4c0519', '#ffffff'];
 
-export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist, receiptDetails }: WhiteLabelModuleProps) {
+export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist, receiptDetails, branches = [] }: WhiteLabelModuleProps) {
   const [settings, setSettings] = useState(initialSettings);
   const [activeTab, setActiveTab] = useState<'visual' | 'painel' | 'cupom' | 'catalogo' | 'pdv'>('visual');
   const receiptFrame = useRef<HTMLIFrameElement>(null);
@@ -335,6 +337,7 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
 
       </section>
       <section hidden={activeTab !== 'catalogo'} aria-label="Personalização do catálogo">
+        <CatalogShareLinks slug={settings.catalog_slug ?? ''} branches={branches} />
         <div className="module-card"><h4>Link e disponibilidade do catálogo</h4><label className="print-toggle-item"><input type="checkbox" checked={settings.catalog_enabled} onChange={e => onUpdate({ catalog_enabled: e.target.checked })} /> Ativar catálogo público</label><label className="personalization-text-field">Nome no link<input maxLength={40} value={settings.catalog_slug ?? ''} onChange={e => onUpdate({ catalog_slug: e.target.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/g, '') || null })} /></label>{settings.catalog_slug && <a href={`/catalogo?loja=${encodeURIComponent(settings.catalog_slug)}`} target="_blank" rel="noopener noreferrer">Abrir catálogo da loja</a>}<p>Salve as alterações antes de compartilhar o link.</p></div>
         <div className="module-card">
           <div className="module-card-title">Apresentação do catálogo público</div>
@@ -345,13 +348,13 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
             <label>WhatsApp da loja<input type="tel" aria-label="WhatsApp do catálogo" maxLength={32} value={catalog.whatsapp_phone} placeholder="(11) 99999-9999" onChange={e => updatePreference('catalog', { ...catalog, whatsapp_phone: e.target.value })} /></label>
           </div>
           <div className="print-toggle-list">
-            {([{ key: 'show_stock', label: 'Exibir quantidade em estoque' }, { key: 'show_sku', label: 'Exibir código SKU' }, { key: 'show_whatsapp', label: 'Exibir botão do WhatsApp' }] as const).map(option => <label className="print-toggle-item" key={option.key}><input type="checkbox" aria-label={option.label} checked={catalog[option.key]} onChange={e => updatePreference('catalog', { ...catalog, [option.key]: e.target.checked })} /><span>{option.label}</span></label>)}
+            {([{ key: 'show_stock', label: 'Exibir disponibilidade' }, { key: 'show_sku', label: 'Exibir código SKU' }, { key: 'show_whatsapp', label: 'Exibir botão do WhatsApp' }] as const).map(option => <label className="print-toggle-item" key={option.key}><input type="checkbox" aria-label={option.label} checked={catalog[option.key]} onChange={e => updatePreference('catalog', { ...catalog, [option.key]: e.target.checked })} /><span>{option.label}</span></label>)}
           </div>
           <div className="personalization-catalog-preview" style={storeTheme(settings.primary_color, settings.nav_color) as React.CSSProperties}>
             <div className="personalization-catalog-header">Sua loja · Catálogo</div>
             {bannerPreview && <img src={bannerPreview} alt="Banner na prévia do catálogo" style={{ height: catalog.banner_height / 2 }} />}
             {catalog.welcome_message && <p>{catalog.welcome_message}</p>}
-            <div className="personalization-catalog-card" style={{ maxWidth: catalog.card_size === 'compact' ? 220 : 320 }}><strong>Produto de exemplo</strong>{catalog.show_sku && <small>SKU 001</small>}<b>R$ 100,00</b>{catalog.show_stock && <small>10 em estoque</small>}</div>
+            <div className="personalization-catalog-card" style={{ maxWidth: catalog.card_size === 'compact' ? 220 : 320 }}><strong>Produto de exemplo</strong>{catalog.show_sku && <small>SKU 001</small>}<b>R$ 100,00</b>{catalog.show_stock && <small>Disponível</small>}</div>
             {catalog.show_whatsapp && catalogWhatsappUrl(catalog.whatsapp_phone) && <span className="personalization-whatsapp-preview">Falar com a loja no WhatsApp</span>}
           </div>
           <p className="otp-description">A prévia é reduzida. Salve para aplicar ao catálogo público da loja.</p>

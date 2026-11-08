@@ -17,7 +17,7 @@ const theme = { exports: {} };
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/lib/storeTheme.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, { exports: theme.exports });
-vm.runInNewContext(compiled, { exports: module.exports, require: name => name === '../../lib/salePrint' ? { printSale(...args) { receiptPreviews.push(args); } } : name === '../../lib/personalization' ? personalizationHelpers : name === '../../lib/storeTheme' ? theme.exports : require(name) });
+vm.runInNewContext(compiled, { exports: module.exports, require: name => name === './CatalogShareLinks' ? { CatalogShareLinks: () => null } : name === '../../lib/salePrint' ? { printSale(...args) { receiptPreviews.push(args); } } : name === '../../lib/personalization' ? personalizationHelpers : name === '../../lib/storeTheme' ? theme.exports : require(name) });
 const Component = module.exports.WhiteLabelModule;
 const settings = {
   id: 'settings', user_id: 'owner', logo_url: null, banner_url: null,
