@@ -205,13 +205,13 @@ export function HubHome({ onAccessPanel, onAccessSuperAdmin, superAdminActive }:
               <Sparkles size={14} /> Gestão B2B e ERP multiempresa em tempo real
             </div>
             <h1>
-              Unifique sua operação em um único
+              Menos tempo procurando informações.
               <br />
-              <em>hub de crescimento.</em>
+              <em>Mais controle do seu negócio.</em>
             </h1>
             <p>
-              Controle estoque, vendas, financeiro e assistência técnica sem planilhas. A DistriHub
-              conecta lojas, distribuidoras e assistências de notebooks, TVs, celulares e outros equipamentos.
+              Acompanhe o que vendeu, o que precisa repor, o que falta receber e quais serviços
+              estão pendentes em cada filial. Tudo em um só lugar, com o DistriHub.
             </p>
             <div className="hub-hero-actions">
               <button className="hub-login-btn" onClick={openPanel}>Acessar DistriHub <ArrowRight size={16}/></button>
