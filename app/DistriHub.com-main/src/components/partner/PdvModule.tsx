@@ -11,6 +11,7 @@ import { SalePriceInput } from './SalePriceInput';
 import { money } from '../../utils';
 import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentError, billedSaleError, pdvErrorMessage, pdvTotal, saleChargeTotal, validSalePrice, type CustomerCredit, customerPriceTable, productTablePrice, type PriceTable } from '../../lib/pdv';
 import { SessionDraftProvider, useSessionDraftScope, useSessionDraftState, clearConfirmedPdvDraft } from '../../hooks/useSessionDraft';
+import { PdvCartBackupStore, type PdvCartBackup } from '../../lib/pdv';
 
 type ClientType = 'varejo' | 'atacado';
 
@@ -347,7 +348,7 @@ type Props = {
     serial_number?: string;
     payment_method?: string; payment_splits?: SalePayment[]; rma_credit_id?: string | null;
     salesperson_id?: string | null;
-    draft_scope?: string; branch_id?: string | null;
+    draft_scope?: string; draft_backup_id?: string; branch_id?: string | null;
   }) => Promise<PartnerSale>;
   onCreatePreSale: (sale: {
     customer_id: string | null;
@@ -361,7 +362,7 @@ type Props = {
     imei?: string;
     serial_number?: string;
     salesperson_id?: string | null;
-    draft_scope?: string; branch_id?: string | null;
+    draft_scope?: string; draft_backup_id?: string; branch_id?: string | null;
   }) => Promise<PartnerSale | void>;
   onFinalizePreSale: (id: string, paymentMethod: string, paymentSplits?: SalePayment[], edits?: Parameters<Props['onCreateSale']>[0]) => Promise<void>;
   onUpdatePreSale?: (id: string, edits: Parameters<Props['onCreateSale']>[0]) => Promise<void>;
@@ -550,7 +551,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   selectedBranchId: string | null;
   canCheckout: boolean;
   receiptDetails?: ReceiptDetails;
-  onCreateSale: (sale: { customer_id: string | null; customer_name: string; items: SaleItem[]; total: number; freight_fee?: number; customer_type: ClientType; delivery_type: DeliveryType; imei?: string; serial_number?: string; payment_method?: string; payment_splits?: SalePayment[]; rma_credit_id?: string | null; salesperson_id?: string | null; draft_scope?: string; branch_id?: string | null }) => Promise<PartnerSale>;
+  onCreateSale: (sale: { customer_id: string | null; customer_name: string; items: SaleItem[]; total: number; freight_fee?: number; customer_type: ClientType; delivery_type: DeliveryType; imei?: string; serial_number?: string; payment_method?: string; payment_splits?: SalePayment[]; rma_credit_id?: string | null; salesperson_id?: string | null; draft_scope?: string; draft_backup_id?: string; branch_id?: string | null }) => Promise<PartnerSale>;
 }) {
   const draftScope = useSessionDraftScope();
   const [search, setSearch] = useSessionDraftState('checkout:product-search', '');
@@ -568,6 +569,32 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     setVisibleProductCount(PRODUCT_PAGE_SIZE);
   }, [search, selectedBranchId]);
   const [cart, setCart] = useSessionDraftState<{ product_id: string; name: string; quantity: number; unit_price: number }[]>('checkout:cart', rescuedSale?.items ?? []);
+  const [initialBackupId] = useState(() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+  const [backupId] = useSessionDraftState('checkout:backup-id', initialBackupId);
+  const [backups, setBackups] = useState<PdvCartBackup[]>([]);
+  const [backupWarning, setBackupWarning] = useState<string | null>(null);
+  const [networkAvailable, setNetworkAvailable] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  const backupStore = useMemo(() => {
+    if (rescuedSale || !selectedBranchId || draftScope === 'unscoped') return null;
+    try { return window.localStorage ? new PdvCartBackupStore(window.localStorage, draftScope) : null; }
+    catch { return null; }
+  }, [draftScope, rescuedSale, selectedBranchId]);
+  useEffect(() => {
+    if (!window.addEventListener) return;
+    const update = () => setNetworkAvailable(navigator.onLine);
+    window.addEventListener('online', update); window.addEventListener('offline', update);
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
+  }, []);
+  useEffect(() => {
+    if (rescuedSale || !selectedBranchId) return;
+    try {
+      if (!backupStore) throw new Error('Armazenamento indisponível');
+      backupStore.save(backupId, cart);
+      setBackups(backupStore.list().filter(backup => backup.id !== backupId).slice(0, 5));
+    } catch {
+      setBackupWarning('A cópia local do carrinho não pôde ser salva. Mantenha esta aba aberta até confirmar ou cancelar a operação.');
+    }
+  }, [backupStore, backupId, cart, rescuedSale, selectedBranchId]);
   const cartRef = useRef(cart);
   cartRef.current = cart;
   function updateCart(update: typeof cart | ((previous: typeof cart) => typeof cart), force = false) {
@@ -783,6 +810,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   }
 
   async function handleSavePreSale() {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setCheckoutError('Sem internet. Reconecte antes de salvar a pré-venda.'); return; }
     if (!rescuedSale || !onSavePreSale || !canCheckout || !canChangeCart() || !cartRef.current.length || cartHasWrongBranch) return;
     if (!selectedBranchId || selectedBranchId !== rescuedSale.branch_id) { setCheckoutError('Selecione a filial original da pré-venda para salvar.'); return; }
     if (!validSalePrice(freightAmount) || cartRef.current.some(item => !validSalePrice(item.unit_price))) { setCheckoutError('Informe preços e frete válidos com até duas casas decimais.'); return; }
@@ -801,6 +829,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   }
 
   async function handleSaveOrder() {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setCheckoutError('Sem internet. O carrinho permanece neste aparelho; o pedido ainda não foi salvo no servidor.'); return; }
     if (rescuedSale || !onCreatePreSale || !canCheckout || !canChangeCart() || !cartRef.current.length || cartHasWrongBranch) return;
     if (!selectedBranchId) { alert('Selecione uma filial antes de salvar o pedido.'); return; }
     if (!validSalePrice(freightAmount) || cartRef.current.some(item => !validSalePrice(item.unit_price))) { setCheckoutError('Informe preços e frete válidos com até duas casas decimais.'); return; }
@@ -810,6 +839,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     try {
       await onCreatePreSale({
         draft_scope: draftScope,
+        draft_backup_id: backupId,
         payment_method: paymentMethod === 'misto' ? null : paymentMethod,
         customer_id: customerId || null,
         customer_name: customerName || customer?.name || (clientType === 'atacado' ? 'Cliente Atacado' : 'Cliente Varejo'),
@@ -828,6 +858,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   }
 
   async function handleCheckout(shouldPrint = false) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { setCheckoutError('Sem internet. Reconecte para confirmar a venda; o carrinho foi mantido.'); return; }
     if (cartRef.current.length === 0 || !canChangeCart()) return;
     const checkoutCart = cartRef.current;
     const checkoutTotal = pdvTotal(checkoutCart);
@@ -864,6 +895,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     try {
       const confirmedSale = await onCreateSale({
         draft_scope: draftScope,
+        draft_backup_id: backupId,
         customer_id: customerId || null,
         customer_name: customerName || customer?.name || fallbackName,
         items: checkoutCart,
@@ -924,6 +956,34 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
       {cameraOpen && cameraScannerEnabled && !cartLocked && (
         <BarcodeCameraDialog onDetected={handleCameraCode} onClose={() => setCameraOpen(false)} />
       )}
+      {!networkAvailable && <div role="status" className="pdv-continuity-notice">
+        <strong>Sem internet — venda ainda não confirmada</strong>
+        <p>Você pode organizar o carrinho com os produtos já carregados. Estoque, preços e crédito podem estar desatualizados. Reconecte antes de salvar ou finalizar.</p>
+      </div>}
+      {backupWarning && <p role="alert" className="pdv-continuity-notice">{backupWarning}</p>}
+      {!cart.length && !hasPendingSale && !rescuedSale && backups.length > 0 && <div className="pdv-continuity-notice">
+        <strong>Há carrinhos não concluídos neste aparelho</strong>
+        <p>Recupere somente o atendimento que deseja continuar. Confira cliente, pagamento, preços e estoque antes de finalizar. A cópia local expira após 24 horas; ela não é uma venda registrada.</p>
+        {backups.map(backup => <div key={backup.id} className="pdv-backup-actions">
+          <span>{backup.items.reduce((sum, item) => sum + item.quantity, 0)} itens · {new Date(backup.savedAt).toLocaleString('pt-BR')}</span>
+          <button type="button" className="module-cancel-btn" disabled={cartLocked} onClick={() => {
+            if (!canChangeCart() || !backupStore) return;
+            try {
+              const current = backupStore.read(backup.id);
+              if (!current) throw new Error('Cópia expirada ou indisponível.');
+              backupStore.save(backupId, current.items);
+              backupStore.remove(backup.id);
+              updateCart(current.items);
+              setBackups(previous => previous.filter(item => item.id !== backup.id));
+              setSelectionNotice('Carrinho recuperado. Confira cliente, pagamento e os valores antes de finalizar.');
+            } catch { setBackupWarning('Não foi possível recuperar essa cópia local. Mantenha a aba aberta e confira o armazenamento do navegador.'); }
+          }}>Recuperar carrinho</button>
+          <button type="button" className="module-cancel-btn" disabled={cartLocked} onClick={() => {
+            try { backupStore?.remove(backup.id); setBackups(previous => previous.filter(item => item.id !== backup.id)); }
+            catch { setBackupWarning('Não foi possível descartar essa cópia local.'); }
+          }}>Descartar cópia</button>
+        </div>)}
+      </div>}
       <fieldset disabled={cartLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="pdv-layout pdv-checkout-layout">
         <div className="pdv-left">
@@ -1169,17 +1229,17 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
 
               {canCheckout ? (
                 <>
-                {rescuedSale && onSavePreSale && <button type="button" className="module-submit-btn pdv-save-presale-btn" onClick={() => void handleSavePreSale()} disabled={cart.length === 0 || isCheckingOut || hasPendingSale || cartHasWrongBranch}>
+                {rescuedSale && onSavePreSale && <button type="button" className="module-submit-btn pdv-save-presale-btn" onClick={() => void handleSavePreSale()} disabled={!networkAvailable || cart.length === 0 || isCheckingOut || hasPendingSale || cartHasWrongBranch}>
                   <ClipboardList size={18} /> {isSavingPreSale ? 'Salvando alterações...' : 'Salvar alterações da pré-venda'}
                 </button>}
                 <div className="pdv-checkout-actions">
-                  {!rescuedSale && onCreatePreSale && <button type="button" className="module-cancel-btn pdv-checkout-btn pdv-save-order-btn" onClick={() => void handleSaveOrder()} disabled={cart.length === 0 || isCheckingOut || hasPendingSale || cartHasWrongBranch}>
+                  {!rescuedSale && onCreatePreSale && <button type="button" className="module-cancel-btn pdv-checkout-btn pdv-save-order-btn" onClick={() => void handleSaveOrder()} disabled={!networkAvailable || cart.length === 0 || isCheckingOut || hasPendingSale || cartHasWrongBranch}>
                     <ClipboardList size={18} /> {isSavingPreSale ? 'Salvando...' : 'Salvar pedido'}
                   </button>}
-                  <button className="module-submit-btn pdv-checkout-btn" onClick={() => handleCheckout(true)} disabled={cart.length === 0 || isCheckingOut || billedSaleBlocked || hasPendingSale || cartHasWrongBranch}>
+                  <button className="module-submit-btn pdv-checkout-btn" onClick={() => handleCheckout(true)} disabled={!networkAvailable || cart.length === 0 || isCheckingOut || billedSaleBlocked || hasPendingSale || cartHasWrongBranch}>
                     <Printer size={18} /> {isCheckingOut ? 'Finalizando...' : 'Finalizar e imprimir'}
                   </button>
-                  <button className="module-cancel-btn pdv-checkout-btn" onClick={() => handleCheckout(false)} disabled={cart.length === 0 || isCheckingOut || billedSaleBlocked || hasPendingSale || cartHasWrongBranch}>
+                  <button className="module-cancel-btn pdv-checkout-btn" onClick={() => handleCheckout(false)} disabled={!networkAvailable || cart.length === 0 || isCheckingOut || billedSaleBlocked || hasPendingSale || cartHasWrongBranch}>
                     <Check size={18} /> Finalizar sem imprimir
                   </button>
                 </div>

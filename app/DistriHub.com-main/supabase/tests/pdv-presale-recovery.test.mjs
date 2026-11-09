@@ -11,13 +11,18 @@ const TestRenderer=require('react-test-renderer');
 const { act }=TestRenderer;
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText;
 const storage=new Map();
+const durableValues=new Map();
+const localStorage={getItem:key=>durableValues.get(key)??null,setItem:(key,value)=>durableValues.set(key,value),removeItem:key=>durableValues.delete(key),get length(){return durableValues.size;},key:index=>[...durableValues.keys()][index]??null};
+const navigator={onLine:true};
+const networkListeners=new Map();
 const window={sessionStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key),get length(){return storage.size;},key:index=>[...storage.keys()][index]??null},setTimeout:()=>1,clearTimeout(){},open:()=>null};
+Object.assign(window,{localStorage,addEventListener(event,callback){if(!networkListeners.has(event))networkListeners.set(event,new Set());networkListeners.get(event).add(callback);},removeEventListener(event,callback){networkListeners.get(event)?.delete(callback);}});
 const drafts={};
 vm.runInNewContext(compile(await readFile(new URL('../../src/hooks/useSessionDraft.tsx',import.meta.url),'utf8')),{exports:drafts,window,console,Error,require});
 const helpers={};
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts',import.meta.url),'utf8')),{exports:helpers,Error});
 const components={};
-vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/PdvModule.tsx',import.meta.url),'utf8')+'\nexports.Checkout=PdvCheckout;'),{exports:components,window,console,Error,setTimeout:()=>1,require(name){
+vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/PdvModule.tsx',import.meta.url),'utf8')+'\nexports.Checkout=PdvCheckout;'),{exports:components,window,navigator,console,Error,setTimeout:()=>1,require(name){
  if(name==='../../hooks/useSessionDraft')return drafts;
  if(name==='../../lib/pdv')return helpers;
  if(name==='../../lib/salePrint')return {printSale(){},directReceiptEnabled:()=>false};
@@ -28,11 +33,49 @@ vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/
  return require(name);
 }});
 let view;
-afterEach(async()=>{if(view)await act(async()=>view.unmount());view=null;});
+afterEach(async()=>{if(view)await act(async()=>view.unmount());view=null;navigator.onLine=true;});
 const product={id:'product',name:'Produto A',sku:'A',stock:10,branch_id:'branch',sale_price:100,wholesale_price:80};
 const base={products:[product],customers:[],salespeople:[],credits:[],sales:[],selectedBranchId:'branch',segment:'assistencia',canCheckout:true,canEditPrice:false,onCreatePreSale:async()=>{},onFinalizePreSale:async()=>{},onCancelSale:async()=>{},onDeleteSale:async()=>{},onPullToPdv(){}};
 const wrapped=(component,props,scope,key='before')=>React.createElement(drafts.SessionDraftProvider,{scope},React.createElement(component,{...props,key}));
 const add=async()=>act(async()=>view.root.findAllByType('button').find(node=>node.props.className==='pdv-product-card').props.onClick());
+
+test('offline PDV keeps cart editable but refuses checkout and saved orders until the network returns',async()=>{
+ const scope='offline-connectivity:company:workspace:branch';let created=0,orders=0;
+ navigator.onLine=false;
+ await act(async()=>{view=TestRenderer.create(wrapped(components.PdvModule,{...base,currentRole:'gerente',onCreatePreSale:async()=>{orders++;},onCreateSale:async sale=>{created++;return {...sale,id:'confirmed-id'};}},scope));});
+ await add();
+ const checkout=view.root.findByProps({className:'module-cancel-btn pdv-checkout-btn'});
+ assert.equal(checkout.props.disabled,true);
+ await act(async()=>checkout.props.onClick());
+ await act(async()=>view.root.findByProps({className:'module-cancel-btn pdv-checkout-btn pdv-save-order-btn'}).props.onClick());
+ assert.equal(created,0);assert.equal(orders,0);
+ assert.match(JSON.stringify(view.toJSON()),/Sem internet/);
+ assert.match(storage.get('distrihub:draft:'+scope+':pdv:branch:checkout:cart'),/product/);
+ await act(async()=>{navigator.onLine=true;for(const callback of networkListeners.get('online')??[])callback();});
+ assert.equal(view.root.findByProps({className:'module-cancel-btn pdv-checkout-btn'}).props.disabled,false);
+ await act(async()=>view.root.findByProps({className:'module-cancel-btn pdv-checkout-btn'}).props.onClick());
+ assert.equal(created,1);
+ assert.equal(new helpers.PdvCartBackupStore(localStorage,scope+':pdv:branch').list().length,0);
+});
+
+test('closing the tab preserves a recoverable cart, never silently submits it, and confirmation removes the backup',async()=>{
+ const scope='closed-tab:company:workspace:branch';let created=0;
+ const props={...base,currentRole:'gerente',onCreateSale:async sale=>{created++;return {...sale,id:'confirmed-after-recovery'};}};
+ await act(async()=>{view=TestRenderer.create(wrapped(components.PdvModule,props,scope));});await add();
+ await act(async()=>view.unmount());view=null;
+ for(const key of [...storage.keys()].filter(key=>key.includes(scope)))storage.delete(key);
+ // A fresh module represents a closed JS runtime, not merely a React remount.
+ const fresh={};vm.runInNewContext(compile(await readFile(new URL('../../src/hooks/useSessionDraft.tsx',import.meta.url),'utf8')),{exports:fresh,window,console,Error,require});Object.assign(drafts,fresh);
+ await act(async()=>{view=TestRenderer.create(wrapped(components.PdvModule,props,scope));});
+ assert.equal(created,0);
+ const recover=view.root.findAllByType('button').find(button=>button.children.includes('Recuperar carrinho'));
+ assert(recover);
+ await act(async()=>recover.props.onClick());
+ assert.match(storage.get('distrihub:draft:'+scope+':pdv:branch:checkout:cart'),/product/);
+ assert.equal(created,0);
+ await act(async()=>view.root.findByProps({className:'module-cancel-btn pdv-checkout-btn'}).props.onClick());
+ assert.equal(created,1);assert.equal(new helpers.PdvCartBackupStore(localStorage,scope+':pdv:branch').list().length,0);
+});
 test('operator switch preserves PDV tab and cart while updating price permission',async()=>{
  const scope='operator-switch:company:workspace:branch';
  const screen=(operator,role)=>wrapped(components.PdvModule,{...base,currentRole:role,activeSalespersonId:operator,canEditPrice:role==='gerente'},scope);

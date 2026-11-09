@@ -259,6 +259,7 @@ export interface PartnerSale {
   rma_credit_id?: string | null;
   /** Browser-only provenance for clearing the exact confirmed checkout draft. */
   draft_scope?: string;
+  draft_backup_id?: string; // Browser-only recovery metadata; never sent to sale RPCs.
   cash_session_id?: string | null;
   sale_number?: number;
   payment_splits?: SalePayment[];

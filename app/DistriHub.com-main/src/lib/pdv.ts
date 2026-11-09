@@ -111,17 +111,29 @@ export function saleRequestKey(sale: Partial<PartnerSale>): string {
   ]);
 }
 
-// Per authenticated user/company and browser tab. Persist the draft, never a PIN or session token.
+// Per authenticated user/company. Persist the request, never a PIN or session token.
 export class PdvSaleAttemptStore {
-  constructor(private storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, private scope: string) {}
+  constructor(private storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, private scope: string,
+    private legacyStorage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>) {}
   private get key() { return `distrihub:pdv-attempt:${this.scope}`; }
   read(): PartnerSale | null {
-    const value = this.storage.getItem(this.key);
+    const current = this.storage.getItem(this.key);
+    const legacy = this.legacyStorage !== this.storage ? this.legacyStorage?.getItem(this.key) : null;
+    if (current && legacy && (JSON.parse(current).id !== JSON.parse(legacy).id
+      || saleRequestKey(JSON.parse(current)) !== saleRequestKey(JSON.parse(legacy)))) {
+      throw new Error('Há duas tentativas de venda pendentes neste navegador. Solicite conciliação antes de iniciar outra venda.');
+    }
+    const value = current || legacy;
     if (!value) return null;
     const sale = JSON.parse(value) as PartnerSale;
     if (!sale.id || !sale.branch_id || !Array.isArray(sale.items)) {
       throw new Error('Tentativa de venda inválida no navegador. Solicite conciliação antes de iniciar outra venda.');
     }
+    if (!current && legacy) {
+      // begin's explicit allowlist also protects migration of old tab storage.
+      this.storage.setItem(this.key, JSON.stringify(this.allowed(sale)));
+    }
+    if (legacy) this.legacyStorage?.removeItem(this.key);
     return sale;
   }
   begin(sale: PartnerSale): PartnerSale {
@@ -133,7 +145,12 @@ export class PdvSaleAttemptStore {
       return pending;
     }
     // Persist an explicit allowlist, even if a caller supplies extra runtime properties.
-    const stored: PartnerSale = {
+    const stored = this.allowed(sale);
+    this.storage.setItem(this.key, JSON.stringify(stored));
+    return stored;
+  }
+  private allowed(sale: PartnerSale): PartnerSale {
+    return {
       id: sale.id, user_id: sale.user_id, customer_id: sale.customer_id, customer_name: sale.customer_name,
       items: sale.items.map(({ product_id, name, quantity, unit_price }) => ({ product_id, name, quantity, unit_price })),
       total: sale.total, freight_fee: sale.freight_fee ?? 0, imei: sale.imei, serial_number: sale.serial_number, payment_method: sale.payment_method,
@@ -142,13 +159,53 @@ export class PdvSaleAttemptStore {
       delivery_type: sale.delivery_type, status: sale.status, origin: sale.origin, online_payment: sale.online_payment,
       payment_status: sale.payment_status, created_at: sale.created_at,
       draft_scope: sale.draft_scope,
+      draft_backup_id: sale.draft_backup_id,
       cash_session_id: sale.cash_session_id,
       rma_credit_id: sale.rma_credit_id,
     };
-    this.storage.setItem(this.key, JSON.stringify(stored));
-    return stored;
   }
   complete(id: string): void {
     if (this.read()?.id === id) this.storage.removeItem(this.key);
   }
+}
+
+export type PdvCartItem = { product_id: string; name: string; quantity: number; unit_price: number };
+export type PdvCartBackup = { version: 1; id: string; savedAt: number; items: PdvCartItem[] };
+// Drafts only: no customer details, payment credentials, PINs, or offline sale queue.
+export class PdvCartBackupStore {
+  static readonly lifetime = 24 * 60 * 60 * 1000;
+  private prefix: string;
+  constructor(private storage: Storage, scope: string, private now = () => Date.now()) {
+    this.prefix = `distrihub:pdv-cart:${encodeURIComponent(scope)}:`;
+  }
+  read(id: string): PdvCartBackup | null {
+    const raw = this.storage.getItem(this.prefix + id);
+    if (!raw) return null;
+    const backup = JSON.parse(raw) as PdvCartBackup;
+    if (backup.version !== 1 || backup.id !== id || !Number.isFinite(backup.savedAt)
+      || backup.savedAt > this.now() || this.now() - backup.savedAt > PdvCartBackupStore.lifetime
+      || !Array.isArray(backup.items) || backup.items.length === 0 || backup.items.length > 1000
+      || !backup.items.every(item => typeof item.product_id === 'string' && typeof item.name === 'string'
+        && Number.isSafeInteger(item.quantity) && item.quantity > 0 && validSalePrice(item.unit_price))) return null;
+    return backup;
+  }
+  list(): PdvCartBackup[] {
+    const found: PdvCartBackup[] = [];
+    const expired: string[] = [];
+    for (let index = 0; index < this.storage.length; index++) {
+      const key = this.storage.key(index);
+      if (!key?.startsWith(this.prefix)) continue;
+      const id = key.slice(this.prefix.length);
+      try { const item = this.read(id); if (item) found.push(item); else expired.push(id); }
+      catch { expired.push(id); }
+    }
+    for (const id of expired) this.remove(id);
+    return found.sort((a, b) => b.savedAt - a.savedAt);
+  }
+  save(id: string, items: PdvCartItem[]): void {
+    if (!items.length) { this.remove(id); return; }
+    this.storage.setItem(this.prefix + id, JSON.stringify({version: 1, id, savedAt: this.now(),
+      items: items.map(({product_id, name, quantity, unit_price}) => ({product_id, name, quantity, unit_price}))}));
+  }
+  remove(id: string): void { this.storage.removeItem(this.prefix + id); }
 }

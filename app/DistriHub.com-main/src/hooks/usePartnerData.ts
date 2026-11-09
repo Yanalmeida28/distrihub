@@ -8,7 +8,7 @@ import type { RmaPhotoFile } from '../components/partner/RmaPhotoUpload';
 import { mergePartnerChange, PartnerDataVersions, PartnerLoadCache, PartnerReadFlight, partnerResources, partnerRequiredResources, withLoadTimeout, type PartnerCollection } from '../lib/partnerSync';
 import { productFiscalPatch } from '../lib/productPersistence';
 import { findProductNameDuplicates } from '../lib/productNames';
-import { splitPaymentError, billedSaleError, saleChargeTotal, validSalePrice, isDefinitiveSaleRejection, PdvSaleAttemptStore, pdvErrorMessage, type CustomerCredit } from '../lib/pdv';
+import { splitPaymentError, billedSaleError, saleChargeTotal, validSalePrice, isDefinitiveSaleRejection, PdvSaleAttemptStore, PdvCartBackupStore, pdvErrorMessage, type CustomerCredit } from '../lib/pdv';
 import type {
   AdminCompany,
   AdminFinancialMonth,
@@ -299,7 +299,7 @@ export function usePartnerData(identity: PartnerIdentity | null, syncBranchId: s
     setPdvSyncWarning(null);
     ++pdvRequestId.current;
     try {
-      setPendingSale(identityScope ? new PdvSaleAttemptStore(sessionStorage, identityScope).read() : null);
+      setPendingSale(identityScope ? new PdvSaleAttemptStore(window.localStorage, identityScope, sessionStorage).read() : null);
     } catch (err) {
       setPdvSyncWarning(pdvErrorMessage(err));
     }
@@ -1724,6 +1724,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
 
   const createSale = useCallback(
     async (sale: SalePayload, operatorId?: string | null, operatorPin?: string | null) => {
+      if (isSupabaseConfigured && navigator.onLine === false) throw new Error('Sem internet. O carrinho foi mantido; reconecte para confirmar a venda no servidor.');
       if (saleInFlight.current) throw new Error('Aguarde a conclusão da venda em andamento.');
       saleInFlight.current = true;
       try {
@@ -1736,7 +1737,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         }
         ensureEmployeeBranch(currentIdentity, sale.branch_id);
         const scope = currentIdentity.authUserId + ':' + currentIdentity.companyUserId;
-        const attempts = new PdvSaleAttemptStore(sessionStorage, scope);
+        const attempts = new PdvSaleAttemptStore(window.localStorage, scope, sessionStorage);
         const previous = attempts.read();
         // Validate a NEW billed request. A retry may already have consumed its credit.
         if (!previous && sale.status !== 'pre_venda' && sale.payment_method === 'faturado') await validateBilledSale(sale);
@@ -1755,8 +1756,10 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         setPendingSale(ns);
         if (isSupabaseConfigured && supabase) {
           try {
+            const rpcSale = { ...ns };
+            delete rpcSale.draft_backup_id;
             const { data: confirmedId, error: rpcError } = await supabase.rpc(ns.rma_credit_id ? 'execute_partner_sale_with_rma_credit' : ns.cash_session_id ? 'supervised_execute_partner_sale_mutation' : 'execute_partner_sale_mutation', ns.rma_credit_id ? {
-              p_sale: ns, p_rma_id: ns.rma_credit_id, p_operator_id: operatorId ?? null, p_pin: operatorPin ?? null, p_cash_session_id: ns.cash_session_id ?? null,
+              p_sale: rpcSale, p_rma_id: ns.rma_credit_id, p_operator_id: operatorId ?? null, p_pin: operatorPin ?? null, p_cash_session_id: ns.cash_session_id ?? null,
             } : {
               ...(ns.cash_session_id ? { p_cash_session_id: ns.cash_session_id } : {}),
               p_salesperson_id: operatorId ?? null, p_pin: operatorPin ?? null,
@@ -1790,7 +1793,10 @@ read('sales', (signal) => fetchAllPages((from, to) => client
           dataRevisionRef.current.invalidate(["sales"]);
           setData(prev => ({ ...prev, sales: [ns, ...prev.sales.filter(item => item.id !== ns.id)] }));
         }
-        try { attempts.complete(ns.id); setPendingSale(null); }
+        try {
+          if (ns.draft_scope && ns.draft_backup_id) new PdvCartBackupStore(window.localStorage, ns.draft_scope).remove(ns.draft_backup_id);
+          attempts.complete(ns.id); setPendingSale(null);
+        }
         catch { setPdvSyncWarning('Venda confirmada. A recuperação local permanece pendente; não repita com outro ID.'); }
         if (isSupabaseConfigured && supabase) {
           await syncConfirmedSale(ns.branch_id!);
@@ -1815,7 +1821,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
 
   const retryPendingSale = useCallback(async (operatorId?: string | null, operatorPin?: string | null) => {
     const currentIdentity = requireIdentity();
-    const attempt = new PdvSaleAttemptStore(sessionStorage, currentIdentity.authUserId + ':' + currentIdentity.companyUserId).read();
+    const attempt = new PdvSaleAttemptStore(window.localStorage, currentIdentity.authUserId + ':' + currentIdentity.companyUserId, sessionStorage).read();
     if (!attempt) throw new Error('Nenhuma venda pendente para recuperar.');
     return createSale(attempt, operatorId, operatorPin);
   }, [createSale, requireIdentity]);

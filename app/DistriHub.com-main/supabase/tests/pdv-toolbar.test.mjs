@@ -21,9 +21,11 @@ vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts', import
 const source = compile(await readFile(new URL('../../src/components/partner/PdvModule.tsx', import.meta.url), 'utf8')) + '\nexports.Checkout = PdvCheckout;';
 function loadCheckout(react, printing = {}) {
 const module = { exports: {} };
+const saved = new Map();
+const localStorage = { getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value), removeItem: key => saved.delete(key), get length() { return saved.size; }, key: index => [...saved.keys()][index] ?? null };
 vm.runInNewContext(source, {
   exports: module.exports, Date, Error, setTimeout: () => 1,
-  window: { open: printing.open ?? (() => null), setTimeout: () => 1, clearTimeout() {} },
+  window: { localStorage, open: printing.open ?? (() => null), setTimeout: () => 1, clearTimeout() {} },
   require(name) {
     if (name === '../../lib/salePrint') return { directReceiptEnabled: () => Boolean(printing.direct), printSale: printing.printSale ?? (() => {}) };
     if(name==='./SplitPaymentFields') return splitPaymentComponent;

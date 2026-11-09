@@ -263,8 +263,10 @@ test('first settings save falls back to an owner-scoped insert and confirms the 
  assert.deepEqual(writes.map(value=>value.type),['update','upsert']);assert.equal(writes[1].value.user_id,'owner');assert.equal(h.current.settings.service_warranty_terms,'Primeiro termo');
 });
 afterEach(async()=>{if(renderer) await act(async()=>renderer.unmount());renderer=null;});
-async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],initialProducts=[],rpc,values=new Map(),readResult,branchId=null,resourceScope=null,identity: suppliedIdentity,storageClient}={}) {
+async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],initialProducts=[],rpc,values=new Map(),sessionValues=values,online=true,readResult,branchId=null,resourceScope=null,identity: suppliedIdentity,storageClient}={}) {
   const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
+  const tabStorage=sessionValues===values?storage:{getItem:k=>sessionValues.get(k)??null,setItem:(k,v)=>sessionValues.set(k,v),removeItem:k=>sessionValues.delete(k)};
+  const network={onLine:online};
   const identity=suppliedIdentity??{authUserId:'owner',companyUserId:'owner',salespersonId:null,branchId:null,role:'administrador'};
   const initial={partner_sales:initialSales,partner_invoices:initialInvoices,partner_customers:initialCustomers,partner_products:initialProducts};
   const queries=[];
@@ -294,9 +296,9 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
   vm.runInNewContext(compile(productPersistenceSource),{exports:productPersistenceModule.exports});
   const hookModule={exports:{}};
   vm.runInNewContext(compile(source),{
-    exports:hookModule.exports,sessionStorage:storage,crypto:{randomUUID},console,
+    exports:hookModule.exports,sessionStorage:tabStorage,crypto:{randomUUID},console,
     window:{localStorage:storage,addEventListener(){},removeEventListener(){},setInterval(callback){intervals.push(callback);return intervals.length;},clearInterval(){},setTimeout(callback){const id=++timerId;timeouts.set(id,callback);return id;},clearTimeout(id){timeouts.delete(id);}},
-    navigator:{onLine:true},
+    navigator:network,
     document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
     require(name){
       if(name==='react')return React;
@@ -313,7 +315,7 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
   let current;
   function Probe(){current=hookModule.exports.usePartnerData(identity,activeBranchId,activeScope);return null;}
   await act(async()=>{renderer=TestRenderer.create(React.createElement(Probe));});
-  return {get current(){return current;},values,queries,queryFilters,
+  return {get current(){return current;},values,queries,queryFilters,network,
     async setScope(scope){activeScope=scope;await act(async()=>renderer.update(React.createElement(Probe)));},
     async setBranchId(id){activeBranchId=id;await act(async()=>renderer.update(React.createElement(Probe)));},
     emit(table,eventType,record,old={}){for(const channel of channels.filter(channel=>!channel.removed))for(const {filter,handler} of channel.handlers)if(filter.table===table&&filter.event===eventType)handler({eventType,new:record,old});},
@@ -324,6 +326,46 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
 }
 const payload=()=>({customer_id:'customer',customer_name:'Cliente',items:[{product_id:'physical',name:'Produto',quantity:1,unit_price:100}],total:100,branch_id:'branch',salesperson_id:null,customer_type:'varejo',delivery_type:'balcao',payment_method:'pix'});
 const snapshot=(overrides={})=>({credits:[{customer_id:'customer',allow_credit:true,credit_limit:1000,used:0,available:1000}],products:[],movements:[],sales:[],invoices:[],...overrides});
+
+test('offline sale is refused before allocating an attempt or calling the server; reconnection alone never sends it',async()=>{
+ let calls=0;
+ const h=await harness({online:false,rpc:async(name,args)=>{if(name==='get_partner_pdv_snapshot')return {data:snapshot(),error:null};calls++;return {data:args.p_sale_id,error:null};}});
+ await act(async()=>assert.rejects(h.current.createSale(payload()),/Sem internet/));
+ assert.equal(calls,0);assert.equal(h.values.size,0);assert.equal(h.current.pendingSale,null);
+ h.network.onLine=true;
+ assert.equal(calls,0);
+ let confirmed;
+ await act(async()=>{confirmed=await h.current.createSale(payload());});
+ assert.equal(calls,1);assert(confirmed.id);assert.equal(h.current.pendingSale,null);
+});
+
+test('a pending sale survives closing all tabs and keeps the original ID on explicit recovery',async()=>{
+ const values=new Map();let original;
+ const first=await harness({values,sessionValues:new Map(),rpc:async(_name,args)=>{original=args.p_sale_id;return {error:{message:'Synthetic network failure'}};}});
+ await act(async()=>assert.rejects(first.current.createSale(payload()),/não confirmado/));
+ assert.equal(first.current.pendingSale.id,original);
+ await act(async()=>renderer.unmount());renderer=null;
+ const retried=[];
+ const reopened=await harness({values,sessionValues:new Map(),rpc:async(name,args)=>{if(name==='get_partner_pdv_snapshot')return {data:snapshot(),error:null};retried.push(args.p_sale_id);return {data:args.p_sale_id,error:null};}});
+ assert.equal(reopened.current.pendingSale.id,original);assert.equal(retried.length,0);
+ await act(async()=>reopened.current.retryPendingSale());
+ assert.deepEqual(retried,[original]);assert.equal(reopened.current.pendingSale,null);
+});
+
+test('confirmed RMA-credit sale clears only its own cart backup and never sends the local backup ID to the RPC',async()=>{
+ const values=new Map(),scope='auth:company:workspace:branch:pdv:branch';
+ const backupKey='distrihub:pdv-cart:'+encodeURIComponent(scope)+':backup-one';
+ const otherKey='distrihub:pdv-cart:'+encodeURIComponent(scope)+':backup-two';
+ values.set(backupKey,'synthetic backup');values.set(otherKey,'other draft');let sent;
+ const h=await harness({values,sessionValues:new Map(),rpc:async(name,args)=>{
+  if(name==='get_partner_pdv_snapshot')return {data:snapshot(),error:null};
+  sent={name,args};return {data:args.p_sale.id,error:null};
+ }});
+ await act(async()=>h.current.createSale({...payload(),rma_credit_id:'synthetic-rma',draft_scope:scope,draft_backup_id:'backup-one'}));
+ assert.equal(sent.name,'execute_partner_sale_with_rma_credit');
+ assert.equal('draft_backup_id' in sent.args.p_sale,false);
+ assert.equal(values.has(backupKey),false);assert.equal(values.get(otherKey),'other draft');
+});
 
 test('open-order action keeps authenticated operator and supervisor credentials separate and updates only after confirmation',async()=>{
  const pre={...payload(),id:'pre-open',user_id:'owner',status:'pre_venda',payment_status:'pendente'};

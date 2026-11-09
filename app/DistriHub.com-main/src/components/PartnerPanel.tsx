@@ -297,6 +297,13 @@ export function PartnerPanel({
   initialTab,
   onConsumeInitialTab,
 }: PartnerPanelProps) {
+  const [networkAvailable, setNetworkAvailable] = useState(() => typeof navigator === 'undefined' || navigator.onLine !== false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const update = () => setNetworkAvailable(navigator.onLine !== false);
+    window.addEventListener('online', update); window.addEventListener('offline', update);
+    return () => { window.removeEventListener('online', update); window.removeEventListener('offline', update); };
+  }, []);
   const identity = useMemo(() => accessLocked ? null : authenticatedIdentity && pinOperator ? {
     ...authenticatedIdentity, salespersonId: pinOperator.id, branchId: pinOperator.branchId, role: pinOperator.role,
   } : authenticatedIdentity, [authenticatedIdentity, pinOperator, accessLocked]);
@@ -1077,6 +1084,7 @@ export function PartnerPanel({
       payment_method?: string; payment_splits?: SalePayment[]; rma_credit_id?: string | null;
       salesperson_id?: string | null;
       draft_scope?: string;
+      draft_backup_id?: string;
       branch_id?: string | null;
     },
   ) {
@@ -1129,6 +1137,7 @@ export function PartnerPanel({
       serial_number?: string;
       salesperson_id?: string | null;
       draft_scope?: string;
+      draft_backup_id?: string;
       branch_id?: string | null;
     },
   ) {
@@ -1844,6 +1853,11 @@ export function PartnerPanel({
 
       <div className="sidebar-main">
         <div className="sidebar-main-inner">
+          {!networkAvailable && <div className="pdv-continuity-notice" role="status">
+            <strong>Sem internet</strong>
+            <p>As informações já carregadas podem estar desatualizadas. Operações no servidor precisam de conexão; não considere uma venda concluída sem a confirmação.</p>
+            {partner.lastSyncedAt && <small>Última atualização: {partner.lastSyncedAt.toLocaleTimeString('pt-BR')}.</small>}
+          </div>}
           {partner.error && (
             <p className="partner-loading">
               {partner.error}

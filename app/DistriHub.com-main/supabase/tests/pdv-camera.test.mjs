@@ -15,12 +15,14 @@ const source=ts.transpileModule(await readFile(new URL('../../src/components/par
 let renderer;
 afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=null;});
 function harness({secure=true,error=null,pending=false}={}){
+ const saved=new Map();
+ const localStorage={getItem:key=>saved.get(key)??null,setItem:(key,value)=>saved.set(key,value),removeItem:key=>saved.delete(key),get length(){return saved.size;},key:index=>[...saved.keys()][index]??null};
  let callback,resolve,decoder,stops=0;
  const controls={stop(){stops++;}};
  const document={visibilityState:'visible',listeners:new Set(),addEventListener(_event,fn){this.listeners.add(fn);},removeEventListener(_event,fn){this.listeners.delete(fn);}};
  const library={BrowserMultiFormatReader:class{constructor(hints){assert.equal(hints.get(DecodeHintType.TRY_HARDER),true);decoder=new RealReader(hints);}async decodeFromConstraints(constraints,_video,cb){assert.equal(constraints.video.facingMode.ideal,'environment');assert.equal(constraints.video.width.ideal,1280);assert.equal(constraints.video.height.ideal,720);assert.equal(constraints.audio,false);if(error)throw {name:error};callback=cb;return pending?new Promise(done=>resolve=done):controls;}}};
  const exports={};
- vm.runInNewContext(source,{exports,Date,Error,document,navigator:{mediaDevices:{getUserMedia(){}}},window:{isSecureContext:secure,open:()=>null,setTimeout:()=>1,clearTimeout(){}},require(name){
+ vm.runInNewContext(source,{exports,Date,Error,document,navigator:{onLine:true,mediaDevices:{getUserMedia(){}}},window:{localStorage,isSecureContext:secure,open:()=>null,setTimeout:()=>1,clearTimeout(){}},require(name){
   if(name==='react')return React;if(name==='@zxing/browser')return library;
   if(name==='../../lib/pdv')return pdvHelpers;
   if(name==='../../hooks/useSessionDraft')return {SessionDraftProvider:({children})=>children,useSessionDraftScope:()=> 'test',useSessionDraftState:(_id,initial)=>React.useState(initial)};

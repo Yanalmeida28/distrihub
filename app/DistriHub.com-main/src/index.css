@@ -3641,3 +3641,10 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .pdv-sale-toast strong { display: block; font-size: 17px; line-height: 1.3; }
 .partner-panel .pdv-sale-toast span { display: block; margin-top: 5px; font-size: 14px; line-height: 1.4; }
 .partner-panel .pdv-sale-toast button { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px; color: #fff; background: transparent; border: 1px solid #ffffff60; border-radius: 8px; }
+
+.partner-panel .pdv-continuity-notice { margin: 12px 0; padding: 14px 16px; border: 2px solid #d97706; border-radius: 10px; background: #fffbeb; color: #78350f; overflow-wrap: anywhere; }
+.partner-panel .pdv-continuity-notice strong { display: block; color: #78350f; }
+.partner-panel .pdv-continuity-notice p { margin: 8px 0; line-height: 1.5; }
+.partner-panel .pdv-backup-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 0; border-top: 1px solid #d97706; }
+.partner-panel .pdv-backup-actions button { min-height: 44px; border: 1px solid #92400e; }
+@media (max-width: 600px) { .partner-panel .pdv-backup-actions span { width: 100%; } .partner-panel .pdv-backup-actions button { flex: 1; } }
