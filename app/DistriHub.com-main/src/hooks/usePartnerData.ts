@@ -403,7 +403,7 @@ export function usePartnerData(identity: PartnerIdentity | null, syncBranchId: s
         client
           .from('partner_salespeople')
           .select(
-            'id, user_id, auth_user_id, name, role, commission_rate, phone, email, active, branch_id, created_at, blocked_modules, can_access_all_branches',
+            'id, user_id, auth_user_id, name, role, commission_rate, phone, email, active, branch_id, created_at, blocked_modules, can_access_all_branches, can_edit_sale_price',
           )
           .eq('user_id', companyUserId)
           .order('name');
@@ -3151,6 +3151,24 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       operatorPin?: string | null,
     ) => {
       const currentIdentity = requireIdentity();
+
+      if (salesperson.can_edit_sale_price !== undefined) {
+        if (Object.keys(salesperson).some(key => key !== 'can_edit_sale_price')) throw new Error('Salve a permissão de preço separadamente dos demais dados.');
+        if (!isSupabaseConfigured || !supabase) throw new Error('Supabase não configurado.');
+        const existing = data.salespeople.find(item => item.id === id);
+        if (!existing) throw new Error('Operador não encontrado.');
+        const { data: allowed, error } = await supabase.rpc('set_partner_salesperson_price_permission', {
+          p_salesperson_id: id, p_allowed: salesperson.can_edit_sale_price,
+          p_operator_id: operatorId ?? null, p_operator_pin: operatorPin ?? null,
+        });
+        if (error) throw formatSalespersonSaveError(error);
+        if (allowed !== salesperson.can_edit_sale_price) throw new Error('Não foi possível confirmar a permissão de preço.');
+        const updated = { ...existing, can_edit_sale_price: allowed };
+        dataRevisionRef.current.invalidate(['salespeople']);
+        setData(previous => ({ ...previous, salespeople: previous.salespeople.map(person => person.id === id ? updated : person) }));
+        if (typeof window !== 'undefined' && typeof Event !== 'undefined') window.dispatchEvent(new Event('distrihub:operators-changed'));
+        return updated;
+      }
 
       if (currentIdentity.salespersonId) {
         throw new Error(

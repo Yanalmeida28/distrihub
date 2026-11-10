@@ -206,6 +206,8 @@ export interface PartnerProduct {
 }
 
 export interface PartnerSalesperson {
+  /** Explicit sale-price authorization; never changes the product catalog. */
+  can_edit_sale_price?: boolean;
   can_access_all_branches?: boolean;
   blocked_modules?: string[];
   id: string;

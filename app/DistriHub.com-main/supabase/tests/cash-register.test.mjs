@@ -70,6 +70,7 @@ before(async () => {
   await db.exec(await read('../migrations/20261017172437_shared_branch_checkout_operator_history.sql'));
   await db.exec(await read('../migrations/20261029164610_separate_checkout_cash_permissions.sql'));
   await db.exec(await read('../migrations/20261107145447_restrict_cash_overview_visibility.sql'));
+  await db.exec(await read('../migrations/20261110164331_operator_sale_price_permission.sql'));
 });
 after(() => db.close());
 
@@ -343,6 +344,32 @@ test('negotiated prices: owner and authenticated manager save prices without edi
   assert.deepEqual((await sql('SELECT total FROM partner_sales ORDER BY total')).rows.map(row=>Number(row.total)),[75.5,120]);
   assert.equal((await sql('SELECT count(*)::int AS n FROM partner_pdv_price_snapshots')).rows[0].n,2);
   assert.equal((await sql('SELECT stock FROM partner_products WHERE id=$1',[product])).rows[0].stock,10);
+});
+
+test('individual PDV price permission defaults off, owner/admin grant and revoke; manager and employee cannot grant',async()=>{
+ const allow=async(value,operator=null,pin=null)=>(await sql('select public.set_partner_salesperson_price_permission($1,$2,$3,$4) allowed',[employee,value,operator,pin])).rows[0].allowed;
+ assert.equal((await sql('select can_edit_sale_price from partner_salespeople where id=$1',[employee])).rows[0].can_edit_sale_price,false);
+ await assert.rejects(negotiatedSale(70,{operator:employee,pin:'1234'}));
+ assert.equal(await allow(true),true);
+ await mutate('abrir',0);await negotiatedSale(70,{operator:employee,pin:'1234'});
+ await login(employeeAuth);await mutate('abrir',0);
+ const completed=await negotiatedSale(65,{status:'concluida',method:'dinheiro'});
+ const confirmed=(await sql('select status,total from partner_sales where id=$1',[completed.id])).rows[0];assert.equal(confirmed.status,'concluida');assert.equal(Number(confirmed.total),65);
+ assert.equal(Number((await sql('select stock from partner_products where id=$1',[product])).rows[0].stock),9);
+ await login(owner);
+ assert.equal(Number((await sql('select sale_price from partner_products where id=$1',[product])).rows[0].sale_price),100);
+ assert.equal(await allow(false),false);await assert.rejects(negotiatedSale(70,{operator:employee,pin:'1234'}));
+ await assert.rejects(allow(true,manager,'9876'));
+ await assert.rejects(allow(true,employee,'1234'));
+ await sql("update partner_salespeople set role='administrador' where id=$1",[manager]);assert.equal(await allow(true,manager,'9876'),true);
+ await assert.rejects(allow(false,manager,'wrong'));
+ await login(employeeAuth);await assert.rejects(allow(true));
+ await login(other);await assert.rejects(allow(false));
+ await login(null);await assert.rejects(allow(false));
+ await login(owner);
+ assert.equal((await sql("select has_function_privilege('anon','public.set_partner_salesperson_price_permission(uuid,boolean,uuid,text)','execute') allowed")).rows[0].allowed,false);
+ await db.exec('grant update(can_edit_sale_price) on public.partner_salespeople to authenticated;grant select on public.partner_salespeople to authenticated;grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;set role authenticated');
+ await assert.rejects(sql('update public.partner_salespeople set can_edit_sale_price=false where id=$1',[employee]));await db.exec('reset role');
 });
 
 test('negotiated prices: cashier, seller and employee administrator cannot override prices', async () => {

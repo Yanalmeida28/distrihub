@@ -130,6 +130,20 @@ test('editar colaborador conserva bloqueios, permite escolher módulos e respeit
   await act(async () => renderer.unmount());
 });
 
+test('individual price permission defaults off and saves without promoting or activating the employee',async()=>{
+ const calls=[];let renderer;
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.CadastrosModule,registrationProps('profissional',{
+  adminTarget:'vendedores',salespeople:[{id:'employee',name:'Amanda',role:'vendedor',active:false,branch_id:'branch',blocked_modules:['caixa'],commission_rate:0}],
+  onUpdateSalesperson:async(...args)=>calls.push(args),
+ })));});
+ try{
+  await act(async()=>renderer.root.findByProps({title:'Editar'}).props.onClick());
+  const input=renderer.root.findByProps({'aria-label':'Permitir alterar preço no PDV para Amanda'});assert.equal(input.props.checked,false);
+  await act(async()=>input.props.onChange({target:{checked:true}}));
+  assert.equal(calls[0][0],'employee');assert.deepEqual(Object.keys(calls[0][1]),['can_edit_sale_price']);assert.equal(calls[0][1].can_edit_sale_price,true);
+ }finally{await act(async()=>renderer.unmount());}
+});
+
 test('all-branch authorization saves independently of activation and module permissions', async () => {
   for (const role of ['administrador', 'gerente', 'vendedor']) {
     const calls = [];

@@ -1919,7 +1919,7 @@ export function PartnerPanel({
                 onOpenCash={() => setActiveTab('caixa')}
                 onOpenOrders={() => setActiveTab('pedidos')}
                 onConfirmCashOperator={() => onRequestAccess('employee')}
-                canEditPrice={effectiveRole === 'gerente' || ((!isEmployeeRestricted || Boolean(pinOperator)) && effectiveRole === 'administrador')}
+                canEditPrice={effectiveRole === 'gerente' || ((!isEmployeeRestricted || Boolean(pinOperator)) && effectiveRole === 'administrador') || (['vendedor','caixa','atendente'].includes(effectiveRole) && activeSalesperson?.can_edit_sale_price === true)}
                 key={`${pdvRevision}:${effectiveBranchId}`}
                 hasPendingSale={Boolean(partner.pendingSale)}
                 barcodeScannerEnabled={storeSettings.personalization?.pdv?.barcode_scanner_enabled !== false}
@@ -2015,7 +2015,7 @@ export function PartnerPanel({
                   const { operatorId, operatorPin } = getOperatorContext();
                   await partner.updateOpenOrderCustomer(id, customerId, operatorId, operatorPin);
                 }}
-                canEditPrice={effectiveRole === 'gerente' || ((!isEmployeeRestricted || Boolean(pinOperator)) && effectiveRole === 'administrador')}
+                canEditPrice={effectiveRole === 'gerente' || ((!isEmployeeRestricted || Boolean(pinOperator)) && effectiveRole === 'administrador') || (['vendedor','caixa','atendente'].includes(effectiveRole) && activeSalesperson?.can_edit_sale_price === true)}
                 products={filteredProducts}
                 onUpdateItems={async (id, items) => {
                   const { operatorId, operatorPin } = getOperatorContext();

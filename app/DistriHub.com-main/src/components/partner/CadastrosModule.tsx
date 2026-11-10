@@ -2011,6 +2011,7 @@ function SalespeopleSubTab({
   const [editBranchId, setEditBranchId] = useSessionDraftState('salespeople:edit-branch-id', '');
   const [editActive, setEditActive] = useSessionDraftState('salespeople:edit-active', true);
   const [savingBranchAccess, setSavingBranchAccess] = useState<string | null>(null);
+  const [savingPricePermission, setSavingPricePermission] = useState<string | null>(null);
   const [editBlockedModules, setEditBlockedModules] = useSessionDraftState<string[]>('salespeople:edit-blocked-modules', []);
   const roleRestrictedModules: Record<SalespersonRole, string[]> = {
     administrador: [],
@@ -2129,6 +2130,14 @@ function SalespeopleSubTab({
     try { await onUpdate(id, { can_access_all_branches: allowed }); }
     catch (error) { setEditError(error instanceof Error ? error.message : 'Não foi possível alterar o acesso às filiais.'); }
     finally { setSavingBranchAccess(null); }
+  }
+
+  async function setPricePermission(id: string, allowed: boolean) {
+    if (savingPricePermission) return;
+    setSavingPricePermission(id); setEditError(null);
+    try { await onUpdate(id, { can_edit_sale_price: allowed }); }
+    catch (error) { setEditError(error instanceof Error ? error.message : 'Não foi possível alterar a permissão de preço.'); }
+    finally { setSavingPricePermission(null); }
   }
 
   async function saveEdit(id: string) {
@@ -2456,6 +2465,14 @@ function SalespeopleSubTab({
                                 disabled={savingBranchAccess !== null || editRole !== salesperson.role}
                                 onChange={event => void setBranchAccess(salesperson.id, event.target.checked)} /> Permitir acesso a todas as filiais</span>
                               <small>A autorização é salva ao marcar ou desmarcar. A filial vinculada continua sendo a filial inicial.</small>
+                            </label>}
+
+                            {['vendedor','caixa','atendente'].includes(salesperson.role) && <label>
+                              <span><input type="checkbox" aria-label={`Permitir alterar preço no PDV para ${salesperson.name}`}
+                                checked={salesperson.can_edit_sale_price === true}
+                                disabled={savingPricePermission !== null || editRole !== salesperson.role}
+                                onChange={event => void setPricePermission(salesperson.id, event.target.checked)} /> Permitir alterar preço na venda (PDV)</span>
+                              <small>Desativado por padrão. Somente proprietário ou administrador autorizado pode liberar ou revogar. Salva imediatamente; não altera o preço do cadastro.</small>
                             </label>}
 
                             <label>
