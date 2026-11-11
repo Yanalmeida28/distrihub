@@ -23,7 +23,7 @@ const load=name=>{
  if(name==='./SplitPaymentFields')return {SplitPaymentFields:()=>null};
  if(name==='./SalePriceInput')return {SalePriceInput:()=>null};
  if(name==='../../lib/salePrint'||name==='../../lib/saleShare')return {};
- if(name==='../../lib/orderQuotePdf')return {downloadOrderQuotePdf:async(...args)=>{quoteCalls.push(args);if(quotePending)await quotePending;if(quoteFailure)throw quoteFailure;}};
+ if(name==='../../lib/orderQuotePdf')return {prepareOrderQuoteLogo:async()=>{},downloadOrderQuotePdf:async(...args)=>{quoteCalls.push(args);if(quotePending)await quotePending;if(quoteFailure)throw quoteFailure;}};
  return require(name);
 };
 vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/OpenOrderItemsEditor.tsx',import.meta.url),'utf8')),{exports:editor,require:load});

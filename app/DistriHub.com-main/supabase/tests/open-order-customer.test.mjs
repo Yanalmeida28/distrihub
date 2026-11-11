@@ -14,6 +14,7 @@ vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/componen
 }).outputText,{
   exports:module.exports,
   require(name) {
+    if(name==='../../lib/orderQuotePdf') return {prepareOrderQuoteLogo:async()=>{}};
     if(name==='./SplitPaymentFields') return splitPaymentComponent;
     if(name==='react')return React;
     if(name==='react/jsx-runtime')return jsx;
