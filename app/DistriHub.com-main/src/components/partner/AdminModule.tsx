@@ -143,7 +143,13 @@ const sidebarSections: {
     id: 'relatorios',
     label: 'Relatórios',
     icon: BarChart3,
-    items: [{ id: 'vendas', label: 'Relatório detalhado de Vendas', tab: 'relatorios' }],
+    items: [
+      { id: 'vendas', label: 'Vendas e serviços', tab: 'relatorios' },
+      { id: 'financeiro', label: 'Financeiro e pagamentos', tab: 'relatorios' },
+      { id: 'estoque', label: 'Estoque e produtos cadastrados', tab: 'relatorios' },
+      { id: 'sem-giro', label: 'Produtos sem giro', tab: 'relatorios' },
+      { id: 'crm', label: 'Clientes e relacionamento (CRM)', tab: 'relatorios' },
+    ],
   },
   {
     id: 'inteligencia',
