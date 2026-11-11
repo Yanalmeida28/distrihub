@@ -8,6 +8,7 @@ import { receiptPreferences, panelPreferences, panelStyle, catalogPreferences, c
 
 type WhiteLabelModuleProps = {
   settings: StoreSettings;
+  selectedBranchId?: string;
   onUpdate: (settings: Partial<StoreSettings>) => Promise<unknown>;
   receiptDetails?: ReceiptDetails;
   branches?: Pick<PartnerBranch, 'id' | 'name' | 'is_active'>[];
@@ -16,8 +17,11 @@ type WhiteLabelModuleProps = {
 const presetColors = ['#3193e5', '#2563eb', '#199863', '#0f766e', '#7c3aed', '#a21caf', '#be185d', '#e3829b', '#c2410c', '#e6a06d', '#ca8a04', '#5fd0d1', '#475569', '#97aabc'];
 const navigationColors = ['#0f2747', '#0f172a', '#1e293b', '#14532d', '#134e4a', '#3b0764', '#4c0519', '#ffffff'];
 
-export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist, receiptDetails, branches = [] }: WhiteLabelModuleProps) {
+export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist, receiptDetails, branches = [], selectedBranchId }: WhiteLabelModuleProps) {
+  const catalogBranch = branches.find(branch => branch.id === selectedBranchId && branch.is_active);
   const [settings, setSettings] = useState(initialSettings);
+  const catalogHref = settings.catalog_slug && (!selectedBranchId || catalogBranch)
+    ? '/catalogo?loja=' + encodeURIComponent(settings.catalog_slug) + (catalogBranch ? '&filial=' + encodeURIComponent(catalogBranch.name) : '') : '';
   const [activeTab, setActiveTab] = useState<'visual' | 'painel' | 'cupom' | 'catalogo' | 'pdv'>('visual');
   const receiptFrame = useRef<HTMLIFrameElement>(null);
   const renderReceiptPreview = useCallback(() => {
@@ -337,8 +341,8 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
 
       </section>
       <section hidden={activeTab !== 'catalogo'} aria-label="Personalização do catálogo">
-        <CatalogShareLinks slug={settings.catalog_slug ?? ''} branches={branches} />
-        <div className="module-card"><h4>Link e disponibilidade do catálogo</h4><label className="print-toggle-item"><input type="checkbox" checked={settings.catalog_enabled} onChange={e => onUpdate({ catalog_enabled: e.target.checked })} /> Ativar catálogo público</label><label className="personalization-text-field">Nome no link<input maxLength={40} value={settings.catalog_slug ?? ''} onChange={e => onUpdate({ catalog_slug: e.target.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/g, '') || null })} /></label>{settings.catalog_slug && <a href={`/catalogo?loja=${encodeURIComponent(settings.catalog_slug)}`} target="_blank" rel="noopener noreferrer">Abrir catálogo da loja</a>}<p>Salve as alterações antes de compartilhar o link.</p></div>
+        <CatalogShareLinks slug={settings.catalog_slug ?? ''} branches={branches} selectedBranchId={selectedBranchId} />
+        <div className="module-card"><h4>Link e disponibilidade do catálogo</h4><label className="print-toggle-item"><input type="checkbox" checked={settings.catalog_enabled} onChange={e => onUpdate({ catalog_enabled: e.target.checked })} /> Ativar catálogo público</label><label className="personalization-text-field">Nome base no link (compartilhado entre filiais)<input maxLength={40} value={settings.catalog_slug ?? ''} onChange={e => onUpdate({ catalog_slug: e.target.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/g, '') || null })} /></label>{catalogHref && <a href={catalogHref} target="_blank" rel="noopener noreferrer">{catalogBranch ? `Abrir catálogo: ${catalogBranch.name}` : 'Abrir catálogo geral'}</a>}<p>Salve as alterações antes de compartilhar o link.</p></div>
         <div className="module-card">
           <div className="module-card-title">Apresentação do catálogo público</div>
           <label className="personalization-text-field">Mensagem de boas-vindas<textarea className="notice-input" aria-label="Mensagem de boas-vindas do catálogo" maxLength={400} rows={3} value={catalog.welcome_message} onChange={e => updatePreference('catalog', { ...catalog, welcome_message: e.target.value })} placeholder="Apresente sua loja e convide o cliente a conhecer os produtos." /></label>

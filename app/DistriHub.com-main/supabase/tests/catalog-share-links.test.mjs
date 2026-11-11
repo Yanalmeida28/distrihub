@@ -13,14 +13,14 @@ const source = ts.transpileModule(await readFile(new URL('../../src/components/p
 }).outputText;
 let view;
 afterEach(async () => { if (view) await act(async () => view.unmount()); view = null; });
-async function mount(writeText, slug = 'minha-loja') {
+async function mount(writeText, slug = 'minha-loja', selectedBranchId) {
   const exports = {};
   vm.runInNewContext(source, { exports, require, URL,
     window: { location: { origin: 'https://distrihub.com.br' }, isSecureContext: true },
     navigator: { clipboard: { writeText } },
   });
   await act(async () => { view = TestRenderer.create(React.createElement(exports.CatalogShareLinks, {
-    slug, branches: [
+    slug, selectedBranchId, branches: [
       { id: 'a', name: 'Centro & Norte', is_active: true },
       { id: 'b', name: 'Bairro', is_active: true },
       { id: 'c', name: 'Fechada', is_active: false },
@@ -49,4 +49,19 @@ test('failed clipboard copy reports an error instead of claiming success', async
 test('no links are generated before the catalog slug exists', async () => {
   await mount(async () => {}, '');
   assert.equal(view.toJSON(), null);
+});
+
+test('selected branch only exposes its own catalog and never falls back to retail or general', async () => {
+  const copied = [];
+  await mount(async url => copied.push(url), 'minha-loja', 'b');
+  const links = view.root.findAllByType('a');
+  assert.equal(links.length, 1);
+  assert.equal(links[0].props.href, '/catalogo?loja=minha-loja&filial=Bairro');
+  await act(async () => view.root.findAllByType('button')[0].props.onClick());
+  assert.deepEqual(copied, ['https://distrihub.com.br/catalogo?loja=minha-loja&filial=Bairro']);
+});
+
+test('unavailable selected branch does not expose another branch link', async () => {
+  await mount(async () => {}, 'minha-loja', 'missing');
+  assert.equal(view.root.findAllByType('a').length, 0);
 });

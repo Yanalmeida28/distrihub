@@ -3,18 +3,19 @@ import type { PartnerBranch } from '../../types';
 
 type Props = {
   slug: string;
+  selectedBranchId?: string;
   branches: Pick<PartnerBranch, 'id' | 'name' | 'is_active'>[];
 };
 
-export function CatalogShareLinks({ slug, branches }: Props) {
+export function CatalogShareLinks({ slug, branches, selectedBranchId }: Props) {
   const [copied, setCopied] = useState('');
   const [error, setError] = useState('');
   if (!slug) return null;
 
   const general = `/catalogo?loja=${encodeURIComponent(slug)}`;
   const links = [
-    { id: 'general', name: 'Catálogo geral — escolher filial', href: general },
-    ...branches.filter(branch => branch.is_active).map(branch => ({
+    ...(!selectedBranchId ? [{ id: 'general', name: 'Catálogo geral — escolher filial', href: general }] : []),
+    ...branches.filter(branch => branch.is_active && (!selectedBranchId || branch.id === selectedBranchId)).map(branch => ({
       id: branch.id, name: branch.name,
       href: `${general}&filial=${encodeURIComponent(branch.name)}`,
     })),
