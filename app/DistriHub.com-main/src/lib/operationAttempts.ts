@@ -19,7 +19,11 @@ export class OperationAttempts {
     this.storage.setItem(this.key(scope, kind), JSON.stringify(value));
     return value;
   }
-  confirm(scope: string, kind: string) { this.storage.removeItem(this.key(scope, kind)); }
+  confirm(scope: string, kind: string, expectedId?: string) {
+    // A late response must never remove a newer attempt in the same scope.
+    if (expectedId && this.pending(scope, kind)?.id !== expectedId) return;
+    this.storage.removeItem(this.key(scope, kind));
+  }
 }
 
 export type PendingPhoto = { id: string; file: File; type: 'entry' | 'exit'; label: string };

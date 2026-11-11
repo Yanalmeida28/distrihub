@@ -33,10 +33,10 @@ test('active branches have distinct encoded links and copy the exact absolute UR
   const links = view.root.findAllByType('a');
   assert.equal(links.length, 3);
   assert.equal(links[0].props.href, '/catalogo?loja=minha-loja');
-  assert.equal(links[1].props.href, '/catalogo?loja=minha-loja&filial=Centro%20%26%20Norte');
-  assert.equal(links[2].props.href, '/catalogo?loja=minha-loja&filial=Bairro');
+  assert.equal(links[1].props.href, '/catalogo?loja=minha-loja&unidade=a');
+  assert.equal(links[2].props.href, '/catalogo?loja=minha-loja&unidade=b');
   await act(async () => view.root.findAllByType('button')[1].props.onClick());
-  assert.deepEqual(copied, ['https://distrihub.com.br/catalogo?loja=minha-loja&filial=Centro%20%26%20Norte']);
+  assert.deepEqual(copied, ['https://distrihub.com.br/catalogo?loja=minha-loja&unidade=a']);
   assert.ok(view.root.findByProps({ role: 'status' }));
   assert.ok(!JSON.stringify(view.toJSON()).includes('Fechada'));
 });
@@ -56,9 +56,9 @@ test('selected branch only exposes its own catalog and never falls back to retai
   await mount(async url => copied.push(url), 'minha-loja', 'b');
   const links = view.root.findAllByType('a');
   assert.equal(links.length, 1);
-  assert.equal(links[0].props.href, '/catalogo?loja=minha-loja&filial=Bairro');
+  assert.equal(links[0].props.href, '/catalogo?loja=minha-loja&unidade=b');
   await act(async () => view.root.findAllByType('button')[0].props.onClick());
-  assert.deepEqual(copied, ['https://distrihub.com.br/catalogo?loja=minha-loja&filial=Bairro']);
+  assert.deepEqual(copied, ['https://distrihub.com.br/catalogo?loja=minha-loja&unidade=b']);
 });
 
 test('unavailable selected branch does not expose another branch link', async () => {

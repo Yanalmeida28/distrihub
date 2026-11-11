@@ -21,7 +21,7 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
   const catalogBranch = branches.find(branch => branch.id === selectedBranchId && branch.is_active);
   const [settings, setSettings] = useState(initialSettings);
   const catalogHref = settings.catalog_slug && (!selectedBranchId || catalogBranch)
-    ? '/catalogo?loja=' + encodeURIComponent(settings.catalog_slug) + (catalogBranch ? '&filial=' + encodeURIComponent(catalogBranch.name) : '') : '';
+    ? '/catalogo?loja=' + encodeURIComponent(settings.catalog_slug) + (catalogBranch ? '&unidade=' + encodeURIComponent(catalogBranch.id) : '') : '';
   const [activeTab, setActiveTab] = useState<'visual' | 'painel' | 'cupom' | 'catalogo' | 'pdv'>('visual');
   const receiptFrame = useRef<HTMLIFrameElement>(null);
   const renderReceiptPreview = useCallback(() => {
@@ -93,8 +93,8 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
     }
     setSaving(true); setError(null); setSaved(false);
     try {
-      const { logo_url, banner_url, primary_color, nav_color, receipt_footer_text, show_logo_on_receipt, show_cnpj_on_receipt, internal_notice, service_warranty_terms } = settings;
-      await persist({ logo_url, banner_url, primary_color, nav_color, receipt_footer_text, show_logo_on_receipt, show_cnpj_on_receipt, internal_notice, service_warranty_terms: service_warranty_terms ?? '', personalization: settings.personalization ?? {} });
+      const { logo_url, banner_url, primary_color, nav_color, receipt_footer_text, show_logo_on_receipt, show_cnpj_on_receipt, internal_notice, service_warranty_terms, catalog_slug, catalog_enabled } = settings;
+      await persist({ logo_url, banner_url, primary_color, nav_color, receipt_footer_text, show_logo_on_receipt, show_cnpj_on_receipt, internal_notice, catalog_slug, catalog_enabled, service_warranty_terms: service_warranty_terms ?? '', personalization: settings.personalization ?? {} });
       setDirty(false);
       setSaved(true);
     } catch (cause) {
@@ -110,6 +110,7 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
         <div>
           <h3>Personalização da Loja</h3>
           <p>Configure a identidade visual, o PDV e as opções de impressão</p>
+          <p>As configurações visuais são compartilhadas por todas as filiais da empresa. Os links de catálogo abaixo selecionam os produtos de cada unidade.</p>
         </div>
       </div>
 

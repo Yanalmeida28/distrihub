@@ -73,6 +73,60 @@ function page(products, overrides={}) {
     branches:[{id:'a',name:'Centro'},{id:'b',name:'Bairro'}],selected_branch_id:'a',
     products,total:products.length,next_offset:null,...overrides};
 }
+
+test('catalog blocks additions while sending and preserves any items outside the submitted snapshot', async () => {
+  const Component = component(async () => ({ error: null, data: page([product('p'), product('new')]) }));
+  await act(async () => { renderer = TestRenderer.create(React.createElement(Component, { slug: 'loja', userId: 'buyer' })); });
+  const checkout = () => renderer.root.findAll(node => typeof node.type === 'function' && Array.isArray(node.props.cart))[0].props;
+  const add = () => renderer.root.findAllByType('button').filter(button => button.children.some(child => typeof child === 'string' && child.includes('Adicionar ao pedido')));
+  await act(async () => add()[0].props.onClick());
+  const staleAdd = add()[1].props.onClick;
+  await act(async () => checkout().onBlockedChange(true));
+  assert.ok(add().every(button => button.props.disabled));
+  assert.equal(renderer.root.findByType('select').props.disabled, true);
+  await act(async () => staleAdd());
+  assert.equal(checkout().cart.length, 1);
+  await act(async () => checkout().onBlockedChange(false));
+  await act(async () => { add()[0].props.onClick(); add()[1].props.onClick(); });
+  await act(async () => checkout().onComplete([{ id: 'p', quantity: 1 }]));
+  assert.equal(checkout().cart.find(item => item.id === 'p').quantity, 1);
+  assert.equal(checkout().cart.find(item => item.id === 'new').quantity, 1);
+});
+
+test('fixed branch UUID survives a renamed branch and has no branch selector', async () => {
+  const id = '11111111-1111-4111-8111-111111111111', calls = [];
+  const Component = component(async (_name, args) => {
+    calls.push(args);
+    return { error: null, data: page([product('p', id)], { selected_branch_id: id, branches: [{ id, name: 'Nome novo' }, { id: 'other', name: 'Outra' }] }) };
+  });
+  await act(async () => { renderer = TestRenderer.create(React.createElement(Component, { slug: 'loja', fixedBranchId: id, branchSlug: 'Nome antigo' })); });
+  assert.equal(calls[0].p_branch_id, id); assert.equal(calls[0].p_branch_slug, null);
+  assert.equal(renderer.root.findAllByType('select').length, 0);
+  assert.ok(JSON.stringify(renderer.toJSON()).includes('Nome novo'));
+});
+
+test('fixed branch UUID never falls back to another branch and malformed IDs are not sent', async () => {
+  let calls = 0;
+  const Component = component(async () => { calls++; return { error: null, data: page([product('other')]) }; });
+  await act(async () => { renderer = TestRenderer.create(React.createElement(Component, { slug: 'loja', fixedBranchId: '11111111-1111-4111-8111-111111111111' })); });
+  assert.ok(JSON.stringify(renderer.toJSON()).includes('Catálogo indisponível'));
+  assert.equal(renderer.root.findAllByType('article').length, 0);
+  await act(async () => renderer.update(React.createElement(Component, { slug: 'loja', fixedBranchId: 'invalid' })));
+  assert.equal(calls, 1);
+  assert.equal(renderer.root.findAllByType('article').length, 0);
+});
+
+test('signing in preserves the guest cart; switching accounts clears it', async () => {
+  const Component = component(async () => ({ error: null, data: page([product('p')]) }));
+  await act(async () => { renderer = TestRenderer.create(React.createElement(Component, { slug: 'loja' })); });
+  await act(async () => renderer.root.findAllByType('button').find(button => button.children.some(child => typeof child === 'string' && child.includes('Adicionar ao pedido'))).props.onClick());
+  const checkout = () => renderer.root.findAll(node => typeof node.type === 'function' && Array.isArray(node.props.cart))[0].props;
+  assert.equal(checkout().cart.length, 1);
+  await act(async () => renderer.update(React.createElement(Component, { slug: 'loja', userId: 'buyer-a' })));
+  assert.equal(checkout().cart.length, 1);
+  await act(async () => renderer.update(React.createElement(Component, { slug: 'loja', userId: 'buyer-b' })));
+  assert.equal(checkout().cart.length, 0);
+});
 const product=(id,branch='a')=>({id,branch_id:branch,name:id,sale_price:10,stock:2});
 
 test('catalog appends server pages and sends branch and search filters with a reset offset',async()=>{

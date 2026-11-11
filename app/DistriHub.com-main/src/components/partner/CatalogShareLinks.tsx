@@ -17,7 +17,7 @@ export function CatalogShareLinks({ slug, branches, selectedBranchId }: Props) {
     ...(!selectedBranchId ? [{ id: 'general', name: 'Catálogo geral — escolher filial', href: general }] : []),
     ...branches.filter(branch => branch.is_active && (!selectedBranchId || branch.id === selectedBranchId)).map(branch => ({
       id: branch.id, name: branch.name,
-      href: `${general}&filial=${encodeURIComponent(branch.name)}`,
+      href: `${general}&unidade=${encodeURIComponent(branch.id)}`,
     })),
   ];
 
@@ -46,7 +46,7 @@ export function CatalogShareLinks({ slug, branches, selectedBranchId }: Props) {
   return <div className="module-card">
     <h4>Compartilhar por filial</h4>
     <p>O link da filial abre apenas os produtos daquela unidade, sem precisar escolher a loja.</p>
-    <p>Salve as alterações antes de compartilhar. Se renomear a filial ou o link da loja, copie o novo endereço.</p>
+    <p>Salve as alterações antes de compartilhar. Renomear a filial mantém este endereço válido. Se alterar o link da loja, copie o novo endereço.</p>
     {links.map(link => <div key={link.id} className="catalog-action-row" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
       <strong>{link.name}</strong>
       <a href={link.href} target="_blank" rel="noopener noreferrer">Abrir catálogo</a>

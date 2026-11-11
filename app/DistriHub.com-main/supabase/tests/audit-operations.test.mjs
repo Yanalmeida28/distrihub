@@ -51,6 +51,7 @@ before(async () => {
   await db.exec(await read('../migrations/20261015184249_service_order_manual_parts.sql'));
   await db.exec(await read('../migrations/20261015205000_service_order_manual_customer.sql'));
   await db.exec(await read('../migrations/20261015213923_fix_service_order_manual_billing_and_contacts.sql'));
+  await db.exec(await read('../migrations/20261111232441_recover_catalog_order_attempts.sql'));
 });
 after(() => db.close());
 test('reposição: mesma tentativa soma uma vez; tentativa diferente é uma nova entrada; outros dados são rejeitados', async () => {
@@ -185,6 +186,33 @@ test('catálogo: preço é calculado no servidor, retentativa não duplica e pre
   await login(other); await assert.rejects(sql("SELECT update_catalog_order_status($1,'confirmado')", [id]), /Filial não autorizada/);
   await login(owner); await sql("SELECT update_catalog_order_status($1,'confirmado')", [id]);
 });
+test('catalog recovery returns the committed result after the store is disabled and rejects changed payloads', async () => {
+  await login(buyer);
+  const id = randomUUID(), items = JSON.stringify([{ id: product, quantity: 1 }]);
+  const place = (quantity = 1) => sql("SELECT place_catalog_order($1,'loja-a',$2,$3::jsonb,'Comprador','11999999999','','pix','balcao') result", [id, branch, quantity === 1 ? items : JSON.stringify([{ id: product, quantity }])]);
+  const first = (await place()).rows[0].result;
+  await sql('UPDATE store_settings_v2 SET catalog_enabled=false WHERE user_id=$1', [owner]);
+  try {
+    const replay = (await place()).rows[0].result;
+    assert.equal(replay.id, first.id); assert.equal(replay.total, first.total);
+    await assert.rejects(place(2), /outro pedido/);
+    await login(other);
+    await assert.rejects(place(), error => error.code === 'PDC01');
+    assert.equal((await sql('SELECT count(*)::int n FROM catalog_orders WHERE id=$1', [id])).rows[0].n, 1);
+  } finally { await sql('UPDATE store_settings_v2 SET catalog_enabled=true WHERE user_id=$1', [owner]); }
+});
+
+test('catalog definitive rejection records no order or pending server operation', async () => {
+  await login(buyer);
+  const id = randomUUID(), stock = (await sql('SELECT stock FROM partner_products WHERE id=$1', [product])).rows[0].stock;
+  await sql('UPDATE partner_products SET stock=0 WHERE id=$1', [product]);
+  try {
+    await assert.rejects(sql("SELECT place_catalog_order($1,'loja-a',$2,$3::jsonb,'Comprador','11999999999','','pix','balcao')", [id, branch, JSON.stringify([{ id: product, quantity: 1 }])]), error => error.code === 'PDC01');
+    assert.equal((await sql('SELECT count(*)::int n FROM catalog_orders WHERE id=$1', [id])).rows[0].n, 0);
+    assert.equal((await sql('SELECT count(*)::int n FROM partner_operations_private.operation_requests WHERE request_id=$1', [id])).rows[0].n, 0);
+  } finally { await sql('UPDATE partner_products SET stock=$2 WHERE id=$1', [product, stock]); }
+});
+
 test('RLS: outra empresa não lê OS ou pedidos; escrita direta dos totais B2B fica bloqueada', async () => {
   await login(other); await db.exec('SET ROLE authenticated');
   try {

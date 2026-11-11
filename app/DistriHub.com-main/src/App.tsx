@@ -161,7 +161,7 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
     return result;
   }
 
-  if (publicCatalog) return <Suspense fallback={<LoadingScreen label="Catálogo" />}><PublicCatalogPage slug={catalogParams?.get('loja') ?? ''} branchSlug={catalogParams?.get('filial')} userId={auth.user?.id ?? null} onSignIn={auth.signIn} /></Suspense>;
+  if (publicCatalog) return <Suspense fallback={<LoadingScreen label="Catálogo" />}><PublicCatalogPage slug={catalogParams?.get('loja') ?? ''} branchSlug={catalogParams?.get('filial')} fixedBranchId={catalogParams?.get('unidade')} userId={auth.user?.id ?? null} onSignIn={auth.signIn} /></Suspense>;
 
   if (!sessionUserId && auth.sessionRecoveryError) {
     return <div className="super-admin-gate"><div className="super-admin-gate-card">
