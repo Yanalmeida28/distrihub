@@ -2053,7 +2053,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'os'}>
               {renderTab('os',
               <ServiceOrdersModule
-                printDetails={{ companyName: partner.profile?.account_name || partner.profile?.name, companyDocument: partner.profile?.document, branches: partner.branches }}
+                printDetails={{ settings: storeSettings, companyName: partner.profile?.account_name || partner.profile?.name, companyDocument: partner.profile?.document, branches: partner.branches }}
                 isActive={activeTab === 'os'}
                 authUserId={user?.id}
                 onChanged={() => { void partner.refreshCollections(['products', 'movements', 'invoices']); }}

@@ -12,7 +12,7 @@ import { SaleActionsMenu } from './SaleActionsMenu';
 import { printSale, type ReceiptDetails } from '../../lib/salePrint';
 import { directOrderEmailEnabled, sendOrderQuoteEmail } from '../../lib/orderEmail';
 import { saleShareUrl } from '../../lib/saleShare';
-import { shareOrderQuotePdf, downloadOrderQuotePdf } from '../../lib/orderQuotePdf';
+import { shareOrderQuotePdf, downloadOrderQuotePdf, prepareOrderQuoteLogo } from '../../lib/orderQuotePdf';
 
 type Props = {
   canEditPrice: boolean;
@@ -47,6 +47,7 @@ const payStatusLabels: Record<string, { label: string; color: string }> = {
 };
 
 export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
+  useEffect(() => { void prepareOrderQuoteLogo(receiptDetails?.settings?.logo_url); }, [receiptDetails?.settings?.logo_url]);
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);

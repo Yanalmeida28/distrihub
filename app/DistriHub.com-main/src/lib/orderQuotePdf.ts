@@ -3,6 +3,41 @@ import type { PrintableSale, ReceiptDetails } from './salePrint';
 import { saleChargeTotal } from './pdv';
 import { money } from '../utils';
 
+type QuoteLogo = { data: string; width: number; height: number };
+const quoteLogos = new Map<string, QuoteLogo>();
+const pendingLogos = new Map<string, Promise<void>>();
+
+/** Preload the saved logo so native sharing can start directly from the click. */
+export function prepareOrderQuoteLogo(url?: string | null): Promise<void> {
+  if (!url || quoteLogos.has(url) || typeof Image === 'undefined') return Promise.resolve();
+  const pending = pendingLogos.get(url);
+  if (pending) return pending;
+  const task = new Promise<void>(resolve => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    const timer = setTimeout(() => finish(), 8000);
+    function finish() { clearTimeout(timer); image.onload = null; image.onerror = null; resolve(); }
+    image.onerror = finish;
+    image.onload = () => {
+      try {
+        const scale = Math.min(1, 800 / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext('2d');
+        if (context) {
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          quoteLogos.set(url, { data: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height });
+        }
+      } catch { /* An unavailable logo must not prevent generating the quote. */ }
+      finish();
+    };
+    image.src = url;
+  }).finally(() => pendingLogos.delete(url));
+  pendingLogos.set(url, task);
+  return task;
+}
+
 /** Build a standalone quote from the saved order, without invoking a printer. */
 export function buildOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails = {}) {
   if (!['aberta', 'pre_venda'].includes(sale.status ?? '')) throw new Error('O pedido não está mais aberto para gerar um orçamento.');
@@ -25,9 +60,24 @@ export function buildOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails 
     const height = size * 0.45;
     for (const line of lines) {
       if (y + height > bottom) newPage();
-      pdf.text(line, 14, y); y += height;
+      const colon = !bold ? line.indexOf(':') : -1;
+      if (colon >= 0) {
+        const label = line.slice(0, colon + 1);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(label, 14, y);
+        const labelWidth = pdf.getTextWidth(label);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(line.slice(colon + 1), 14 + labelWidth, y);
+      } else pdf.text(line, 14, y);
+      y += height;
     }
     y += 2;
+  }
+  const logo = details.settings?.logo_url ? quoteLogos.get(details.settings.logo_url) : undefined;
+  if (logo) {
+    const scale = Math.min(50 / logo.width, 25 / logo.height);
+    pdf.addImage(logo.data, 'PNG', 14, y - 5, logo.width * scale, logo.height * scale);
+    y += logo.height * scale + 5;
   }
   paragraph('ORÇAMENTO', true, 21);
   paragraph(details.companyName || branch?.name || 'Loja', true, 13);
@@ -70,7 +120,9 @@ export function buildOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails 
       if (first) {
         pdf.text(clean(item.quantity), 132, y, { align: 'right' });
         pdf.text(currency(item.unit_price), 164, y, { align: 'right' });
+        pdf.setFont('helvetica', 'bold');
         pdf.text(currency(Math.round(item.quantity * item.unit_price * 100) / 100), 194, y, { align: 'right' });
+        pdf.setFont('helvetica', 'normal');
         first = false;
       }
       y += chunk.length * 4.5 + 4;
@@ -95,12 +147,14 @@ export function buildOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails 
 }
 
 export async function downloadOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails = {}) {
+  if (details.settings?.logo_url && !quoteLogos.has(details.settings.logo_url)) await prepareOrderQuoteLogo(details.settings.logo_url);
   const { pdf, filename } = buildOrderQuotePdf(sale, details);
   await pdf.save(filename, { returnPromise: true });
 }
 
 /** Invoke directly from the click: file sharing requires transient user activation. */
 export async function shareOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails = {}): Promise<'shared' | 'downloaded' | 'cancelled'> {
+  if (details.settings?.logo_url && !quoteLogos.has(details.settings.logo_url)) await prepareOrderQuoteLogo(details.settings.logo_url);
   const { pdf, filename } = buildOrderQuotePdf(sale, details);
   if (typeof navigator !== 'undefined' && typeof File !== 'undefined' && navigator.share && navigator.canShare) {
     const file = new File([pdf.output('blob')], filename, { type: 'application/pdf' });

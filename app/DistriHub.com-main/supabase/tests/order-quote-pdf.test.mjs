@@ -24,6 +24,35 @@ function pdfText(pdf) {
 }
 const sale = { id: 'order-1', sale_number: 42, status: 'pre_venda', customer_id: 'customer', customer_name: 'João da Silva', branch_id: 'branch',
   created_at: '2026-10-23T01:30:00Z', total: 120, freight_fee: 15, items: [{ name: 'Peça de reposição', quantity: 2, unit_price: 60, unit_cost: 99999 }] };
+
+test('preloads the personalized logo, preserves proportions and uses bold labels', async () => {
+  const exports = {}, images = [];
+  class Image {
+    naturalWidth = 400; naturalHeight = 100;
+    set src(value) { this.url = value; images.push(this); queueMicrotask(() => this.onload?.()); }
+  }
+  const { jsPDF } = require('jspdf');
+  const placements = [];
+  vm.runInNewContext(compile(await readFile(new URL('../../src/lib/orderQuotePdf.ts', import.meta.url), 'utf8')), {
+    exports, Date, Intl, Error, Image, setTimeout, clearTimeout,
+    document: { createElement: () => ({ getContext: () => ({ drawImage() {} }), toDataURL: () => 'logo-data' }) },
+    require: name => name === 'jspdf' ? { jsPDF: function(options) {
+      const pdf = new jsPDF(options); pdf.addImage = (...args) => { placements.push(args); return pdf; }; return pdf;
+    } } : name === './pdv' ? pdv : name === '../utils' ? { money: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }) } : require(name),
+  });
+  const url = 'https://example.com/store-logo.png';
+  await Promise.all([exports.prepareOrderQuoteLogo(url), exports.prepareOrderQuoteLogo(url)]);
+  const { pdf } = exports.buildOrderQuotePdf(sale, { settings: { logo_url: url, show_logo_on_receipt: false } });
+  assert.equal(images.length, 1);
+  assert.equal(images[0].crossOrigin, 'anonymous');
+  assert.deepEqual(placements[0].slice(0, 2), ['logo-data', 'PNG']);
+  assert.equal(placements[0][4], 50); assert.equal(placements[0][5], 12.5);
+  const text = pdfText(pdf);
+  assert.match(text, /\/F2 [\s\S]*?\(Data do pedido:\)/);
+  assert.ok(text.includes('TOTAL DO ORÇAMENTO:'));
+  exports.buildOrderQuotePdf(sale);
+  assert.equal(placements.length, 1);
+});
 test('gera PDF real com cliente, filial do pedido e total com frete, sem custos ou confirmação de pagamento', () => {
   const { pdf, filename } = api.buildOrderQuotePdf(sale, { companyName: 'Empresa', companyDocument: '12.345.678/0001-00',
     companyAddress: 'Endereço consolidado errado', branches: [{ id: 'other', name: 'Outra loja', address: 'Rua errada' }, { id: 'branch', name: 'Filial correta', address: 'Rua certa' }],
