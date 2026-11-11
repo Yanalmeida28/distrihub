@@ -251,7 +251,7 @@ function AdminModuleInner({
   const canViewCurrent = allowed(currentModule) && (ownerView || !ownerPages.includes(activeAdminTab))
     && (canImportExport || (activeItemId !== 'importar' && activeAdminTab !== 'gestao-dados'));
   const [branchFilter, setBranchFilter] = useState(selectedBranchId);
-  const [reportsInitialTab, setReportsInitialTab] = useState<'vendas' | 'sem-giro'>('vendas');
+  const [reportsInitialTab, setReportsInitialTab] = useState<'vendas' | 'financeiro' | 'estoque' | 'sem-giro' | 'crm'>('vendas');
   useEffect(() => { if (isActive) onDataScopeChange?.(activeAdminTab); }, [activeAdminTab, isActive, onDataScopeChange]);
   const payables = usePayables(userId);
   const scopedInvoices = invoices.filter(invoice => !branchFilter || invoice.branch_id === branchFilter);
@@ -272,7 +272,11 @@ function AdminModuleInner({
     if (!allowed(module) || (!ownerView && ownerPages.includes(item.page ?? ''))) return;
     onDataScopeChange?.(item.tab ?? item.page ?? 'dashboard');
     setActiveItemId(item.id);
-    if (item.tab === 'relatorios') setReportsInitialTab('vendas');
+    if (item.tab === 'relatorios') {
+      const reportTab = ['vendas', 'financeiro', 'estoque', 'sem-giro', 'crm'].find(tab => tab === item.id) ?? 'vendas';
+      setReportsInitialTab(reportTab as typeof reportsInitialTab);
+      onReportScopeChange?.(reportTab);
+    }
     if (item.tab) {
       setActiveAdminTab(item.tab as AdminTab);
     } else if (item.page) {
