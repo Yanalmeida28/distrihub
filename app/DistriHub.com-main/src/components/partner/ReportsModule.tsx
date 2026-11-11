@@ -627,6 +627,7 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
 
 function StockReport({ canExport = false, products, sales }: { canExport?: boolean; products: PartnerProduct[]; sales: PartnerSale[] }) {
   const physicalProducts = useMemo(() => products.filter((product) => !product.is_service), [products]);
+  const totalStockUnits = physicalProducts.reduce((total, product) => total + Number(product.stock), 0);
   const totalInvested = physicalProducts.reduce((s, p) => s + p.cost_price * p.stock, 0);
   const totalRetailValue = physicalProducts.reduce((s, p) => s + p.sale_price * p.stock, 0);
   const potentialGrossProfit = totalRetailValue - totalInvested;
@@ -689,6 +690,16 @@ function StockReport({ canExport = false, products, sales }: { canExport?: boole
         </button>}
       </div>
       <div className="report-cards">
+        <div className="report-card">
+          <small>Produtos cadastrados</small>
+          <strong>{physicalProducts.length.toLocaleString('pt-BR')}</strong>
+          <small>Inclui produtos sem estoque. Serviços não entram nesta contagem.</small>
+        </div>
+        <div className="report-card">
+          <small>Unidades em estoque</small>
+          <strong>{totalStockUnits.toLocaleString('pt-BR')}</strong>
+          <small>Soma do saldo atual dos produtos.</small>
+        </div>
         <div className="report-card">
           <small>Valor total de custo</small>
           <strong>{money.format(totalInvested)}</strong>
