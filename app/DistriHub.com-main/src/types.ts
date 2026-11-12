@@ -537,6 +537,7 @@ export interface AdminLojista {
 }
 
 export interface AdminCompany extends AdminLojista {
+  created_at?: string | null;
   id: string;
   user_id: string | null;
   business_name: string;

@@ -13,6 +13,8 @@ import { AdminSaasModule } from './AdminSaasModule';
 import { AdminSupportInbox } from './AdminSupportInbox';
 import { AdminPlanRequestsModule } from './AdminPlanRequestsModule';
 import { AdminResponsiveTable } from './AdminResponsiveTable';
+import { AdminCompanySegmentField } from './AdminCompanySegmentField';
+import { businessSegmentLabels } from '../lib/businessSegments';
 
 
 type AdminPanelProps = {
@@ -21,6 +23,14 @@ type AdminPanelProps = {
 
 type AdminTab = 'visao' | 'historico' | 'lojistas' | 'financeiro' | 'faturas' | 'planos' | 'seguranca' | 'suporte' | 'assinaturas';
 
+function companyRegistrationDate(value?: string | null) {
+  if (!value) return 'Não informado';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Não informado';
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo',
+  }).format(date);
+}
 
 export function AdminPanel({ onBack }: AdminPanelProps) {
   const [supportActorId, setSupportActorId] = useState<string>();
@@ -169,24 +179,30 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                 <button type="button" className="rma-advance-btn" disabled={loading} onClick={() => setCompaniesVersion(v => v + 1)}>Atualizar</button>
               </div>
               {details && <section className="module-card admin-client-detail"><div className="module-header"><h4>{details.business_name}</h4><button className="rma-advance-btn" onClick={() => setDetails(null)}>Fechar ficha</button></div><dl className="admin-detail-grid">
-                {Object.entries({ 'Responsável': details.account_name, 'E-mail': details.email, 'Contato': details.whatsapp, 'Documento': details.document, 'Segmento': details.segment, 'Plano': details.subscription_plan, 'Assinatura': details.subscription_status, 'Cadastro comercial': details.client_status, 'Pedidos': details.orders_count, 'Total de compras': money.format(details.orders_total), 'Limite de crédito': details.credit_limit == null ? 'Não definido' : money.format(details.credit_limit) }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}
+                {Object.entries({ 'Responsável': details.account_name, 'E-mail': details.email, 'Contato': details.whatsapp, 'Documento': details.document, 'Ramo': businessSegmentLabels[details.segment] ?? details.segment, 'Plano': details.subscription_plan, 'Assinatura': details.subscription_status, 'Cadastro comercial': details.client_status, 'Pedidos': details.orders_count, 'Total de compras': money.format(details.orders_total), 'Limite de crédito': details.credit_limit == null ? 'Não definido' : money.format(details.credit_limit) }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}
+                <div><dt>Data de cadastro (Brasília)</dt><dd>{companyRegistrationDate(details.created_at)}</dd></div>
               </dl></section>}
               <AdminResponsiveTable>
                 <table className="rma-table">
                   <thead>
-                    <tr><th>Empresa</th><th>Login</th><th>Contato</th><th>Documento</th><th>Segmento</th><th>Assinatura</th><th>Compras</th><th>Cadastro comercial</th><th>Acesso ao aplicativo</th></tr>
+                    <tr><th>Empresa</th><th>Cadastro (Brasília)</th><th>Login</th><th>Contato</th><th>Documento</th><th>Ramo</th><th>Assinatura</th><th>Compras</th><th>Cadastro comercial</th><th>Acesso ao aplicativo</th></tr>
                   </thead>
                   <tbody>
                     {filteredClients.length === 0 ? (
-                      <tr><td colSpan={9} className="empty-row">{loading ? 'Carregando clientes...' : 'Nenhuma empresa encontrada.'}</td></tr>
+                      <tr><td colSpan={10} className="empty-row">{loading ? 'Carregando clientes...' : 'Nenhuma empresa encontrada.'}</td></tr>
                     ) : (
                       filteredClients.map((cliente) => (
                         <tr key={cliente.id}>
                           <td><strong>{cliente.business_name}</strong><small className="admin-client-id">{cliente.account_name ?? cliente.user_id?.slice(0, 8)}</small></td>
+                          <td>{companyRegistrationDate(cliente.created_at)}</td>
                           <td>{cliente.email ?? '—'}</td>
                           <td>{cliente.whatsapp ?? '—'}</td>
                           <td>{cliente.document ?? '—'}</td>
-                          <td>{cliente.segment}</td>
+                          <td><AdminCompanySegmentField key={cliente.id} companyId={cliente.id} companyName={cliente.business_name} value={cliente.segment}
+                            onSaved={segment => {
+                              setLojistas(current => current.map(company => company.id === cliente.id ? { ...company, segment } : company));
+                              setDetails(current => current?.id === cliente.id ? { ...current, segment } : current);
+                            }} /></td>
                           <td>
                             <span>{cliente.subscription_plan ?? 'basico'} · {cliente.subscription_status ?? 'trial'}</span>
                           </td>
