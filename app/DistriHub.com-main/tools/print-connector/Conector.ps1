@@ -1,4 +1,4 @@
-﻿$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
@@ -6,8 +6,37 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Printing;
+using System.Drawing.Drawing2D;
 using System.IO;
 public static class DistriHubPrinter {
+ // Remove only blank side margins when this avoids shrinking the receipt.
+ // The browser includes paper margins; the thermal driver reserves them again.
+ public static Rectangle ReceiptBounds(Bitmap image, int printablePixels) {
+  if(printablePixels < 1) throw new ArgumentOutOfRangeException("printablePixels");
+  int excess = image.Width - printablePixels;
+  if(excess <= 0) return new Rectangle(0, 0, image.Width, image.Height);
+  int left = 0, right = image.Width;
+  while(right - left > printablePixels) {
+   bool removed = false;
+   if(BlankColumn(image, left)) { left++; removed = true; }
+   if(right - left > printablePixels && BlankColumn(image, right - 1)) { right--; removed = true; }
+   if(!removed) return new Rectangle(0, 0, image.Width, image.Height);
+  }
+  return new Rectangle(left, 0, right - left, image.Height);
+ }
+ private static bool BlankColumn(Bitmap image, int x) {
+  for(int y = 0; y < image.Height; y++) {
+   Color pixel = image.GetPixel(x, y);
+   if(pixel.A != 0 && (pixel.R < 255 || pixel.G < 255 || pixel.B < 255)) return false;
+  }
+  return true;
+ }
+ public static void DrawReceiptSlice(Graphics graphics, Image image, RectangleF destination, Rectangle source) {
+  graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+  graphics.PixelOffsetMode = PixelOffsetMode.Half;
+  graphics.SmoothingMode = SmoothingMode.None;
+  graphics.DrawImage(image, destination, source, GraphicsUnit.Pixel);
+ }
  public static string[] Printers() {
   var names = new List<string>();
   foreach(string name in PrinterSettings.InstalledPrinters) names.Add(name);
@@ -21,7 +50,7 @@ public static class DistriHubPrinter {
   long h = ((long)bytes[20]<<24) | ((long)bytes[21]<<16) | ((long)bytes[22]<<8) | bytes[23];
   if(w != pixelWidth || h != pixelHeight || w < 1 || w > 1024 || h < 1 || h > 30000 || w*h > 22000000) throw new Exception("Dimensoes do cupom invalidas.");
   using(var stream = new MemoryStream(bytes))
-  using(var image = Image.FromStream(stream, true, true))
+  using(var image = new Bitmap(stream))
   using(var document = new PrintDocument()) {
    document.PrinterSettings.PrinterName = name;
    if(!document.PrinterSettings.IsValid) throw new Exception("Impressora nao encontrada no Windows.");
@@ -36,10 +65,13 @@ public static class DistriHubPrinter {
     float availableWidth = Math.Min(page.PageBounds.Width - 2 * page.PageSettings.HardMarginX, page.PageSettings.PrintableArea.Width);
     float availableHeight = Math.Min(page.PageBounds.Height - 2 * page.PageSettings.HardMarginY, page.PageSettings.PrintableArea.Height);
     if(availableWidth <= 0 || availableHeight <= 0) throw new Exception("Area de impressao invalida. Confira o driver.");
-    float ratio = availableWidth / image.Width;
+    int printablePixels = Math.Max(1, (int)Math.Floor(availableWidth * page.Graphics.DpiX / 100f));
+    Rectangle bounds = ReceiptBounds(image, printablePixels);
+    float drawWidth = Math.Min(availableWidth, printablePixels * 100f / page.Graphics.DpiX);
+    float ratio = drawWidth / bounds.Width;
     int slice = Math.Min(image.Height - cursor, (int)Math.Floor(availableHeight / ratio));
     if(slice < 1) throw new Exception("Papel insuficiente para o cupom.");
-    page.Graphics.DrawImage(image, new RectangleF(0,0,availableWidth,slice*ratio), new RectangleF(0,cursor,image.Width,slice), GraphicsUnit.Pixel);
+    DrawReceiptSlice(page.Graphics, image, new RectangleF(0,0,drawWidth,slice*ratio), new Rectangle(bounds.Left,cursor,bounds.Width,slice));
     cursor += slice;
     page.HasMorePages = cursor < image.Height;
    };

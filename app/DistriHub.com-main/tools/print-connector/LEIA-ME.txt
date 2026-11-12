@@ -1,5 +1,8 @@
 CONECTOR DISTRiHUB v2 - WINDOWS
 
+ATUALIZACAO DE NITIDEZ - 12/11/2026
+Evita reduzir o texto quando basta aproveitar as margens brancas do cupom e desativa a suavizacao no redimensionamento da imagem. Nao corta letras ou logos para ajustar a largura. Reinstale por Instalar.cmd, inclusive se ja usa o modo automatico, e confira um novo cupom de teste no papel de 80 ou 58 mm configurado.
+
 1. Instale o driver da impressora no Windows e confira se ela imprime uma pagina de teste.
 2. Extraia todos os arquivos deste ZIP. Abra Instalar.cmd e aceite a permissao do Windows.
 3. No DistriHub, abra Configuracoes > Impressora de cupons. Busque a impressora, selecione o mesmo papel de Personalizacao (58 ou 80 mm) e o modo Personalizado direto. Clique em Imprimir cupom de teste.

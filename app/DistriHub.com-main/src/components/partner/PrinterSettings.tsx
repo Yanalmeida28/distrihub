@@ -32,7 +32,8 @@ export function PrinterSettings() {
     <p role="status">{saved?.mode === 'image' ? 'Modo atual: personalizado direto, sem janela de impressão.' : saved?.mode === 'text' ? 'Modo atual: texto simples, sem logo e formatação.' : 'Modo atual: cupom personalizado pelo navegador.'}</p>
     <h4>Conectar ou atualizar a impressora</h4>
     <p>Baixe e instale o conector atualizado, mesmo se já utilizava uma versão anterior. O teste verifica a conexão e a impressão gráfica; as vendas usam a personalização salva.</p>
-    <p><a href="/downloads/Conector-DistriHub.zip" download>1. Baixar conector para Windows</a> · Extraia o arquivo e abra Instalar.cmd uma vez.</p>
+    <p><a href="/downloads/Conector-DistriHub.zip?v=20261112-nitidez" download>1. Baixar conector para Windows</a> · Extraia o arquivo e abra Instalar.cmd uma vez.</p>
+    <p>Atualização de nitidez: se o texto ficou borrado no modo automático, instale este conector atualizado e imprima um novo cupom de teste.</p>
     <button type="button" className="rma-advance-btn" disabled={busy} onClick={() => void run(async () => { const found = await listReceiptPrinters(); setPrinters(found); if (!found.includes(name)) setName(found[0] ?? ''); setNotice(found.length ? 'Conector conectado. Escolha sua impressora.' : 'Instale o driver da impressora no Windows e tente novamente.'); })}>2. Buscar impressoras</button>
     <div className="rma-form">
       <label>Impressora<select value={name} disabled={busy} onChange={event => { setName(event.target.value); setTested(null); }}><option value="">Selecione</option>{printers.map(printer => <option key={printer} value={printer}>{printer}</option>)}</select></label>
