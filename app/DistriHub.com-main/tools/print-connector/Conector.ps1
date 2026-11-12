@@ -9,7 +9,7 @@ using System.Drawing.Printing;
 using System.Drawing.Drawing2D;
 using System.IO;
 public static class DistriHubPrinter {
- // Remove only blank side margins when this avoids shrinking the receipt.
+ // Remove only blank side margins to avoid or minimize shrinking the receipt.
  // The browser includes paper margins; the thermal driver reserves them again.
  public static Rectangle ReceiptBounds(Bitmap image, int printablePixels) {
   if(printablePixels < 1) throw new ArgumentOutOfRangeException("printablePixels");
@@ -20,7 +20,9 @@ public static class DistriHubPrinter {
    bool removed = false;
    if(BlankColumn(image, left)) { left++; removed = true; }
    if(right - left > printablePixels && BlankColumn(image, right - 1)) { right--; removed = true; }
-   if(!removed) return new Rectangle(0, 0, image.Width, image.Height);
+   // Narrow 58 mm drivers may still need a small reduction after blank margins
+   // are exhausted. Keep the safe crop instead of shrinking those margins too.
+   if(!removed) break;
   }
   return new Rectangle(left, 0, right - left, image.Height);
  }

@@ -1,6 +1,7 @@
 CONECTOR DISTRiHUB v2 - WINDOWS
 
 ATUALIZACAO DE NITIDEZ - 12/11/2026
+Papel de 58 e 80 mm: aproveita as margens brancas inclusive quando o driver de 58 mm ainda exige uma pequena reducao. Nenhum conteudo e removido para ajustar a largura.
 Evita reduzir o texto quando basta aproveitar as margens brancas do cupom e desativa a suavizacao no redimensionamento da imagem. Nao corta letras ou logos para ajustar a largura. Reinstale por Instalar.cmd, inclusive se ja usa o modo automatico, e confira um novo cupom de teste no papel de 80 ou 58 mm configurado.
 
 1. Instale o driver da impressora no Windows e confira se ela imprime uma pagina de teste.

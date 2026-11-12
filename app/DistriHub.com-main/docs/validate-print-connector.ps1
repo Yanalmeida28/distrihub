@@ -35,4 +35,29 @@ try {
  $bounds = [DistriHubPrinter]::ReceiptBounds($bitmap, 800)
  if ($bounds.Width -ne 640) { throw 'Wider printers must retain the full image.' }
 } finally { $graphics.Dispose(); $bitmap.Dispose() }
-Write-Output 'Connector compiled; raster strokes preserved without gray edges; occupied margins preserved; no printer accessed.'
+$narrow = New-Object System.Drawing.Bitmap(464, 120)
+$narrowGraphics = [System.Drawing.Graphics]::FromImage($narrow)
+try {
+ $narrowGraphics.Clear([System.Drawing.Color]::White)
+ for ($x = 32; $x -lt 432; $x += 4) { $narrowGraphics.FillRectangle([System.Drawing.Brushes]::Black, $x, 10, 2, 100) }
+ $narrow.SetPixel(431, 50, [System.Drawing.Color]::Black)
+ $bounds = [DistriHubPrinter]::ReceiptBounds($narrow, 384)
+ if ($bounds.X -ne 32 -or $bounds.Width -ne 400 -or $bounds.Height -ne 120) { throw '58 mm must retain its safe blank-margin crop when content needs a small reduction.' }
+ $output = New-Object System.Drawing.Bitmap(384, 120)
+ $outputGraphics = [System.Drawing.Graphics]::FromImage($output)
+ try {
+  [DistriHubPrinter]::DrawReceiptSlice($outputGraphics, $narrow, [System.Drawing.RectangleF]::new(0, 0, 384, 120), $bounds)
+  $black = 0
+  for ($x = 0; $x -lt 384; $x++) {
+   $pixel = $output.GetPixel($x, 50)
+   if ($pixel.R -ne 0 -and $pixel.R -ne 255) { throw '58 mm scaling introduced gray edges.' }
+   if ($pixel.R -eq 0) { $black++ }
+  }
+  if ($black -lt 100) { throw '58 mm text strokes were lost.' }
+ } finally { $outputGraphics.Dispose(); $output.Dispose() }
+ $narrow.SetPixel(0, 0, [System.Drawing.Color]::Black)
+ $narrow.SetPixel(463, 119, [System.Drawing.Color]::Black)
+ $bounds = [DistriHubPrinter]::ReceiptBounds($narrow, 384)
+ if ($bounds.X -ne 0 -or $bounds.Width -ne 464 -or $bounds.Height -ne 120) { throw '58 mm must preserve content at paper edges.' }
+} finally { $narrowGraphics.Dispose(); $narrow.Dispose() }
+Write-Output 'Connector compiled; 58/80 mm raster checks passed; strokes have no added gray edges; content preserved; no printer accessed.'

@@ -1,5 +1,7 @@
 # Nitidez do cupom automático — 12/11/2026
 
+Extensão para 58 mm: a remoção segura das margens brancas é mantida mesmo quando o conteúdo ainda precisa de uma pequena redução para caber na área do driver. O teste de 464 para 384 pixels confirma que só 400 pixels de conteúdo precisam ser ajustados, sem suavização adicional e sem cortar conteúdo nas bordas. Os testes de 80 mm continuam cobrindo preservação exata dos traços. O mesmo pacote atende aos dois tamanhos; selecionar o papel correspondente no aplicativo e no driver e reinstalar o conector atualizado.
+
 Relato: texto borrado em impressora Elgin com papel de 80 mm após ativar a impressão automática personalizada. O modelo exato e uma impressão física não foram disponibilizados.
 
 O navegador gera a imagem com margens laterais de 4 mm. O conector ajustava a largura total dessa imagem à área imprimível já reduzida pelo driver, diminuindo novamente texto e logo. O redimensionamento do GDI+ também não especificava interpolação adequada a traços de impressão térmica.
