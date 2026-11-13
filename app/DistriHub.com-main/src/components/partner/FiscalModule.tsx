@@ -6,6 +6,7 @@ import {
 import type { PartnerProduct, PartnerSale, PartnerCustomer, PartnerProfile, SalespersonRole } from '../../types';
 import { money } from '../../utils';
 import { supabase } from '../../lib/supabase';
+import { FocusNfcePanel } from './FocusNfcePanel';
 
 type Props = {
   products: PartnerProduct[];
@@ -512,6 +513,11 @@ export function FiscalModule({ products, sales, customers, profile, currentRole,
               {dispatchMethods.has('whatsapp') && <span className="dispatch-badge"><MessageCircle size={13} /> WhatsApp</span>}
             </div>
           </div>
+
+          {selectedBranchId && profile?.id && <FocusNfcePanel
+            key={`${profile.id}:${selectedBranchId}:${selectedSale.id}`}
+            companyId={profile.id} saleId={selectedSale.id} branchId={selectedBranchId} canEmit={canEmit} documentType="nfe"
+          />}
 
           {/* Emit Buttons */}
           <div className="fiscal-emit-actions">

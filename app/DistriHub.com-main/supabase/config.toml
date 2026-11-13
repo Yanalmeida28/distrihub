@@ -1,5 +1,13 @@
 project_id = "distrihub"
 
+[functions.focus-nfe]
+# Sessão validada com auth.getUser e autorização fiscal na RPC do banco.
+verify_jwt = false
+
+[functions.focus-nfce]
+# A função valida a sessão com auth.getUser; a autorização por empresa/filial é conferida na RPC.
+verify_jwt = false
+
 [functions.order-quote-email]
 # JWT validated with auth.getUser; authorization is independently checked in SQL.
 verify_jwt = false

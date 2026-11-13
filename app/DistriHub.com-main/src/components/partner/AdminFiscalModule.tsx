@@ -448,7 +448,7 @@ export function AdminFiscalModule({ section, userId, branchId, sales, branches, 
                     {!branchId && <td>{branches.find((branch) => branch.id === document.branch_id)?.name ?? '—'}</td>}
                     <td>{document.document_type?.toUpperCase() ?? '—'}</td>
                     <td>{document.number || '—'}{documentSeries ? ` / ${documentSeries}` : ''}</td>
-                    <td>{formatStatus(document.status)}</td>
+                    <td>{formatStatus(document.status)}{document.provider === 'focus_homologacao' && <small>Homologação — sem valor fiscal</small>}</td>
                     <td>{document.access_key || '—'}</td>
                     <td>{document.rejection_reason || (cancellationRequested ? 'Cancelamento solicitado (aguardando provedor)' : '—')}</td>
                     <td>
