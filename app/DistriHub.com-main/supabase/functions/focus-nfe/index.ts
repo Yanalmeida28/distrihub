@@ -12,6 +12,8 @@ const user = (token: string) => createClient(url, anon, {
 Deno.serve(focusNfceHandler({
   enabled: Deno.env.get('FOCUS_NFE_HOMOLOGATION_ENABLED') === 'true',
   origin: Deno.env.get('FOCUS_NFE_ORIGIN') ?? 'https://distrihub.com.br',
+  // A aplicação pode ser acessada com e sem www. A lista é exata, sem liberar outros subdomínios.
+  additionalOrigins: ['https://distrihub.com.br', 'https://www.distrihub.com.br'],
   // O token de homologação já cadastrado pode ser usado para o mesmo emitente, sem renomear ou expor o segredo.
   accounts: () => nfeAccounts(Deno.env.get('FOCUS_NFE_HOMOLOGATION_ACCOUNTS') ?? '[]',
     Deno.env.get('FOCUS_NFE_HOMOLOGATION_TOKEN') ?? Deno.env.get('FOCUS_NFCE_HOMOLOGATION_TOKEN') ?? ''),

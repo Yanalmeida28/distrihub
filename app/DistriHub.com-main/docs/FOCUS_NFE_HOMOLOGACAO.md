@@ -9,7 +9,7 @@ Segredos no Supabase:
 - `FOCUS_NFE_HOMOLOGATION_ENABLED=true`: libera o adaptador, sujeito às validações de dados.
 - `FOCUS_NFE_HOMOLOGATION_ACCOUNTS`: lista JSON de contas autorizadas, conforme o modelo abaixo.
 - `FOCUS_NFE_HOMOLOGATION_TOKEN`: token de emissão de homologação do emitente. Quando ausente, é aproveitado o segredo existente `FOCUS_NFCE_HOMOLOGATION_TOKEN`. O nome anterior do segredo não obriga o uso do modelo 65.
-- `FOCUS_NFE_ORIGIN`: origem permitida da interface; padrão `https://distrihub.com.br`.
+- `FOCUS_NFE_ORIGIN`: origem adicional da interface; padrão `https://distrihub.com.br`. Os endereços oficiais `https://distrihub.com.br` e `https://www.distrihub.com.br` são permitidos por correspondência exata. O preflight libera somente POST/OPTIONS; as operações continuam exigindo sessão e autorização fiscal.
 
 ```json
 [

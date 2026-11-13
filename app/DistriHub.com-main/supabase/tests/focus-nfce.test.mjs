@@ -87,6 +87,34 @@ test('Focus: verificação é local e não emite nota nem cria tentativa', async
   assert.equal(calls.length, 0); assert.equal(claims.length, 0);
 });
 
+test('Focus: www e domínio principal passam no preflight sem dispensar autenticação', async () => {
+  const origins = ['https://distrihub.com.br', 'https://www.distrihub.com.br'];
+  const { handler, calls, claims } = setup({ additionalOrigins: origins, authenticate: async () => false });
+  for (const origin of origins) {
+    const preflight = await handler(new Request('https://local.test', { method: 'OPTIONS', headers: {
+      origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,apikey,content-type,x-client-info',
+    } }));
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), origin);
+    assert.equal(preflight.headers.get('Vary'), 'Origin');
+    assert.equal(preflight.headers.get('Access-Control-Allow-Methods'), 'POST,OPTIONS');
+    for (const header of ['authorization', 'apikey', 'content-type', 'x-client-info']) {
+      assert.ok(preflight.headers.get('Access-Control-Allow-Headers').split(',').includes(header));
+    }
+    const post = await handler(new Request('https://local.test', { method: 'POST', headers: { origin, authorization: 'Bearer invalid' } }));
+    assert.equal(post.status, 401);
+    assert.equal(post.headers.get('Access-Control-Allow-Origin'), origin);
+  }
+  for (const origin of ['https://evil.test', 'https://www.distrihub.com.br.evil.test', 'http://www.distrihub.com.br', 'https://outro.distrihub.com.br', 'null']) {
+    const denied = await handler(new Request('https://local.test', { method: 'OPTIONS', headers: { origin } }));
+    assert.equal(denied.status, 403);
+    assert.equal(denied.headers.get('Access-Control-Allow-Origin'), null);
+  }
+  const onlyPrimary = setup();
+  assert.equal((await onlyPrimary.handler(new Request('https://local.test', { method: 'OPTIONS', headers: { origin: origins[1] } }))).status, 403);
+  assert.equal(calls.length, 0); assert.equal(claims.length, 0);
+});
+
 test('Focus: consulta antes de enviar, usa somente homologação e autenticação Basic', async () => {
   const { handler, calls, finishes } = setup();
   const result = await (await handler(request())).json();

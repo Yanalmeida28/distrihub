@@ -120,7 +120,7 @@ export function summarizeFocus(raw: Record<string, unknown>, account: FiscalAcco
 }
 
 export type FocusDependencies = {
-  enabled: boolean; origin: string; accounts: () => FiscalAccount[];
+  enabled: boolean; origin: string; additionalOrigins?: readonly string[]; accounts: () => FiscalAccount[];
   authenticate: (token: string) => Promise<boolean>;
   prepare: (token: string, saleId: string, branchId: string) => Promise<Result<FiscalSnapshot>>;
   claim: (snapshot: FiscalSnapshot, payload: Record<string, unknown>, retry: boolean) => Promise<Result<FiscalJob>>;
@@ -135,11 +135,12 @@ export function focusNfceHandler(deps: FocusDependencies, options: {
   const label = model === 'nfe' ? 'NF-e' : 'NFC-e';
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get('origin');
+    const allowedOrigin = origin !== null && [deps.origin, ...(deps.additionalOrigins ?? [])].includes(origin);
     const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Vary': 'Origin',
-      ...(origin === deps.origin ? { 'Access-Control-Allow-Origin': origin,
+      ...(allowedOrigin ? { 'Access-Control-Allow-Origin': origin!,
         'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info', 'Access-Control-Allow-Methods': 'POST,OPTIONS' } : {}) };
     const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
-    if (origin && origin !== deps.origin) return json({ error: 'Origem não permitida.' }, 403);
+    if (origin && !allowedOrigin) return json({ error: 'Origem não permitida.' }, 403);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers });
     if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405);
     const token = request.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
@@ -196,7 +197,9 @@ export function focusNfceHandler(deps: FocusDependencies, options: {
         result.message = 'O Focus recusou a credencial ou a permissão da empresa. Confira o token de homologação no servidor.';
       } else if (response.status === 422 || response.status === 400) {
         // Um erro HTTP não prova que uma tentativa anterior deixou de autorizar. Conserva a referência para consulta.
-        result.message = 'O Focus não confirmou a autorização. Confira empresa, CSC e classificação fiscal; consulte antes de repetir.';
+        result.message = model === 'nfe'
+          ? 'O Focus não confirmou a autorização. Confira empresa, destinatário e classificação fiscal; consulte antes de repetir.'
+          : 'O Focus não confirmou a autorização. Confira empresa, CSC e classificação fiscal; consulte antes de repetir.';
       }
       const saved = await deps.finish(job.id, job.lease_id, state, result);
       if (saved.error || saved.data !== true) return json({ error: 'Resposta recebida, mas a gravação não foi confirmada. Consulte a mesma venda novamente.', environment: 'homologacao', state: 'unknown', reference: job.reference }, 503);
