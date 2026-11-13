@@ -72,7 +72,9 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
         if (loj.error) throw loj.error;
         if (cancelled) return;
         setSupportActorId(userData.user.id);
-        setLojistas((loj.data as AdminCompany[]) ?? []);
+        const companies = (loj.data as AdminCompany[]) ?? [];
+        setLojistas(companies);
+        setDetails(current => current ? companies.find(company => company.id === current.id) ?? current : null);
       } catch (loadError) {
         if (!cancelled) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o painel master.');
       } finally {

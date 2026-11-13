@@ -3,7 +3,7 @@ import { CompanyRegistration } from '../CompanyRegistration';
 import { OwnerPasswordSettings } from './OwnerPasswordSettings';
 import { useState, type ReactNode } from 'react';
 import {
-  Settings, User, Mail, Phone, FileText, Lock, CreditCard,
+  Settings, User, Mail, Phone, Lock, CreditCard,
   Check, X, Crown, Zap, Building2, Receipt, ArrowUpCircle, ArrowDownCircle,
   Shield, Eye, EyeOff,
 } from 'lucide-react';
@@ -70,7 +70,6 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
   const saas = useSaasSubscription(profile?.id);
   const [accountName, setAccountName] = useState(profile?.account_name ?? '');
   const [whatsapp, setWhatsapp] = useState(profile?.whatsapp ?? '');
-  const [document, setDocument] = useState(profile?.document ?? '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,7 +89,6 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
       await onProfileUpdate({
         account_name: accountName || null,
         whatsapp: whatsapp || null,
-        document: document || null,
       });
       window.dispatchEvent(new Event('company-registration-updated'));
 
@@ -182,14 +180,6 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
               value={whatsapp}
               onChange={(e) => setWhatsapp(e.target.value)}
               placeholder="(11) 99999-9999"
-            />
-          </label>
-          <label>
-            <span className="social-label"><FileText size={14} /> CNPJ / CPF</span>
-            <input
-              value={document}
-              onChange={(e) => setDocument(e.target.value)}
-              placeholder="00.000.000/0000-00"
             />
           </label>
         </div>

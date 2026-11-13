@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { canLookupCnpj, lookupCnpj, numericCnpj } from '../lib/cnpjLookup';
 
 const fields = [
   ['legal_name', 'Razão social'], ['trade_name', 'Nome fantasia'],
@@ -25,6 +26,12 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [document, setDocument] = useState('');
+  const [lookingUp, setLookingUp] = useState(false);
+  const [suggestion, setSuggestion] = useState<Record<string,string> | null>(null);
+  const lookupVersion = useRef<object>({});
+  const lookupGuard = useRef(false);
+  const lookedUp = useRef('');
   const guard = useRef(false);
   const generation = useRef(0);
   const dirty = useRef(false);
@@ -32,6 +39,8 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
     const current = ++generation.current;
     let cancelled = false;
     dirty.current = false; guard.current = false;
+    lookupVersion.current = {}; lookupGuard.current = false; lookedUp.current = '';
+    setDocument(''); setSuggestion(null); setLookingUp(false);
     setSnapshot(null); setDraft({}); setNotice(null); setError(null); setSaving(false);
     async function load() {
       if (!supabase) { setLoading(false); setError('Conexão indisponível.'); return; }
@@ -44,6 +53,7 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
         if (!data || typeof data !== 'object') throw new Error('Cadastro da empresa não encontrado.');
         if (dirty.current && !readOnly) return;
         setSnapshot(data as Snapshot); setDraft(draftOf(data as Snapshot)); setError(null);
+        setDocument((data as Snapshot).document ?? '');
       } catch (failure) {
         if (!cancelled) setError(failure instanceof Error ? failure.message : 'Não foi possível carregar o cadastro da empresa.');
       } finally { if (!cancelled) setLoading(false); }
@@ -53,7 +63,7 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
     window.addEventListener('company-registration-updated', refresh);
     window.addEventListener('focus', refresh);
     return () => {
-      cancelled = true; generation.current = current + 1;
+      cancelled = true; generation.current = current + 1; lookupVersion.current = {};
       window.removeEventListener('company-registration-updated', refresh);
       window.removeEventListener('focus', refresh);
     };
@@ -66,8 +76,9 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
     const current = generation.current;
     setSaving(true); setError(null); setNotice(null);
     try {
-      const { data, error: failure } = await supabase.rpc('save_company_registration', {
+      const { data, error: failure } = await supabase.rpc('save_company_registration_with_document', {
         p_company_id: companyId, p_registration: draft, p_expected_registration: snapshot.registration,
+        p_document: numericCnpj(document), p_expected_document: snapshot.document,
       });
       if (generation.current !== current) return;
       if (failure) {
@@ -89,6 +100,28 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
   function change(key: string, value: string) {
     dirty.current = true; setNotice(null); setDraft(previous => ({ ...previous, [key]: value }));
   }
+  async function consult(force = false) {
+    if (readOnly || guard.current || lookupGuard.current || !canLookupCnpj(document)) return;
+    const cnpj = numericCnpj(document);
+    if (!force && lookedUp.current === cnpj) return;
+    lookupGuard.current = true; const version = {}; lookupVersion.current = version;
+    setLookingUp(true); setError(null); setSuggestion(null);
+    try {
+      const result = await lookupCnpj(cnpj);
+      if (lookupVersion.current !== version) return;
+      lookedUp.current = cnpj; setSuggestion(result);
+    } catch (failure) {
+      if (lookupVersion.current === version) setError(failure instanceof Error ? failure.message : 'Não foi possível consultar o CNPJ.');
+    } finally {
+      if (lookupVersion.current === version) { lookupGuard.current = false; setLookingUp(false); }
+    }
+  }
+  function applySuggestion(replace: boolean) {
+    if (!suggestion || guard.current) return;
+    dirty.current = true;
+    setDraft(previous => ({ ...previous, ...Object.fromEntries(Object.entries(suggestion).filter(([key]) => replace || !previous[key]?.trim())) }));
+    setSuggestion(null); setNotice('Dados da consulta aplicados ao formulário. Confira e clique em Salvar cadastro da empresa.');
+  }
   return <section className="module-card" aria-label="Cadastro da empresa">
     <h4>Dados cadastrais da empresa</h4>
     <p>{readOnly ? 'Dados salvos no cadastro da empresa. Para alterar, acesse Configurações → Dados cadastrais da empresa.'
@@ -100,7 +133,23 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
       {fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{draft[key] || 'Não informado'}</dd></div>)}
       <div><dt>Regime tributário</dt><dd>{regimes[draft.tax_regime] || 'Não informado'}</dd></div>
     </dl> : <form className="rma-form" onSubmit={save}>
-      <p>CNPJ / CPF: {snapshot.document || 'Não informado'}. O documento é o mesmo do perfil da conta.</p>
+      <label>CNPJ / CPF<input aria-label="CNPJ / CPF da empresa" maxLength={18} value={document} disabled={saving || loading}
+        onChange={event => {
+          dirty.current = true; lookupVersion.current = {}; lookupGuard.current = false; lookedUp.current = '';
+          setLookingUp(false); setSuggestion(null); setNotice(null); setDocument(event.target.value);
+        }} onBlur={() => { void consult(); }} /></label>
+      <button type="button" className="module-action-btn" disabled={saving || loading || lookingUp || !canLookupCnpj(document)} onClick={() => { void consult(true); }}>
+        {lookingUp ? 'Consultando CNPJ…' : 'Consultar CNPJ'}
+      </button>
+      <small>A consulta automática começa ao sair do campo com um CNPJ numérico válido. CPF não possui consulta automática.</small>
+      {suggestion && <div role="region" aria-label="Dados encontrados pelo CNPJ">
+        <p>Dados encontrados na BrasilAPI. Confira antes de aplicar:</p>
+        <dl style={{ overflowWrap: 'anywhere' }}>{fields.filter(([key]) => suggestion[key]).map(([key,label]) => <div key={key}><dt>{label}</dt><dd>{suggestion[key]}</dd></div>)}</dl>
+        <button type="button" className="module-action-btn" disabled={saving} onClick={() => applySuggestion(false)}>Preencher apenas campos vazios</button>
+        <button type="button" className="module-action-btn" disabled={saving} onClick={() => applySuggestion(true)}>Substituir campos consultados</button>
+        <button type="button" className="module-action-btn" disabled={saving} onClick={() => setSuggestion(null)}>Descartar consulta</button>
+        <p>Inscrições estadual e municipal e regime tributário continuam sujeitos à conferência contábil.</p>
+      </div>}
       <div className="form-row" style={{ display: 'flex', flexWrap: 'wrap' }}>
         {fields.map(([key, label]) => <label key={key} style={{ minWidth: 0, flex: '1 1 220px' }}>{label}
           <input required={key === 'legal_name'} maxLength={key === 'state' ? 2 : key === 'zip_code' ? 9 : 160}
