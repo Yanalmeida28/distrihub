@@ -34,6 +34,7 @@ vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/componen
     : name === '../../lib/productNames' ? { normalizeProductName: value => String(value ?? '') }
     : name === './ProductProfitPreview' ? { ProductProfitPreview: () => null }
     : name === './ProductPhotoField' ? { ProductPhotoField: () => null }
+    : name === './CustomerCnpjLookup' ? { CustomerCnpjLookup: () => null }
     : name === './ProductLabelModal' ? { ProductLabelModal: () => null }
     : name === './ImportExportModule' ? { ImportExportModule: () => null, ExportButtons: () => null }
     : name === './CustomerPhoto' || name === '../../lib/cadastroXml' || name === '../../utils' || name === '../../lib/saleReturns'

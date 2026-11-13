@@ -61,6 +61,7 @@ test('indicadores na edição não alteram os preços enviados ao salvar o produ
     exports: cadastros, require: name => {
       if (name === './ProductProfitPreview') return exports;
       if (name === './ProductPhotoField') return { ProductPhotoField: () => null };
+      if (name === './CustomerCnpjLookup') return { CustomerCnpjLookup: () => null };
       if (name === './ProductLabelModal') return { ProductLabelModal: () => null };
       if (name === '../../lib/productNames') return { normalizeProductName: value => String(value ?? '') };
       if (name === './CustomerPhoto' || name === '../../lib/cadastroXml' || name === './ImportExportModule' || name === '../../lib/saleReturns' || name === '../../hooks/useSessionDraft') return {};
