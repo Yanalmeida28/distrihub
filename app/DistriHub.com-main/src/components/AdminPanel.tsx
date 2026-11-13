@@ -13,6 +13,7 @@ import { AdminSaasModule } from './AdminSaasModule';
 import { AdminSupportInbox } from './AdminSupportInbox';
 import { AdminPlanRequestsModule } from './AdminPlanRequestsModule';
 import { AdminCompanySegmentField } from './AdminCompanySegmentField';
+import { CompanyRegistration } from './CompanyRegistration';
 import { businessSegmentLabels } from '../lib/businessSegments';
 
 
@@ -180,7 +181,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
               {details && <section className="module-card admin-client-detail"><div className="module-header"><h4>{details.business_name}</h4><button className="rma-advance-btn" onClick={() => setDetails(null)}>Fechar ficha</button></div><dl className="admin-detail-grid">
                 {Object.entries({ 'Responsável': details.account_name, 'E-mail': details.email, 'Contato': details.whatsapp, 'Documento': details.document, 'Ramo': businessSegmentLabels[details.segment] ?? details.segment, 'Plano': details.subscription_plan, 'Assinatura': details.subscription_status, 'Cadastro comercial': details.client_status, 'Pedidos': details.orders_count, 'Total de compras': money.format(details.orders_total), 'Limite de crédito': details.credit_limit == null ? 'Não definido' : money.format(details.credit_limit) }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}
                 <div><dt>Data de cadastro (Brasília)</dt><dd>{companyRegistrationDate(details.created_at)}</dd></div>
-              </dl></section>}
+              </dl>{details.user_id && <CompanyRegistration key={details.user_id} companyId={details.user_id} onSaved={() => setCompaniesVersion(version => version + 1)} />}</section>}
               <div className="admin-client-list" aria-label="Empresas cadastradas">
                 {filteredClients.length === 0 ? (
                   <p className="empty-row" role="status">{loading ? 'Carregando clientes...' : 'Nenhuma empresa encontrada.'}</p>

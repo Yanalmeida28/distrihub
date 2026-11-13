@@ -7,6 +7,7 @@ import type { PartnerProduct, PartnerSale, PartnerCustomer, PartnerProfile, Sale
 import { money } from '../../utils';
 import { supabase } from '../../lib/supabase';
 import { FocusNfcePanel } from './FocusNfcePanel';
+import { CompanyRegistration } from '../CompanyRegistration';
 
 type Props = {
   products: PartnerProduct[];
@@ -54,13 +55,6 @@ export function FiscalModule({ products, sales, customers, profile, currentRole,
   const [fiscalTab, setFiscalTab] = useState<FiscalTab>('cupom');
   const [emitType, setEmitType] = useState<EmitType>('nfce');
   const [showEmitModal, setShowEmitModal] = useState(false);
-
-  // Company fiscal state
-  const [companyDocType, setCompanyDocType] = useState<DocType>('pj');
-  const [companyCnpj, setCompanyCnpj] = useState(profile?.document ?? '');
-  const [companyIe, setCompanyIe] = useState('');
-  const [companyIeIsento, setCompanyIeIsento] = useState(false);
-  const [companyAddress, setCompanyAddress] = useState('');
 
   // Customer fiscal state (auto-populated from sale selection)
   const [customerDocType, setCustomerDocType] = useState<DocType>('pf');
@@ -280,62 +274,7 @@ export function FiscalModule({ products, sales, customers, profile, currentRole,
         </div>
       )}
 
-      {/* Company Fiscal Details */}
-      <div className="section-divider">
-        <span className="section-divider-label"><Building2 size={14} /> Dados Fiscais da Empresa</span>
-      </div>
-
-      <div className="module-card">
-        <div className="rma-form">
-          <div className="fiscal-doctype-toggle">
-            <button type="button" className={`price-toggle-btn ${companyDocType === 'pj' ? 'active' : ''}`} onClick={() => setCompanyDocType('pj')}>
-              <Building2 size={15} /> Pessoa Jurídica (PJ)
-            </button>
-            <button type="button" className={`price-toggle-btn ${companyDocType === 'pf' ? 'active' : ''}`} onClick={() => setCompanyDocType('pf')}>
-              <User size={15} /> Pessoa Física (PF)
-            </button>
-          </div>
-          <div className="form-row">
-            <label>
-              <span className="social-label">
-                {companyDocType === 'pj' ? <Building2 size={14} /> : <IdCard size={14} />}
-                {' '}{companyDocType === 'pj' ? 'CNPJ' : 'CPF'}
-              </span>
-              <input
-                value={companyDocType === 'pj' ? maskCnpj(companyCnpj) : maskCpf(companyCnpj)}
-                onChange={(e) => setCompanyCnpj(e.target.value.replace(/\D/g, ''))}
-                placeholder={companyDocType === 'pj' ? '00.000.000/0000-00' : '000.000.000-00'}
-              />
-            </label>
-            {companyDocType === 'pj' ? (
-              <label>
-                <span className="social-label"><FileText size={14} /> Inscrição Estadual</span>
-                <input
-                  value={companyIeIsento ? 'ISENTO' : companyIe}
-                  onChange={(e) => { if (!companyIeIsento) setCompanyIe(e.target.value); }}
-                  placeholder="000.000.000.000"
-                  disabled={companyIeIsento}
-                />
-              </label>
-            ) : (
-              <label>
-                <span className="social-label"><IdCard size={14} /> RG (opcional)</span>
-                <input value={customerRg} onChange={(e) => setCustomerRg(e.target.value)} placeholder="00.000.000-0" />
-              </label>
-            )}
-          </div>
-          {companyDocType === 'pj' && (
-            <label className="checkbox-label fiscal-isento-label">
-              <input type="checkbox" checked={companyIeIsento} onChange={(e) => setCompanyIeIsento(e.target.checked)} />
-              Isento de Inscrição Estadual
-            </label>
-          )}
-          <label>
-            <span className="social-label"><Building2 size={14} /> Endereço Completo</span>
-            <input value={companyAddress} onChange={(e) => setCompanyAddress(e.target.value)} placeholder="Rua, número, bairro, cidade, UF, CEP" />
-          </label>
-        </div>
-      </div>
+      {profile?.id && <CompanyRegistration key={profile.id} companyId={profile.id} readOnly />}
 
       {/* Sale Selection + Dispatch Options */}
       <div className="section-divider">

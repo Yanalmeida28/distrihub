@@ -1,4 +1,5 @@
 import { PrinterSettings } from './PrinterSettings';
+import { CompanyRegistration } from '../CompanyRegistration';
 import { OwnerPasswordSettings } from './OwnerPasswordSettings';
 import { useState, type ReactNode } from 'react';
 import {
@@ -91,6 +92,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
         whatsapp: whatsapp || null,
         document: document || null,
       });
+      window.dispatchEvent(new Event('company-registration-updated'));
 
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -200,6 +202,8 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
       </div>
 
       {/* Security Section */}
+      {profile?.id && <CompanyRegistration key={profile.id} companyId={profile.id} />}
+
       <div className="section-divider">
         <span className="section-divider-label"><Shield size={14} /> Segurança</span>
       </div>
