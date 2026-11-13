@@ -129,6 +129,8 @@ export function buildOrderQuotePdf(sale: PrintableSale, details: ReceiptDetails 
       if (lines.length) { newPage(); tableHeader(); pdf.setFont('helvetica', 'normal'); }
     }
     pdf.setDrawColor(220, 225, 230); pdf.line(14, y - 2, 196, y - 2);
+    // Afasta o próximo produto da divisória, inclusive quando a descrição ocupa várias linhas.
+    y += 3;
   }
   if (!sale.items.length) paragraph('Nenhum item registrado.');
   if (y + 38 > bottom) newPage();
