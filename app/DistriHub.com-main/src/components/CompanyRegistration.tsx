@@ -122,7 +122,7 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
     setDraft(previous => ({ ...previous, ...Object.fromEntries(Object.entries(suggestion).filter(([key]) => replace || !previous[key]?.trim())) }));
     setSuggestion(null); setNotice('Dados da consulta aplicados ao formulário. Confira e clique em Salvar cadastro da empresa.');
   }
-  return <section className="module-card" aria-label="Cadastro da empresa">
+  return <section className="module-card" aria-label="Cadastro da empresa" style={{ minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}>
     <h4>Dados cadastrais da empresa</h4>
     <p>{readOnly ? 'Dados salvos no cadastro da empresa. Para alterar, acesse Configurações → Dados cadastrais da empresa.'
       : 'Preencha uma vez para consultar nas configurações, no Super Admin e na área fiscal. O endereço de cada filial permanece no cadastro de filiais.'}</p>
@@ -132,8 +132,9 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
       <div><dt>CNPJ / CPF</dt><dd>{snapshot.document || 'Não informado'}</dd></div>
       {fields.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{draft[key] || 'Não informado'}</dd></div>)}
       <div><dt>Regime tributário</dt><dd>{regimes[draft.tax_regime] || 'Não informado'}</dd></div>
-    </dl> : <form className="rma-form" onSubmit={save}>
+    </dl> : <form className="rma-form" onSubmit={save} style={{ minWidth: 0, maxWidth: '100%' }}>
       <label>CNPJ / CPF<input aria-label="CNPJ / CPF da empresa" maxLength={18} value={document} disabled={saving || loading}
+        style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
         onChange={event => {
           dirty.current = true; lookupVersion.current = {}; lookupGuard.current = false; lookedUp.current = '';
           setLookingUp(false); setSuggestion(null); setNotice(null); setDocument(event.target.value);
@@ -150,17 +151,19 @@ export function CompanyRegistration({ companyId, readOnly = false, onSaved }: {
         <button type="button" className="module-action-btn" disabled={saving} onClick={() => setSuggestion(null)}>Descartar consulta</button>
         <p>Inscrições estadual e municipal e regime tributário continuam sujeitos à conferência contábil.</p>
       </div>}
-      <div className="form-row" style={{ display: 'flex', flexWrap: 'wrap' }}>
-        {fields.map(([key, label]) => <label key={key} style={{ minWidth: 0, flex: '1 1 220px' }}>{label}
+      <div className="form-row" style={{ display: 'flex', flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
+        {fields.map(([key, label]) => <label key={key} style={{ minWidth: 0, maxWidth: '100%', flex: '1 1 220px' }}>{label}
           <input required={key === 'legal_name'} maxLength={key === 'state' ? 2 : key === 'zip_code' ? 9 : 160}
             autoComplete={key === 'zip_code' ? 'postal-code' : key === 'city' ? 'address-level2' : undefined}
-            value={draft[key] ?? ''} disabled={saving || loading}
+            value={draft[key] ?? ''} disabled={saving || loading} style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}
             onChange={event => change(key, key === 'state' ? event.target.value.toUpperCase() : event.target.value)} />
         </label>)}
-        <label style={{ minWidth: 0, flex: '1 1 220px' }}>Regime tributário<select value={draft.tax_regime ?? ''} disabled={saving || loading} onChange={event => change('tax_regime', event.target.value)}>
-          <option value="">Selecione conforme o cadastro da empresa</option>
+        <label style={{ minWidth: 0, maxWidth: '100%', flex: '1 1 220px' }}>Regime tributário<select value={draft.tax_regime ?? ''} disabled={saving || loading}
+          style={{ width: '100%', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box', textOverflow: 'ellipsis' }}
+          title={regimes[draft.tax_regime] || 'Selecione o regime tributário'} onChange={event => change('tax_regime', event.target.value)}>
+          <option value="">Selecione o regime</option>
           {Object.entries(regimes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select></label>
+        </select>{draft.tax_regime === '2' && <small style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{regimes['2']}</small>}</label>
       </div>
       <p>Informe as inscrições e o regime conforme a contabilidade. Os dados da Focus devem corresponder a este cadastro; salvar aqui não altera automaticamente o cadastro na Focus.</p>
       <button type="submit" className="module-submit-btn" disabled={saving || loading}>{saving ? 'Salvando…' : 'Salvar cadastro da empresa'}</button>
