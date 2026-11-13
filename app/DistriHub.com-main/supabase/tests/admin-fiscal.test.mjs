@@ -45,6 +45,27 @@ test('histórico mostra a série armazenada nos detalhes do banco', async () => 
   await act(async () => renderer.unmount());
 });
 
+test('regra de NF-e exige preenchimento fiscal e envia a habilitação e os novos campos', async () => {
+  let renderer;
+  await act(async () => { renderer = TestRenderer.create(React.createElement(exports.AdminFiscalModule, { ...base, section: 'regras' })); });
+  await act(async () => renderer.root.findAllByType('button').find(b => b.children.includes('Editar')).props.onClick());
+  await act(async () => renderer.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } }));
+  saved = undefined;
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  assert.equal(saved, undefined);
+  const fill = async (label, value) => act(async () => {
+    const field = renderer.root.findAllByType('label').find(node => node.children[0] === label);
+    const control = field.findAll(node => node.type === 'input' || node.type === 'select')[0];
+    control.props.onChange({ target: { value } });
+  });
+  await fill('NCM', '84713012'); await fill('Origem da mercadoria', '0');
+  await fill('Unidade comercial', 'UN'); await fill('CST do PIS', '07'); await fill('CST da COFINS', '07');
+  await act(async () => renderer.root.findByType('form').props.onSubmit({ preventDefault() {} }));
+  assert.equal(saved[2].apply_to_nfe, true); assert.equal(saved[2].origin, '0');
+  assert.equal(saved[2].unit, 'UN'); assert.equal(saved[2].pis_cst, '07'); assert.equal(saved[2].cofins_cst, '07');
+  await act(async () => renderer.unmount());
+});
+
 test('dois envios rápidos geram somente uma solicitação enquanto aguarda o banco', async () => {
   let calls = 0; let finish;
   rpc = () => { calls++; return new Promise(resolve => { finish = resolve; }); };

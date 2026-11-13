@@ -15,6 +15,11 @@ export type FiscalSettingsRecord = {
   pis_rate?: number;
   cofins_rate?: number;
   active?: boolean;
+  apply_to_nfe?: boolean;
+  origin?: string | null;
+  unit?: string | null;
+  pis_cst?: string | null;
+  cofins_cst?: string | null;
   branch_id?: string | null;
   created_at?: string;
 };

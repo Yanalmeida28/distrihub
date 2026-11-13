@@ -47,6 +47,8 @@ const emptyRule: FiscalSettingsRecord = {
   pis_rate: 0,
   cofins_rate: 0,
   active: true,
+  apply_to_nfe: false,
+  origin: '', unit: '', pis_cst: '', cofins_cst: '',
 };
 
 function formatDate(value?: string) {
@@ -148,6 +150,13 @@ export function AdminFiscalModule({ section, userId, branchId, sales, branches, 
       return;
     }
     const rates = [ruleDraft.icms_rate, ruleDraft.pis_rate, ruleDraft.cofins_rate];
+    if (ruleDraft.apply_to_nfe && (!/^\d{8}$/.test(ruleDraft.ncm ?? '') || !/^5\d{3}$/.test(ruleDraft.cfop ?? '') ||
+      !['102', '103', '300', '400'].includes(ruleDraft.cst_csosn ?? '') || rates.some(rate => rate == null || Number(rate) !== 0) ||
+      !/^[0-8]$/.test(ruleDraft.origin ?? '') || !/^[A-Z0-9]{1,6}$/.test(ruleDraft.unit ?? '') ||
+      !['04', '06', '07', '08', '09'].includes(ruleDraft.pis_cst ?? '') || !['04', '06', '07', '08', '09'].includes(ruleDraft.cofins_cst ?? ''))) {
+      setError('Para NF-e de teste, informe NCM com 8 dígitos, CFOP interno iniciado em 5, origem, unidade e CST de PIS/COFINS. Esta etapa aceita CSOSN 102, 103, 300 ou 400, CST de PIS/COFINS 04, 06, 07, 08 ou 09 e alíquotas zero, conforme revisão contábil.');
+      return;
+    }
     if (rates.some((rate) => !Number.isFinite(Number(rate)) || Number(rate) < 0 || Number(rate) > 100)) {
       setError('As alíquotas devem estar entre 0 e 100%.');
       return;
@@ -170,7 +179,10 @@ export function AdminFiscalModule({ section, userId, branchId, sales, branches, 
         pis_rate: Number(ruleDraft.pis_rate ?? 0),
         cofins_rate: Number(ruleDraft.cofins_rate ?? 0),
       });
-      if (saveError) throw saveError;
+      if (saveError) {
+        if (saveError.code === '23505') throw new Error('Já existe uma regra ativa para este NCM na filial. Edite ou desative a regra existente.');
+        throw saveError;
+      }
       setRuleDraft(emptyRule);
       setEditingRuleId(null);
       setNotice(editingRuleId ? 'Regra tributária atualizada.' : 'Regra tributária salva.');
@@ -391,6 +403,19 @@ export function AdminFiscalModule({ section, userId, branchId, sales, branches, 
         <>
           <form className="module-card rma-form" onSubmit={handleSaveRule}>
             <h4>{editingRuleId ? <Save size={17} /> : <Plus size={17} />} {editingRuleId ? 'Editar regra tributária' : 'Nova regra tributária'}</h4>
+            <p>Na NF-e de teste, a regra ativa será aplicada aos produtos com este NCM nesta filial, em vendas internas no AM. Confira com o contador se todos esses produtos usam o mesmo enquadramento. O NCM precisa estar cadastrado no produto.</p>
+            <label><input type="checkbox" checked={ruleDraft.apply_to_nfe === true} onChange={(event) => setRuleDraft({ ...ruleDraft, apply_to_nfe: event.target.checked })} /> Usar esta regra na NF-e de teste</label>
+            {ruleDraft.apply_to_nfe && <div className="form-grid">
+              <label>Origem da mercadoria<select required value={ruleDraft.origin ?? ''} onChange={(event) => setRuleDraft({ ...ruleDraft, origin: event.target.value })}>
+                <option value="">Selecione conforme a contabilidade</option>
+                <option value="0">0 — Nacional</option><option value="1">1 — Estrangeira, importação direta</option><option value="2">2 — Estrangeira, adquirida no mercado interno</option>
+                <option value="3">3 — Nacional, importação superior a 40% e até 70%</option><option value="4">4 — Nacional, processos produtivos básicos</option><option value="5">5 — Nacional, importação até 40%</option>
+                <option value="6">6 — Estrangeira, importação direta sem similar nacional</option><option value="7">7 — Estrangeira, mercado interno sem similar nacional</option><option value="8">8 — Nacional, importação superior a 70%</option>
+              </select></label>
+              <label>Unidade comercial<input required maxLength={6} placeholder="Ex.: UN" value={ruleDraft.unit ?? ''} onChange={(event) => setRuleDraft({ ...ruleDraft, unit: event.target.value.toUpperCase() })} /></label>
+              <label>CST do PIS<input required maxLength={2} placeholder="Conforme a contabilidade" value={ruleDraft.pis_cst ?? ''} onChange={(event) => setRuleDraft({ ...ruleDraft, pis_cst: event.target.value })} /></label>
+              <label>CST da COFINS<input required maxLength={2} placeholder="Conforme a contabilidade" value={ruleDraft.cofins_cst ?? ''} onChange={(event) => setRuleDraft({ ...ruleDraft, cofins_cst: event.target.value })} /></label>
+            </div>}
             <div className="form-row">
               <label>Nome da regra<input required value={ruleDraft.name ?? ''} onChange={(event) => setRuleDraft({ ...ruleDraft, name: event.target.value })} /></label>
               <label>NCM<input value={ruleDraft.ncm ?? ''} onChange={(event) => setRuleDraft({ ...ruleDraft, ncm: event.target.value })} maxLength={8} /></label>
@@ -420,7 +445,7 @@ export function AdminFiscalModule({ section, userId, branchId, sales, branches, 
                     {!branchId && <td>{branches.find((branch) => branch.id === rule.branch_id)?.name ?? '—'}</td>}
                     <td>{rule.name}</td><td>{rule.ncm || '—'}</td><td>{rule.cfop}</td><td>{rule.cst_csosn}</td>
                     <td>{Number(rule.icms_rate ?? 0).toFixed(2)}%</td><td>{Number(rule.pis_rate ?? 0).toFixed(2)}%</td><td>{Number(rule.cofins_rate ?? 0).toFixed(2)}%</td>
-                    <td>{rule.active === false ? 'Inativa' : 'Ativa'}</td>
+                    <td>{rule.active === false ? 'Inativa' : rule.apply_to_nfe ? 'Ativa — NF-e de teste' : 'Ativa — sem aplicação na NF-e'}</td>
                     <td>
                       <button type="button" className="module-action-btn" onClick={() => { setEditingRuleId(rule.id ?? null); setRuleDraft({ ...rule }); }} disabled={saving || !rule.id}>Editar</button>
                       <button type="button" className="module-action-btn" onClick={() => void toggleRule(rule)} disabled={saving || !rule.id}>{rule.active === false ? 'Ativar' : 'Desativar'}</button>

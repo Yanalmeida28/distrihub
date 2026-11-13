@@ -6,7 +6,31 @@ export type NfeAccount = FiscalAccount & {
   nfe_enabled: boolean; issuer_regime: '1';
   customer_policies: Record<string, { final_consumer: '0' | '1'; ie_indicator: '1' | '2' | '9' }>;
 };
-export type NfeSnapshot = FiscalSnapshot & { customer?: Customer | null };
+export type NfeTaxRule = {
+  id: string; user_id: string; branch_id: string; active: boolean; apply_to_nfe: boolean;
+  ncm: string; cfop: string; cst_csosn: string; icms_rate: number; pis_rate: number; cofins_rate: number;
+  origin: string; unit: string; pis_cst: string; cofins_cst: string;
+};
+export type NfeSnapshot = FiscalSnapshot & { customer?: Customer | null; tax_rules?: NfeTaxRule[] };
+
+// Apenas regras explicitamente habilitadas para esta operação. Nunca escolhe por nome ou pela primeira linha.
+export function applyNfeTaxRules(snapshot: NfeSnapshot, account: NfeAccount) {
+  const products = { ...account.products };
+  const resolved = snapshot.products.map(product => {
+    if (product.user_id !== account.company_id || product.branch_id !== account.branch_id) return product;
+    const rules = (snapshot.tax_rules ?? []).filter(rule => rule.user_id === account.company_id &&
+      rule.branch_id === account.branch_id && rule.active === true && rule.apply_to_nfe === true &&
+      /^\d{8}$/.test(product.ncm) && rule.ncm === product.ncm);
+    if (rules.length > 1) throw new Error(`Há mais de uma regra tributária ativa para o NCM ${product.ncm} nesta filial.`);
+    if (!rules.length) return product;
+    const rule = rules[0];
+    // A regra habilitada substitui o enquadramento inteiro. Campos incompletos não herdam valores anteriores.
+    products[product.id] = { origin: rule.origin, unit: rule.unit, pis_cst: rule.pis_cst, cofins_cst: rule.cofins_cst };
+    return { ...product, cfop: rule.cfop, cst_csosn: rule.cst_csosn,
+      icms_rate: rule.icms_rate, pis_rate: rule.pis_rate, cofins_rate: rule.cofins_rate };
+  });
+  return { snapshot: { ...snapshot, products: resolved }, account: { ...account, products } };
+}
 
 export function nfeAccounts(raw: string, token = ''): NfeAccount[] {
   const accounts = fiscalAccounts(raw, token, 'nfe') as NfeAccount[];
@@ -49,7 +73,8 @@ export function buildFocusNfe(snapshot: NfeSnapshot, account: NfeAccount, now = 
   const ie = String(customer.state_registration ?? '').replace(/[^0-9]/g, '');
   if (policy.ie_indicator === '1' && (ie.length < 2 || customer.ie_isento === true)) throw new Error('Confira a inscrição estadual do destinatário contribuinte.');
   if (policy.ie_indicator === '2' && customer.ie_isento !== true) throw new Error('Confirme a isenção da inscrição estadual no cadastro do cliente.');
-  const payload = buildFocusNfce(snapshot, account, now, 'nfe');
+  const resolved = applyNfeTaxRules(snapshot, account);
+  const payload = buildFocusNfce(resolved.snapshot, resolved.account, now, 'nfe');
   return { ...payload, tipo_documento: '1', finalidade_emissao: '1', consumidor_final: policy.final_consumer,
     natureza_operacao: 'VENDA DE MERCADORIA', regime_tributario_emitente: '1',
     nome_destinatario: 'NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL',

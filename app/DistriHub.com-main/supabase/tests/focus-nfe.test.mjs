@@ -27,6 +27,41 @@ const reference = 'dhn' + sale.replaceAll('-', '');
 const key = '13' + '2611' + account.cnpj + '55' + '001' + '000000001' + '1' + '12345678' + '0';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 
+const rule = { id: 'rule', user_id: company, branch_id: branch, active: true, apply_to_nfe: true,
+  ncm: '84713012', cfop: '5101', cst_csosn: '400', icms_rate: 0, pis_rate: 0, cofins_rate: 0,
+  origin: '2', unit: 'PC', pis_cst: '06', cofins_cst: '08' };
+
+test('Focus NF-e: regra do admin entra no payload por NCM exato sem alterar o cadastro', () => {
+  const s = snapshot(); s.tax_rules = [rule];
+  const original = JSON.stringify(s), originalAccount = JSON.stringify(account);
+  s.products[0].cfop = ''; s.products[0].cst_csosn = '';
+  const item = buildFocusNfe(s, { ...account, products: {} }).items[0];
+  assert.equal(item.cfop, '5101'); assert.equal(item.icms_situacao_tributaria, '400');
+  assert.equal(item.icms_origem, '2'); assert.equal(item.unidade_comercial, 'PC');
+  assert.equal(item.pis_situacao_tributaria, '06'); assert.equal(item.cofins_situacao_tributaria, '08');
+  assert.equal(s.products[0].cfop, ''); assert.equal(JSON.stringify(account), originalAccount);
+  assert.ok(original.includes('5102'));
+});
+
+test('Focus NF-e: regra inativa, sem habilitação, de outra empresa/filial ou NCM não é aplicada', () => {
+  for (const change of [{ active: false }, { apply_to_nfe: false }, { user_id: customer }, { branch_id: customer }, { ncm: '00000000' }]) {
+    const s = snapshot(); s.tax_rules = [{ ...rule, ...change }];
+    assert.equal(buildFocusNfe(s, account).items[0].cfop, '5102');
+    assert.throws(() => buildFocusNfe(s, { ...account, products: {} }), /classificação/);
+  }
+});
+
+test('Focus NF-e: conflito, NCM ausente e regra incompleta ou incompatível bloqueiam o envio', () => {
+  const s = snapshot(); s.tax_rules = [rule, { ...rule, id: 'other-rule' }];
+  assert.throws(() => buildFocusNfe(s, account), /mais de uma regra/);
+  for (const change of [{ origin: '' }, { unit: '' }, { pis_cst: '' }, { cofins_cst: '' }, { cfop: '6102' }, { icms_rate: 18 }, { pis_rate: null }]) {
+    s.tax_rules = [{ ...rule, ...change }];
+    assert.throws(() => buildFocusNfe(s, account), /classificação/);
+  }
+  s.tax_rules = [rule]; s.products[0].ncm = '';
+  assert.throws(() => buildFocusNfe(s, account), /classificação/);
+});
+
 test('Focus NF-e: sem CSC, duas filiais do mesmo emitente podem usar o segredo existente', () => {
   const first = { ...account }; delete first.token;
   const second = { ...first, branch_id: customer };

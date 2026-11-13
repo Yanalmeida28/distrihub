@@ -1,5 +1,13 @@
 # NF-e de homologação — Amazonas
 
+## Regras tributárias do admin
+
+Em **Regras Tributárias**, habilite **Usar esta regra na NF-e de teste** e preencha NCM, CFOP, CSOSN, alíquotas, origem, unidade e CST de PIS/COFINS com revisão contábil. A regra ativa é aplicada pelo NCM exato dos produtos, somente na mesma empresa e filial e para vendas internas no AM. O NCM continua obrigatório no cadastro de cada produto. Só use essa opção se todos os produtos desse NCM compartilham o enquadramento e a unidade informados.
+
+Não é permitido ter duas regras ativas habilitadas para o mesmo NCM na filial. Regras incompletas ou fora dos enquadramentos já suportados são recusadas; não se calcula imposto novo nem se substitui o NCM do produto. Regras sem a opção marcada continuam apenas cadastradas. Sem regra correspondente, permanece a configuração fiscal individual do produto/servidor. Tentativas com resultado incerto mantêm o payload original; correções só entram em nova tentativa ou no reenvio explícito após rejeição.
+
+A regra cobre os produtos; não substitui os dados e indicadores fiscais do destinatário. A emissão continua exclusivamente em homologação.
+
 Fluxo do modelo 55 separado da NFC-e (modelo 65). Não exige CSC. Exige empresa habilitada para NF-e no Focus, certificado cadastrado e dados fiscais completos. Todo acesso ao Focus usa exclusivamente `https://homologacao.focusnfe.com.br`; produção não é ativada.
 
 ## Configuração do servidor

@@ -32,8 +32,37 @@ before(async () => {
       VALUES ('${sale}','${company}','${branch}','[{"product_id":"${product}","quantity":2,"unit_price":10.01}]',20.02,'concluida','varejo','balcao','dinheiro');`);
   await db.exec(`ALTER TABLE partner_customers ADD COLUMN document text, ADD COLUMN address text, ADD COLUMN city text, ADD COLUMN state text, ADD COLUMN zip_code text;`);
   await db.exec(await readFile(new URL('../migrations/20261112234028_focus_nfe_homologation.sql', import.meta.url), 'utf8'));
+  await db.exec(`CREATE TABLE fiscal_tax_rules(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),user_id uuid NOT NULL,branch_id uuid,
+    name text NOT NULL,ncm text,cfop text NOT NULL,cst_csosn text NOT NULL,icms_rate numeric NOT NULL DEFAULT 0,
+    pis_rate numeric NOT NULL DEFAULT 0,cofins_rate numeric NOT NULL DEFAULT 0,active boolean NOT NULL DEFAULT true);
+    ALTER TABLE fiscal_tax_rules ENABLE ROW LEVEL SECURITY;`);
+  await db.exec(await readFile(new URL('../migrations/20261113160604_connect_fiscal_rules_to_focus_nfe.sql', import.meta.url), 'utf8'));
 });
 after(async () => { await db.close(); });
+
+test('Focus NF-e SQL: salva e lê regra da filial, bloqueia duplicidade, campos incompletos e acessos indevidos', async () => {
+  const rule = { name: 'Regra sintética', branch_id: branch, ncm: '84713012', cfop: '5102', cst_csosn: '102',
+    icms_rate: 0, pis_rate: 0, cofins_rate: 0, active: true, apply_to_nfe: true, origin: '0', unit: 'UN', pis_cst: '07', cofins_cst: '07' };
+  const save = value => sql('SELECT save_fiscal_branch_settings($1::jsonb) AS id',[JSON.stringify(value)]);
+  await login(null); await assert.rejects(save(rule));
+  await login(other); await assert.rejects(save(rule), /Filial/);
+  await login(company); await db.exec("SELECT set_config('test.role','caixa',false)");
+  await assert.rejects(save(rule), /permissão/);
+  await db.exec("SELECT set_config('test.role','administrador',false)");
+  await assert.rejects(save({ ...rule, origin: null }), /fiscal_rule_nfe_complete/);
+  await assert.rejects(save({ ...rule, icms_rate: undefined }), /alíquotas/);
+  const id = (await save(rule)).rows[0].id;
+  await assert.rejects(save(rule), /fiscal_rule_nfe_one_per_ncm/);
+  const getRules = () => sql('SELECT prepare_focus_nfe($1,$2) AS s',[sale,branch]).then(r => r.rows[0].s.tax_rules);
+  assert.equal((await getRules())[0].id,id);
+  await save({ ...rule,id,active: false }); assert.equal((await getRules()).length,0);
+  await save({ ...rule,id,apply_to_nfe: false }); assert.equal((await getRules()).length,0);
+  await assert.rejects(save({ ...rule,id,branch_id: foreignBranch }), /Filial/);
+  await db.exec('SET ROLE anon'); await assert.rejects(save(rule), /permission denied/);
+  await db.exec('RESET ROLE');
+  await sql('DELETE FROM fiscal_tax_rules WHERE id=$1',[id]);
+  await login(null);
+});
 
 test('Focus NF-e SQL: snapshot canônico exige sessão, módulo, cargo, empresa e filial corretos', async () => {
   const prepare = selectedBranch => sql('SELECT public.prepare_focus_nfe($1,$2) AS snapshot', [sale, selectedBranch]);
