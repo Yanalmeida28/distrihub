@@ -8,6 +8,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 import ts from '../../node_modules/typescript/lib/typescript.js';
 const require=createRequire(import.meta.url);
 const exports={};
+const lookupView=()=>null;
 const draftInitialValues=new Map();
 const clipboard={read:async()=>[]};
 const source=await readFile(new URL('../../src/components/partner/CadastrosModule.tsx',import.meta.url),'utf8');
@@ -15,6 +16,7 @@ vm.runInNewContext(ts.transpileModule(source+'\nexports.CustomerProfile=Customer
   compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020},
 }).outputText,{exports,Error,File,navigator:{clipboard},document:{body:{}},window:{alert(){},innerWidth:1024,innerHeight:768},require(name){
   if(name==='react-dom')return {createPortal:children=>children};
+  if(name==='./CustomerCnpjLookup')return {CustomerCnpjLookup:lookupView};
   if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}),formatCpf:v=>v??'',formatCnpj:v=>v??'',normalizeDocument:v=>v??''};
   if(name==='../../lib/productNames')return {normalizeProductName:value=>String(value??'')};
   if(name==='../../hooks/useSessionDraft')return { useSessionDraftState: (key, initial) => React.useState(draftInitialValues.has(key)?draftInitialValues.get(key):initial) };
@@ -30,6 +32,18 @@ vm.runInNewContext(ts.transpileModule(source+'\nexports.CustomerProfile=Customer
 let renderer;
 afterEach(async()=>{if(renderer)await act(async()=>renderer.unmount());renderer=null;draftInitialValues.clear();});
 const customer={id:'customer',name:'Cliente',user_id:'owner',branch_id:null,person_type:'PF',customer_type:'varejo',credit_limit:0,allow_credit:false};
+
+test('consulta CNPJ no perfil preserva campos preenchidos e aplica substituição apenas quando escolhida',async()=>{
+ let writes=0;
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.CustomerProfile,{customer:{...customer,address:'Rua atual',state_registration:'123'},sales:[],salespeople:[],rmaRequests:[],onUpdate:async()=>{writes++;},onClose(){}}));});
+ await act(async()=>renderer.root.findByType(lookupView).props.onApply({name:'Nome consultado',trade_name:'Fantasia',address:'Rua nova',city:'Manaus'},false));
+ assert.ok(renderer.root.findAllByType('input').some(input=>input.props.value==='Cliente'));
+ assert.ok(renderer.root.findAllByType('input').some(input=>input.props.value==='Fantasia'));
+ assert.ok(renderer.root.findAllByType('input').some(input=>input.props.value==='123'));
+ await act(async()=>renderer.root.findByType(lookupView).props.onApply({name:'Nome consultado'},true));
+ assert.ok(renderer.root.findAllByType('input').some(input=>input.props.value==='Nome consultado'));
+ assert.equal(writes,0);
+});
 
 test('customer history requests its data on demand, not while opening the directory',async()=>{
  let requests=0;

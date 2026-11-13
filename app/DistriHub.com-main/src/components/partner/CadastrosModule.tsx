@@ -16,6 +16,7 @@ import type {
 import { formatCivilDate, formatCnpj, formatCpf, isValidCnpj, isValidCpf, money, normalizeDocument } from '../../utils';
 import { parseStockXml, type XmlStockImport } from '../../lib/cadastroXml';
 import { CustomerPhoto, CustomerPhotoViewer } from './CustomerPhoto';
+import { CustomerCnpjLookup } from './CustomerCnpjLookup';
 import { ProductProfitPreview } from './ProductProfitPreview';
 import { ProductPhotoField } from './ProductPhotoField';
 import { ProductLabelModal as ThermalLabelModal } from './ProductLabelModal';
@@ -1507,6 +1508,12 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
               />
             </label>
           </div>
+          {isActive && <CustomerCnpjLookup key={`${editingCustomerId ?? 'new'}:${targetBranchId}:${personType}`} document={document} basic onApply={(data, replace) => {
+            if (data.name && (replace || !name.trim())) setName(data.name);
+            if (data.address && (replace || !address.trim())) setAddress(data.address);
+            if (data.neighborhood && (replace || !neighborhood.trim())) setNeighborhood(data.neighborhood);
+            if (data.city && (replace || !city.trim())) setCity(data.city);
+          }} />}
           <div className="form-row">
             <label>
               WhatsApp
@@ -1810,6 +1817,10 @@ function CustomerProfileModal({ customer, sales, rmaRequests, salespeople, onUpd
               <label><span className="social-label">Inscrição Estadual</span><input value={form.ie_isento ? 'ISENTO' : String(form.state_registration ?? '')} disabled={Boolean(form.ie_isento)} onChange={(event) => setField('state_registration', event.target.value)} /></label>
               {textField('suframa_id', 'SUFRAMA ID')}
             </div>
+            <CustomerCnpjLookup key={customer.id} document={form.document ?? ''} disabled={isSaving} onApply={(data, replace) => {
+              setForm(current => ({ ...current, person_type: 'PJ', ...Object.fromEntries(Object.entries(data).filter(([key]) => replace || !String(current[key as keyof CustomerForm] ?? '').trim())) }));
+              setSuccess(false);
+            }} />
             <label className="checkbox-label"><input type="checkbox" checked={Boolean(form.ie_isento)} onChange={(event) => setField('ie_isento', event.target.checked)} /> Isento de Inscrição Estadual</label>
             <div className="form-row">
               <label><span className="social-label">Sexo</span><select value={form.sex ?? ''} onChange={(event) => setField('sex', event.target.value)}><option value="">Selecione...</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="O">Outro</option></select></label>

@@ -17,6 +17,7 @@ const exports={};
 vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/CadastrosModule.tsx',import.meta.url),'utf8')+'\nexports.Suppliers=SuppliersSubTab;exports.Xml=XmlSubTab;exports.Categories=CategoriesSubTab;exports.Combos=CombosSubTab;exports.Profile=CustomerProfileModal;exports.Products=ProductsSubTab;exports.Replenishment=ReplenishmentSubTab;'),{
  exports,Error,document:{body:{}},window:{confirm:()=>true,innerWidth:1024,innerHeight:768},require(name){
   if(name==='react-dom')return {createPortal:children=>children};
+  if(name==='./CustomerCnpjLookup')return {CustomerCnpjLookup:()=>null};
   if(name==='./ImportExportModule')return {ExportButtons:()=>null};
   if(name==='../../lib/cadastroXml')return {parseStockXml:()=>invoice};
   if(name==='./CustomerPhoto')return {CustomerPhoto:()=>null};
