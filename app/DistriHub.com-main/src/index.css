@@ -3648,3 +3648,48 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .pdv-backup-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 0; border-top: 1px solid #d97706; }
 .partner-panel .pdv-backup-actions button { min-height: 44px; border: 1px solid #92400e; }
 @media (max-width: 600px) { .partner-panel .pdv-backup-actions span { width: 100%; } .partner-panel .pdv-backup-actions button { flex: 1; } }
+
+/* Gestão de clientes do superadministrador: fichas que cabem na largura disponível. */
+.admin-panel .partner-body { width: calc(100% - clamp(40px, 6vw, 112px)) !important; max-width: 1440px !important; overflow-x: visible !important; }
+.admin-panel .partner-content { overflow-x: visible !important; }
+.admin-panel .module-header > div { flex: 1 1 0; min-width: 0; }
+.admin-panel .module-header :is(h3, h4, p) { overflow-wrap: anywhere; }
+.admin-panel .admin-client-filters { display: grid; grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)) auto; }
+.admin-panel .admin-client-filters > label { width: auto; min-width: 0; }
+.admin-panel .admin-client-filters :is(input, select) { width: 100%; min-width: 0; max-width: 100%; }
+.admin-panel .admin-client-list { display: grid; gap: 16px; min-width: 0; }
+.admin-panel .admin-company-card { min-width: 0; border: 1px solid #29465f; border-radius: 12px; background: #102638; }
+.admin-panel .admin-company-card-header { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 20px; border-bottom: 1px solid #29465f; }
+.admin-panel .admin-company-card-header > div { flex: 1 1 220px; min-width: 0; }
+.admin-panel .admin-company-card-header h4 { margin: 0 0 5px; color: #edf5fc; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
+.admin-panel .admin-company-card-header .admin-client-id { display: block; color: #adc2d6; font-size: 12px; overflow-wrap: anywhere; }
+.admin-panel .admin-company-registration { display: grid; gap: 4px; margin: 0; font-size: 12px; color: #edf5fc; overflow-wrap: anywhere; }
+.admin-panel .admin-company-registration span { color: #adc2d6; }
+.admin-panel .admin-company-card-body { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; padding: 20px; }
+.admin-panel .admin-company-card-body > * { min-width: 0; margin: 0; }
+.admin-panel .admin-company-contact { display: grid; align-content: start; gap: 12px; }
+.admin-panel .admin-company-contact dt, .admin-panel .admin-company-field h5 { margin: 0 0 5px; color: #adc2d6; font-size: 12px; font-weight: 500; }
+.admin-panel .admin-company-contact dd { margin: 0; color: #edf5fc; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.admin-panel .admin-company-field form { display: grid; gap: 8px; min-width: 0; }
+.admin-panel .admin-company-field :is(select, button) { width: 100%; min-width: 0; max-width: 100%; min-height: 40px; white-space: normal; }
+.admin-panel .admin-company-field small { display: block; margin-top: 6px; font-size: 12px; overflow-wrap: anywhere; }
+.admin-panel .admin-company-card-actions { display: flex; justify-content: end; flex-wrap: wrap; gap: 10px; padding: 12px 20px; border-top: 1px solid #29465f; }
+.admin-panel .admin-company-card-actions button { min-height: 40px; white-space: normal; }
+.admin-panel .partner-tabs { flex-wrap: wrap; overflow: visible; }
+.admin-panel .admin-client-detail .module-header { flex-wrap: wrap; }
+@media (max-width: 1100px) {
+  .admin-panel .admin-company-card-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .admin-panel .admin-client-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-panel .admin-client-filters > label:first-child { grid-column: 1 / -1; }
+  .admin-panel .admin-client-filters > button { grid-column: 1 / -1; min-height: 40px; }
+  .admin-panel .partner-tab { flex: 1 1 145px; min-width: 0; white-space: normal; }
+}
+@media (max-width: 600px) {
+  .admin-panel .admin-company-card-header, .admin-panel .admin-company-card-body { padding: 16px; }
+  .admin-panel .admin-company-card-body { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .admin-panel .admin-company-card-actions { display: grid; grid-template-columns: minmax(0, 1fr); padding: 12px 16px; }
+  .admin-panel .admin-company-card-actions button { width: 100%; }
+  .admin-panel .admin-detail-grid { grid-template-columns: minmax(0, 1fr); }
+}

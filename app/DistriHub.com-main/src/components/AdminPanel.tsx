@@ -12,7 +12,6 @@ import { money } from '../utils';
 import { AdminSaasModule } from './AdminSaasModule';
 import { AdminSupportInbox } from './AdminSupportInbox';
 import { AdminPlanRequestsModule } from './AdminPlanRequestsModule';
-import { AdminResponsiveTable } from './AdminResponsiveTable';
 import { AdminCompanySegmentField } from './AdminCompanySegmentField';
 import { businessSegmentLabels } from '../lib/businessSegments';
 
@@ -172,7 +171,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
               <div className="admin-client-summary">
                 <strong>{filteredClients.length}</strong> de {lojistas.length} clientes
               </div>
-              <div className="rma-form inline admin-filters">
+              <div className="rma-form inline admin-filters admin-client-filters">
                 <label>Buscar cliente<input type="search" placeholder="Empresa, e-mail, documento ou telefone" value={search} onChange={e => setSearch(e.target.value)} /></label>
                 <label>Cadastro comercial<select value={clientFilter} onChange={e => setClientFilter(e.target.value)}><option value="all">Todos</option><option value="pendente">Pendente</option><option value="aprovado">Aprovado</option><option value="reprovado">Bloqueado</option></select></label>
                 <label>Plano<select value={planFilter} onChange={e => setPlanFilter(e.target.value)}><option value="all">Todos</option><option value="basico">Básico</option><option value="profissional">Profissional</option><option value="enterprise">Enterprise</option></select></label>
@@ -182,32 +181,36 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                 {Object.entries({ 'Responsável': details.account_name, 'E-mail': details.email, 'Contato': details.whatsapp, 'Documento': details.document, 'Ramo': businessSegmentLabels[details.segment] ?? details.segment, 'Plano': details.subscription_plan, 'Assinatura': details.subscription_status, 'Cadastro comercial': details.client_status, 'Pedidos': details.orders_count, 'Total de compras': money.format(details.orders_total), 'Limite de crédito': details.credit_limit == null ? 'Não definido' : money.format(details.credit_limit) }).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}
                 <div><dt>Data de cadastro (Brasília)</dt><dd>{companyRegistrationDate(details.created_at)}</dd></div>
               </dl></section>}
-              <AdminResponsiveTable>
-                <table className="rma-table">
-                  <thead>
-                    <tr><th>Empresa</th><th>Cadastro (Brasília)</th><th>Login</th><th>Contato</th><th>Documento</th><th>Ramo</th><th>Assinatura</th><th>Compras</th><th>Cadastro comercial</th><th>Acesso ao aplicativo</th></tr>
-                  </thead>
-                  <tbody>
-                    {filteredClients.length === 0 ? (
-                      <tr><td colSpan={10} className="empty-row">{loading ? 'Carregando clientes...' : 'Nenhuma empresa encontrada.'}</td></tr>
-                    ) : (
-                      filteredClients.map((cliente) => (
-                        <tr key={cliente.id}>
-                          <td><strong>{cliente.business_name}</strong><small className="admin-client-id">{cliente.account_name ?? cliente.user_id?.slice(0, 8)}</small></td>
-                          <td>{companyRegistrationDate(cliente.created_at)}</td>
-                          <td>{cliente.email ?? '—'}</td>
-                          <td>{cliente.whatsapp ?? '—'}</td>
-                          <td>{cliente.document ?? '—'}</td>
-                          <td><AdminCompanySegmentField key={cliente.id} companyId={cliente.id} companyName={cliente.business_name} value={cliente.segment}
-                            onSaved={segment => {
-                              setLojistas(current => current.map(company => company.id === cliente.id ? { ...company, segment } : company));
-                              setDetails(current => current?.id === cliente.id ? { ...current, segment } : current);
-                            }} /></td>
-                          <td>
-                            <span>{cliente.subscription_plan ?? 'basico'} · {cliente.subscription_status ?? 'trial'}</span>
-                          </td>
-                          <td>{cliente.orders_count} · {money.format(cliente.orders_total)}</td>
-                          <td>
+              <div className="admin-client-list" aria-label="Empresas cadastradas">
+                {filteredClients.length === 0 ? (
+                  <p className="empty-row" role="status">{loading ? 'Carregando clientes...' : 'Nenhuma empresa encontrada.'}</p>
+                ) : filteredClients.map((cliente) => (
+                  <article className="admin-company-card" key={cliente.id} aria-label={cliente.business_name}>
+                    <header className="admin-company-card-header">
+                      <div><h4>{cliente.business_name}</h4><span className="admin-client-id">{cliente.account_name ?? cliente.user_id?.slice(0, 8)}</span></div>
+                      <p className="admin-company-registration"><span>Cadastro · horário de Brasília</span><time dateTime={cliente.created_at ?? undefined}>{companyRegistrationDate(cliente.created_at)}</time></p>
+                    </header>
+                    <div className="admin-company-card-body">
+                      <dl className="admin-company-contact">
+                        <div><dt>Login</dt><dd>{cliente.email ?? '—'}</dd></div>
+                        <div><dt>Contato</dt><dd>{cliente.whatsapp ?? '—'}</dd></div>
+                        <div><dt>Documento</dt><dd>{cliente.document ?? '—'}</dd></div>
+                      </dl>
+                      <section className="admin-company-field" aria-label={`Ramo de atuação de ${cliente.business_name}`}>
+                        <h5>Ramo de atuação</h5>
+                        <AdminCompanySegmentField companyId={cliente.id} companyName={cliente.business_name} value={cliente.segment}
+                          onSaved={segment => {
+                            setLojistas(current => current.map(company => company.id === cliente.id ? { ...company, segment } : company));
+                            setDetails(current => current?.id === cliente.id ? { ...current, segment } : current);
+                          }} />
+                      </section>
+                      <dl className="admin-company-contact">
+                        <div><dt>Assinatura</dt><dd>{cliente.subscription_plan ?? 'basico'} · {cliente.subscription_status ?? 'trial'}</dd></div>
+                        <div><dt>Pedidos</dt><dd>{cliente.orders_count}</dd></div>
+                        <div><dt>Total de compras</dt><dd>{money.format(cliente.orders_total)}</dd></div>
+                      </dl>
+                      <section className="admin-company-field" aria-label={`Cadastro comercial de ${cliente.business_name}`}>
+                        <h5>Cadastro comercial</h5>
                             <select
                               className="inline-select"
                               aria-label={`Status comercial de ${cliente.business_name}`}
@@ -225,16 +228,17 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                                 {statusFeedback[cliente.id].message}
                               </small>
                             )}
-                          </td>
-                          <td><div className="subscription-actions"><button className="rma-advance-btn" onClick={() => setDetails(cliente)}>Ver ficha</button><button className="rma-advance-btn" disabled={!cliente.user_id} onClick={() => {
-                            setAccessCompanyId(cliente.user_id); setTab('assinaturas');
-                          }}>Controlar acesso</button></div></td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </AdminResponsiveTable>
+                      </section>
+                    </div>
+                    <footer className="admin-company-card-actions">
+                      <button type="button" className="rma-advance-btn" onClick={() => setDetails(cliente)}>Ver ficha</button>
+                      <button type="button" className="rma-advance-btn" disabled={!cliente.user_id} onClick={() => {
+                        setAccessCompanyId(cliente.user_id); setTab('assinaturas');
+                      }}>Controlar acesso</button>
+                    </footer>
+                  </article>
+                ))}
+              </div>
             </div>
           )}
 
