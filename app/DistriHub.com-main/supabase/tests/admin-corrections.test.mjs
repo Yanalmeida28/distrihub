@@ -128,7 +128,8 @@ test('executive movements include freight and refund, exclude foreign branches, 
  const {AdminFinancialSummary}=harness(client).load('components/partner/AdminModule.tsx');let r;
  const props={...base,userId:'owner',branchFilter:'A',sales:[{...sale,freight_fee:15}],invoices:[],payables:[],payablesUnavailable:false};
  await act(async()=>{r=Renderer.create(React.createElement(AdminFinancialSummary,props));});const cash=()=>r.root.findAllByProps({className:'report-card admin-kpi-card'})[4].findByType('strong').children.join('');assert.match(cash(),/75,00/);
- fail=true;await act(async()=>r.update(React.createElement(AdminFinancialSummary,{...props,invoices:[]})));assert.equal(cash(),'Indisponível');assert.match(JSON.stringify(r.toJSON()),/Ledger unavailable/);await act(async()=>r.unmount());
+ await act(async()=>r.update(React.createElement(AdminFinancialSummary,{...props,isActive:false})));
+ fail=true;await act(async()=>r.update(React.createElement(AdminFinancialSummary,{...props,isActive:true})));assert.equal(cash(),'Indisponível');assert.match(JSON.stringify(r.toJSON()),/Ledger unavailable/);await act(async()=>r.unmount());
 });
 
 test('terminal list discards old branch replies, distinguishes load errors and stops hidden polling',async()=>{
