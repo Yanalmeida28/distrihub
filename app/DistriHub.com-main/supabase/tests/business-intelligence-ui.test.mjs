@@ -10,14 +10,15 @@ const text = node => typeof node === 'string' ? node : (node.children ?? []).map
 function fixture({ fail = false, identity = 'company' } = {}) {
   const calls = [];
   const client = { auth: { getUser: async () => ({ data: { user: { id: identity } }, error: null }) }, from(table) {
-    calls.push(table);
-    const query = { select: () => query, eq: () => query, order: () => query,
+    if (table !== 'partner_break_even_settings') calls.push(table);
+    const query = { select: () => query, eq: () => query, order: () => query, maybeSingle: async () => ({ data: null, error: null }),
       range: async () => ({ data: [], error: fail ? { message: 'Falha de leitura de teste' } : null }) };
     return query;
   } };
   const harness = intelligenceHarness({ client });
   return { ...harness, calls };
 }
+const scenarioInputs = () => renderer.root.findByProps({ 'aria-labelledby': 'bi-goals' }).findAllByType('input');
 const base = {
   companyId: 'company', branchId: 'A', branches: [{ id: 'A', user_id: 'company', name: 'Centro' }, { id: 'B', user_id: 'company', name: 'Bairro' }, { id: 'foreign', user_id: 'other', name: 'Outra empresa' }],
   isActive: true, dataReady: true, sales: [sale()], products: [product()], customers: [], movements: [], invoices: [], payables: [],
@@ -101,7 +102,7 @@ test('the automatic result uses registered expenses, responds to changes and dis
   assert.match(text(renderer.toJSON()), /Despesas consideradas no resultado/);
   await act(async () => renderer.update(React.createElement(Component, { ...props, payables: [payable({ amount: 80, paid_amount: 0, status: 'aberta', due_date: '2026-10-10' })] })));
   assert.match(text(status()), /Prejuízo estimado nos registros/); assert.match(text(status()), /20,00/);
-  assert.ok(renderer.root.findAllByType('input').every(input => input.props.value === ''));
+  assert.ok(scenarioInputs().every(input => input.props.value === ''));
 });
 
 test('month-to-date is the default and today shows new expenses without pretending that earlier sales happened today', async () => {
@@ -136,11 +137,11 @@ test('UI distinguishes missing expenses, estimated profit, zero costs and tempor
   assert.match(output, /Lucro bruto estimado/); assert.match(output, /Nenhuma conta a pagar/); assert.match(output, /Dados insuficientes/);
   assert.ok(!output.includes('Outra empresa'));
   assert.equal(calls.length, 3);
-  const inputs = renderer.root.findAllByType('input');
+  const inputs = scenarioInputs();
   await act(async () => { inputs[0].props.onChange({ target: { value: '1000' } }); inputs[1].props.onChange({ target: { value: '25' } }); inputs[2].props.onChange({ target: { value: '500' } }); });
   output = JSON.stringify(renderer.toJSON()); assert.match(output, /Ponto de equilíbrio simulado/); assert.match(output, /4\.000,00/); assert.match(output, /6\.000,00/);
   await act(async () => renderer.root.findAllByType('button').find(button => text(button) === 'Limpar simulação').props.onClick());
-  assert.ok(renderer.root.findAllByType('input').every(input => input.props.value === ''));
+  assert.ok(scenarioInputs().every(input => input.props.value === ''));
 });
 
 test('base errors, loading, ledger errors and mismatched authentication never render a financial diagnosis', async () => {
@@ -172,11 +173,11 @@ test('leaving the outer Administrative module clears temporary premises even whe
   const { load } = fixture();
   const Component = load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;
   await act(async () => { renderer = Renderer.create(React.createElement(Component, base)); });
-  await act(async () => renderer.root.findAllByType('input')[0].props.onChange({ target: { value: '7000' } }));
-  assert.equal(renderer.root.findAllByType('input')[0].props.value,'7000');
+  await act(async () => scenarioInputs()[0].props.onChange({ target: { value: '7000' } }));
+  assert.equal(scenarioInputs()[0].props.value,'7000');
   await act(async () => renderer.update(React.createElement(Component, { ...base, isActive: false })));
   await act(async () => renderer.update(React.createElement(Component, base)));
-  assert.ok(renderer.root.findAllByType('input').every(input => input.props.value === ''));
+  assert.ok(scenarioInputs().every(input => input.props.value === ''));
 });
 
 test('Administrative navigation places intelligence after Reports and blocks employees, missing permissions and SaaS denial', async () => {
@@ -202,7 +203,7 @@ test('Administrative navigation places intelligence after Reports and blocks emp
 test('branch context remount clears all scenario inputs and late old-branch ledger data is rejected', async () => {
   let resolveOld;
   const client = { auth: { getUser: async () => ({ data: { user: { id: 'company' } }, error: null }) }, from(table) {
-    const query = { select: () => query, eq: () => query, order: () => query,
+    const query = { select: () => query, eq: () => query, order: () => query, maybeSingle: async () => ({ data: null, error: null }),
       range: async () => table === 'partner_invoice_receipts' ? new Promise(resolve => { resolveOld = resolve; }) : { data: [], error: null } };
     return query;
   } };
@@ -213,9 +214,9 @@ test('branch context remount clears all scenario inputs and late old-branch ledg
   await act(async () => renderer.update(React.createElement(Component, { ...base, branchId: 'B', key: 'B' })));
   await act(async () => { old({ data: [{ id: 'old', user_id: 'company', branch_id: 'A', invoice_id: 'old', amount: 999 }], error: null }); resolveOld({ data: [], error: null }); });
   assert.ok(!JSON.stringify(renderer.toJSON()).includes('999'));
-  const inputs = renderer.root.findAllByType('input');
+  const inputs = scenarioInputs();
   await act(async () => inputs[0].props.onChange({ target: { value: '1500' } }));
   await act(async () => renderer.update(React.createElement(Component, { ...base, branchId: 'A', key: 'A2' })));
   await act(async () => resolveOld({ data: [], error: null }));
-  assert.ok(renderer.root.findAllByType('input').every(input => input.props.value === ''));
+  assert.ok(scenarioInputs().every(input => input.props.value === ''));
 });

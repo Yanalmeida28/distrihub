@@ -187,3 +187,28 @@ export function simulateBusinessGoal(fixed: string, contribution: string, desire
   const objective = Math.max(requiredRevenue, targetValue ?? 0);
   return { error: '', result: { breakEven, requiredRevenue, objective, remaining: revenue === null ? null : Math.max(0, objective - revenue) } };
 }
+
+export type BreakEvenSettings = Record<'aluguel' | 'energia' | 'salarios' | 'impostos' | 'outros', '' | 'fixed' | 'variable'> & { desired: number };
+
+// Caller must confirm completeness of this period before displaying the estimate.
+export function registeredBreakEven(data: ReturnType<typeof registeredBusinessResult>, settings: BreakEvenSettings) {
+  const fail = (error: string) => ({ error, result: null });
+  if (!validAmount(settings.desired) || settings.desired > 1e12) return fail('Informe um resultado desejado válido.');
+  if (data.undatedExpenses || data.invalidExpenses || !data.returnsKnown || data.netRevenue === null || data.netCost === null)
+    return fail('Existem custos, despesas ou devoluções incompletos. Confira os avisos do resultado após despesas.');
+  if (data.netRevenue <= 0) return fail('É necessário ter receita líquida positiva no período para calcular a margem de contribuição.');
+  let fixed = 0, variable = 0;
+  for (const row of data.categories) {
+    const kind = settings[row.category as keyof Omit<BreakEvenSettings, 'desired'>];
+    if (kind !== 'fixed' && kind !== 'variable') return fail('Classifique todas as categorias com despesas neste período.');
+    if (kind === 'fixed') fixed += cents(row.amount); else variable += cents(row.amount);
+  }
+  const margin = (data.netRevenue - data.netCost - variable / 100) / data.netRevenue;
+  if (margin <= 0) return fail('A margem de contribuição é nula ou negativa. Aumentar as vendas mantendo essa margem não cobre os gastos fixos.');
+  if (margin > 1 || !Number.isFinite(margin)) return fail('A margem está fora do intervalo esperado. Revise custos e reintegrações de estoque do período.');
+  const breakEven = fixed / 100 / margin;
+  const requiredRevenue = (fixed / 100 + settings.desired) / margin;
+  if (![fixed / 100, variable / 100, breakEven, requiredRevenue].every(validAmount)) return fail('Valores fora do limite de cálculo. Revise os registros.');
+  return { error: '', result: { fixed: fixed / 100, variable: variable / 100, margin: margin * 100, breakEven,
+    requiredRevenue, remaining: Math.max(0, breakEven - data.netRevenue) } };
+}

@@ -7,6 +7,7 @@ import type { PayableAccount } from '../../lib/accounts';
 import { buildBusinessIntelligence, intelligenceScope, simulateBusinessGoal } from '../../lib/businessIntelligence';
 import type { BusinessInput } from '../../lib/businessIntelligence';
 import { adminBusinessDay } from '../../lib/adminDashboard';
+import { BreakEvenPanel } from './BreakEvenPanel';
 
 type Props = {
   companyId: string; branchId: string; branches: PartnerBranch[]; isActive: boolean;
@@ -175,7 +176,8 @@ export function BusinessIntelligenceModule(props: Props) {
           <p className="bi-hint">Clientes inativos: 90 dias sem compra concluída {branchId ? 'nesta filial' : 'na empresa'}. {model.neverPurchased} cliente(s) sem compras registradas foram separados da inatividade.</p>
         </section>
 
-        <section aria-labelledby="bi-goals" className="module-card bi-simulator"><div className="bi-section-heading"><Calculator size={19} /><div><h4 id="bi-goals">Metas e ponto de equilíbrio</h4><p>Simulação temporária para o mesmo período da análise. Não salva metas nem altera suas contas.</p></div></div>
+        <BreakEvenPanel companyId={companyId} branchId={branchId} model={model} />
+        <section aria-labelledby="bi-goals" className="module-card bi-simulator"><div className="bi-section-heading"><Calculator size={19} /><div><h4 id="bi-goals">Simulação livre de metas e ponto de equilíbrio</h4><p>Simulação temporária para comparar outros cenários. Não salva metas nem altera suas contas.</p></div></div>
           <div className="bi-input-grid"><label>Gastos fixos do período (R$)<input inputMode="decimal" autoComplete="off" value={fixed} onChange={event => setFixed(event.target.value)} placeholder="Informe, inclusive se zero" /></label>
             <label>Margem de contribuição (%)<input inputMode="decimal" autoComplete="off" value={contribution} onChange={event => setContribution(event.target.value)} placeholder="Após custos e despesas variáveis" /></label>
             <label>Resultado operacional desejado (R$)<input inputMode="decimal" autoComplete="off" value={desired} onChange={event => setDesired(event.target.value)} placeholder="Informe zero para apenas equilibrar" /></label>
