@@ -1,7 +1,8 @@
 import {useEffect,useState} from 'react';
 import {BookOpen,Search,ArrowLeft,ArrowRight} from 'lucide-react';
 import type {SaasPlanId} from '../../lib/saas';
-import {filterHelpGuides,helpPlanFeatures,helpPlanNames} from '../../lib/helpGuides';
+import {filterHelpGuides,helpPlanFeatures,helpPlanNames,helpPlanDescriptions,helpResourcesFor} from '../../lib/helpGuides';
+import {planCatalog} from '../../lib/planCatalog';
 import './HelpModule.css';
 
 type Props={planId?:SaasPlanId;features?:string[];plans?:{id:SaasPlanId;features:string[]}[];focusModule?:string;allowedModules:string[];onNavigate:(module:string)=>void;onBack:()=>void};
@@ -11,6 +12,9 @@ export function HelpModule({planId,features,plans,focusModule,allowedModules,onN
  useEffect(()=>{if(planId)setViewPlan(planId);},[planId]);
  const available=viewPlan===planId && features ? features : plans?.find(plan=>plan.id===viewPlan)?.features??helpPlanFeatures[viewPlan];
  const guides=filterHelpGuides(available,search);
+ const plan=planCatalog[viewPlan];
+ const overview=helpPlanDescriptions[viewPlan];
+ const resources=helpResourcesFor(available);
  return <section className="help-center" aria-labelledby="help-title">
   <header className="help-header">
    <div><p className="help-eyebrow">GUIA DO DISTRiHUB</p><h2 id="help-title"><BookOpen size={25}/> Como usar o app</h2><p>Passo a passo para trabalhar com segurança, da entrada no app à impressão da etiqueta.</p></div>
@@ -24,10 +28,25 @@ export function HelpModule({planId,features,plans,focusModule,allowedModules,onN
   </div>
   <div className="help-plan-note">
    <strong>Você está consultando o guia {helpPlanNames[viewPlan]}.</strong>
-   <p>{viewPlan==='basico'?'Comece por produtos, etiquetas, vendas, caixa e ordens de serviço. Os relatórios são simples.':viewPlan==='profissional'?'Além dos fluxos básicos, consulte estoque, financeiro, entregas, RMA, fiscal e Administrativo.':'Consulte os fluxos completos, personalização e suporte prioritário.'}</p>
+   <p>{overview.purpose}</p>
    <small>Consultar outro plano não altera sua assinatura. As telas e ações disponíveis também dependem da função, da filial e das permissões do operador.</small>
    {!planId&&<p>Confirme seu acesso para identificar o plano da conta. Enquanto isso, você pode consultar os guias sem visualizar dados da loja.</p>}
   </div>
+  {!search.trim()&&<section className="help-plan-overview" aria-label={'Recursos e limites do plano '+helpPlanNames[viewPlan]}>
+   <h3>Entenda o plano {helpPlanNames[viewPlan]}</h3>
+   <dl className="help-plan-limits">
+    <div><dt>Filiais incluídas</dt><dd>{plan.branches} {plan.branches===1?'filial':'filiais'}</dd></div>
+    <div><dt>Dispositivos simultâneos</dt><dd>{plan.devices} por filial</dd></div>
+    <div><dt>Relatórios neste guia</dt><dd>{available.includes('relatorios_avancados')?'Simples e avançados':available.includes('relatorios')?'Simples':'Sem recurso de relatórios liberado'}</dd></div>
+   </dl>
+   <p className="help-limit-note">Estes são os limites padrão do plano. Adicionais, cortesias e condições da sua conta são conferidos pelo proprietário em Configurações → Assinatura DistriHub. Dispositivos são acessos simultâneos por filial, não a quantidade de colaboradores cadastrados.</p>
+   {viewPlan==='enterprise'&&<p className="help-tip">Filiais adicionais: {new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(plan.extraBranchPrice)} por filial/mês. A solicitação é analisada pelo Super Admin; os adicionais pagos são liberados após aprovação, autorização da assinatura e confirmação do pagamento correspondente.</p>}
+   <details className="help-plan-details" open><summary>O que está incluído neste guia</summary>
+    {resources.length?<ul className="help-resource-list">{resources.map(resource=><li key={resource.title}><strong>{resource.title}</strong><span>{resource.text}</span></li>)}</ul>:<p>Não há recursos operacionais liberados para esta conta no momento. O proprietário deve conferir a assinatura e as permissões.</p>}
+   </details>
+   <details className="help-plan-details"><summary>Por onde começar no {helpPlanNames[viewPlan]}</summary><ol>{overview.start.map(step=><li key={step}>{step}</li>)}</ol><p>Este roteiro descreve o uso padrão do plano. Confirme os recursos liberados na lista acima antes de iniciar.</p></details>
+   <p className="help-tip">Um recurso incluído no plano pode exigir permissão do operador. Consultar os guias de outro plano não libera telas nem muda sua assinatura. Para dados de várias filiais e ações exclusivas, use o acesso autorizado do proprietário.</p>
+  </section>}
   <p className="help-results" role="status">{guides.length} {guides.length===1?'guia encontrado':'guias encontrados'}</p>
   <div className="help-guides">
    {guides.map(guide=>{
