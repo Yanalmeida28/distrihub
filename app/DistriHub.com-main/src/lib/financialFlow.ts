@@ -1,6 +1,7 @@
 import type { PartnerInvoice, PartnerSale, StockMovement } from '../types';
 import { accountBalance, type PayableAccount } from './accounts';
 import { saleChargeTotal, salePaymentParts } from './pdv';
+import { payableMethodLabel, type PayablePaymentMethod } from './payableDetails';
 
 export interface InvoiceReceipt {
   id: string; user_id: string; invoice_id: string; branch_id: string | null;
@@ -9,6 +10,7 @@ export interface InvoiceReceipt {
 }
 export interface PayablePayment {
   id: string; payable_id: string; user_id: string; amount: number; created_at: string; paid_at?: string | null;
+  payment_method?: PayablePaymentMethod | null; payment_method_detail?: string | null;
 }
 export interface FinancialMovement {
   id: string; date: string | null; description: string; amount: number;
@@ -36,7 +38,7 @@ export function actualFinancialFlow(sales: PartnerSale[], movements: StockMoveme
     })),
     ...receipts.map(r => ({ id: `receipt-${r.id}`, date: r.occurred_at, description: `Fatura ${r.invoice_number} — ${r.customer_name}`, amount: Number(r.amount) })),
     ...payments.filter(p => accounts.has(p.payable_id)).map(p => ({ id: `payment-${p.id}`, date: p.paid_at ?? p.created_at,
-      description: `${accounts.get(p.payable_id)!.description} — ${accounts.get(p.payable_id)!.creditor_name}`, amount: -Number(p.amount) })),
+      description: `${accounts.get(p.payable_id)!.description} — ${accounts.get(p.payable_id)!.creditor_name}${p.payment_method && p.payment_method !== 'nao_informado' ? ' · ' + payableMethodLabel(p.payment_method, p.payment_method_detail) : ''}`, amount: -Number(p.amount) })),
     ...[...confirmedRefunds].map(([id, refund]) => ({ id: `rma-refund-${id}`, date: refund.refunded_at ?? null,
       description: `Reembolso de devolução — ${refund.customer_name ?? 'Cliente'}`, amount: -Number(refund.refund_amount) })),
   ];

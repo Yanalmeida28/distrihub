@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { FinancialOperationAttempts, type FinancialOperation, type FinancialRecovery } from '../lib/invoicePayments';
 import { isDefinitiveSaleRejection } from '../lib/pdv';
-import type { PayableAccount } from '../lib/accounts';
+import type { PayableAccount, PayableCreation } from '../lib/accounts';
+import type { PayablePaymentMethod } from '../lib/payableDetails';
 
 export function usePayables(userId?: string) {
   const [accounts, setAccounts] = useState<PayableAccount[]>([]);
@@ -75,14 +76,26 @@ export function usePayables(userId?: string) {
       let expected: string;
       if (payload.kind === 'payable-create') {
         const account = payload.account; expected = attempt.token;
-        response = await client.rpc('create_partner_payable', { p_id: attempt.token, p_branch_id: account.branch_id,
+        const args = { p_id: attempt.token, p_branch_id: account.branch_id,
           p_supplier_id: account.supplier_id, p_description: account.description, p_creditor_name: account.creditor_name,
-          p_category: account.category, p_amount: account.amount, p_due_date: account.due_date });
+          p_category: account.category, p_amount: account.amount, p_due_date: account.due_date };
+        response = account.purchased_on === undefined
+          ? await client.rpc('create_partner_payable', args)
+          : await client.rpc('create_partner_payable_purchase', {
+            p_purchase_id: attempt.token, p_branch_id: account.branch_id, p_supplier_id: account.supplier_id,
+            p_description: account.description, p_creditor_name: account.creditor_name, p_category: account.category,
+            p_total: account.amount, p_purchased_on: account.purchased_on,
+            p_payment_method: account.payment_method ?? 'nao_informado', p_payment_method_detail: account.payment_method_detail ?? null,
+            p_installments: account.installments ?? [{ id: attempt.token, amount: account.amount, due_date: account.due_date }],
+          });
       } else if (payload.kind === 'payable-payment') {
         expected = payload.payableId;
         const args = { p_payable_id: payload.payableId, p_amount: payload.amount, p_payment_id: attempt.token };
         // Tentativas antigas continuam usando a mesma operação, sem inventar outra data na recuperação.
-        response = payload.paymentDate === undefined
+        response = payload.paymentMethod !== undefined
+          ? await client.rpc('record_partner_payable_payment_details', { ...args, p_payment_date: payload.paymentDate,
+            p_payment_method: payload.paymentMethod, p_payment_method_detail: payload.paymentMethodDetail ?? null })
+          : payload.paymentDate === undefined
           ? await client.rpc('record_partner_payable_payment', args)
           : await client.rpc('record_partner_payable_payment_dated', { ...args, p_payment_date: payload.paymentDate });
       } else throw new Error('Operação de contas inválida.');
@@ -95,8 +108,8 @@ export function usePayables(userId?: string) {
       if (companyRef.current === company) await load();
     } finally { locks.current.delete(key); setAttemptVersion(version => version + 1); }
   };
-  const create = (account: Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at'>, id: string) => execute({ kind: 'payable-create', account }, id);
-  const pay = (id: string, amount: number, paymentId: string, paymentDate?: string) => execute({ kind: 'payable-payment', payableId: id, amount, ...(paymentDate === undefined ? {} : { paymentDate }) }, paymentId);
+  const create = (account: PayableCreation, id: string) => execute({ kind: 'payable-create', account }, id);
+  const pay = (id: string, amount: number, paymentId: string, paymentDate?: string, paymentMethod?: PayablePaymentMethod, paymentMethodDetail?: string | null) => execute({ kind: 'payable-payment', payableId: id, amount, ...(paymentDate === undefined ? {} : { paymentDate }), ...(paymentMethod === undefined ? {} : { paymentMethod, paymentMethodDetail: paymentMethodDetail ?? null }) }, paymentId);
   const recoveries: FinancialRecovery[] = [];
   let recoveryError = '';
   void attemptVersion;

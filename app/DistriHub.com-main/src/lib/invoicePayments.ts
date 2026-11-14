@@ -1,4 +1,5 @@
-import type { PayableAccount } from './accounts';
+import type { PayableCreation } from './accounts';
+import type { PayablePaymentMethod } from './payableDetails';
 type Attempt = { token: string; amount: number };
 type AttemptStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> & Partial<Pick<Storage, 'key' | 'length'>>;
 export type FinancialRecovery = { id: string; label: string; run: () => Promise<void> };
@@ -40,8 +41,8 @@ export class InvoicePaymentAttempts {
 }
 
 export type FinancialOperation =
-  | { kind: 'payable-create'; account: Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at'> }
-  | { kind: 'payable-payment'; payableId: string; amount: number; paymentDate?: string }
+  | { kind: 'payable-create'; account: PayableCreation }
+  | { kind: 'payable-payment'; payableId: string; amount: number; paymentDate?: string; paymentMethod?: PayablePaymentMethod; paymentMethodDetail?: string | null }
   | { kind: 'rma-credit'; rmaId: string; invoiceId: string; amount: number };
 export class FinancialOperationAttempts {
   constructor(private storage: AttemptStorage) {}

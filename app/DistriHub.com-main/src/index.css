@@ -1581,6 +1581,14 @@ select option:hover, select option:checked { background: #1d3445; color: #ffffff
 .admin-dre-grid > .module-card { min-width: 0; }
 .accounts-entry-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin: 16px 0; padding: 16px; border: 1px solid #29465f; border-radius: 8px; }
 .accounts-entry-form label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.payable-purchase-details{display:grid;gap:4px;margin-top:6px;white-space:normal;overflow-wrap:anywhere}
+.payable-payment-form{max-width:100%;min-width:0;white-space:normal}
+.payable-payment-form label{display:grid;gap:6px;margin-bottom:8px;min-width:0}
+.payable-payment-form input,.payable-payment-form select{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+.payable-schedule{grid-column:1 / -1;min-width:0;max-width:100%;padding:12px;border:1px solid var(--dh-border,#29465f);border-radius:8px}
+.payable-schedule p{font-size:12px;line-height:1.5}.payable-schedule ol{display:grid;gap:10px;padding-left:22px}
+.payable-schedule li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;min-width:0}
+.payable-schedule li>span{min-width:0;overflow-wrap:anywhere}.payable-schedule label{flex:0 1 190px;max-width:100%}
 .accounts-entry-form input, .accounts-entry-form select { width: 100%; min-height: 40px; padding: 8px; box-sizing: border-box; }
 .accounts-view-toggle { display: inline-flex; gap: 6px; }
 .accounts-kanban { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 8px; }

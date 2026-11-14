@@ -31,6 +31,62 @@ const invoice={id:'invoice',user_id:'owner',branch_id:'A',customer_id:'customer'
 const payable={id:'payable',user_id:'owner',branch_id:'A',description:'Aluguel',creditor_name:'Credor',amount:100,paid_amount:0,status:'aberta',due_date:'2026-10-20'};
 const button=(r,label)=>r.root.findAllByType('button').find(node=>node.children.join('')===label);
 
+test('purchase form saves purchase date, credit method and revised installment dates without creating a duplicate total account',async()=>{
+ const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule,saved=[];let r;
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Component,{kind:'pagar',invoices:[],payables:{accounts:[],loading:false,error:'',create:async account=>saved.push(account)},branches:[{id:'A',name:'Centro'}],suppliers:[{id:'supplier',name:'Credor'}],branchId:'A'}));});
+  await act(async()=>button(r,'Nova conta a pagar').props.onClick());
+  const change=async(label,value)=>act(async()=>r.root.findByProps({'aria-label':label}).props.onChange({target:{value}}));
+  await act(async()=>r.root.findAllByType('label').find(label=>label.children[0]==='Descrição').findByType('input').props.onChange({target:{value:'Compra parcelada'}}));
+  await act(async()=>r.root.findAllByType('select').find(select=>select.findAllByType('option').some(option=>option.props.value==='supplier')).props.onChange({target:{value:'supplier'}}));
+  await act(async()=>r.root.findByProps({inputMode:'decimal'}).props.onChange({target:{value:'100,00'}}));
+  await change('Data da compra','2025-01-15');await change('Forma de pagamento da conta','cartao_credito');
+  await change('Condição de pagamento','parcelado');await change('Quantidade de parcelas','3');await change('Vencimento','2025-01-31');
+  await change('Vencimento da parcela 2','2025-03-05');
+  await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));
+  assert.equal(saved.length,1);const account=saved[0];
+  assert.equal(account.purchased_on,'2025-01-15');assert.equal(account.payment_method,'cartao_credito');assert.equal(account.amount,100);
+  assert.deepEqual(Array.from(account.installments,item=>item.amount),[33.34,33.33,33.33]);
+  assert.deepEqual(Array.from(account.installments,item=>item.due_date),['2025-01-31','2025-03-05','2025-03-31']);
+  assert.equal(new Set(account.installments.map(item=>item.id)).size,3);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('purchase recovery retains every installment and payment recovery retains the actual method',async()=>{
+ const requests=[];let fail=true,current,r;
+ const client={auth:{getUser:async()=>({data:{user:{id:'owner'}},error:null})},rpc:async(name,args)=>{requests.push([name,args]);return fail?{error:{message:'Resposta perdida'}}:{data:args.p_purchase_id??args.p_payable_id,error:null};},from:()=>{const q={select:()=>q,eq:()=>q,order:()=>q,range:async()=>({data:[payable],error:null})};return q;}};
+ const e=environment(client),usePayables=e.load('hooks/usePayables.ts').usePayables;
+ function Probe(){current=usePayables('owner');return null;}
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Probe));});
+  const account={branch_id:'A',supplier_id:null,description:'Compra',creditor_name:'Credor',category:'outros',amount:20,due_date:'2025-10-15',purchased_on:'2025-10-01',payment_method:'cartao_credito',payment_method_detail:null,installments:[{id:'one',amount:10,due_date:'2025-10-15'},{id:'two',amount:10,due_date:'2025-11-15'}]};
+  await act(async()=>assert.rejects(current.create(account,'purchase-token'),/Resposta perdida/));
+  await act(async()=>r.unmount());await act(async()=>{r=Renderer.create(React.createElement(Probe));});
+  await act(async()=>assert.rejects(current.create({...account,purchased_on:'2025-10-02'},'new'),/sem confirmação/));
+  fail=false;await act(async()=>current.recoveries[0].run());
+  assert.equal(requests[1][0],'create_partner_payable_purchase');assert.deepEqual(JSON.parse(JSON.stringify(requests[1][1])),JSON.parse(JSON.stringify(requests[0][1])));
+  fail=true;await act(async()=>assert.rejects(current.pay('payable',10,'payment-token','2025-10-15','pix'),/Resposta perdida/));
+  await act(async()=>assert.rejects(current.pay('payable',10,'new','2025-10-15','cartao_debito'),/sem confirmação/));
+  fail=false;await act(async()=>current.recoveries[0].run());
+  assert.equal(requests.at(-1)[0],'record_partner_payable_payment_details');assert.equal(requests.at(-1)[1].p_payment_method,'pix');assert.equal(requests.at(-1)[1].p_payment_id,'payment-token');
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('payment starts with the planned method and records the actual method without changing the purchase',async()=>{
+ const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule,saved=[];let r;
+ const account={...payable,payment_method:'cartao_credito',purchased_on:'2025-10-01',installment_number:1,installment_count:3,purchase_total:300};
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Component,{kind:'pagar',invoices:[],payables:{accounts:[account],loading:false,error:'',pay:async(...args)=>saved.push(args)},branches:[],suppliers:[],branchId:'A'}));});
+  assert.match(JSON.stringify(r.toJSON()),/01\/10\/2025/);
+  await act(async()=>button(r,'Registrar pagamento').props.onClick());
+  const method=r.root.findByProps({'aria-label':'Forma deste pagamento'});
+  assert.equal(method.props.value,'cartao_credito');
+  await act(async()=>method.props.onChange({target:{value:'pix'}}));
+  await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));
+  assert.equal(saved.length,1);assert.equal(saved[0][4],'pix');assert.equal(account.payment_method,'cartao_credito');
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
 test('payment form uses the selected actual date and refuses invalid or future dates before saving',async()=>{
  const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule,saved=[];let r;
  try {
@@ -91,7 +147,7 @@ test('selecting a supplier preserves the chosen expense category and explicit in
    const description=r.root.findAllByType('label').find(label=>label.children[0]==='Descrição').findByType('input');
    await act(async()=>description.props.onChange({target:{value:'Conta de teste'}}));
    await act(async()=>r.root.findByProps({inputMode:'decimal'}).props.onChange({target:{value:'30,00'}}));
-   await act(async()=>r.root.findByProps({type:'date'}).props.onChange({target:{value:'2026-10-19'}}));
+   await act(async()=>r.root.findByProps({'aria-label':'Vencimento'}).props.onChange({target:{value:'2026-10-19'}}));
    await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));
    assert.equal(saved.at(-1).category,category);assert.equal(saved.at(-1).supplier_id,'utility');assert.equal(saved.at(-1).amount,30);
   }

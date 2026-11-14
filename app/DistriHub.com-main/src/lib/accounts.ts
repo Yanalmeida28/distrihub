@@ -1,4 +1,5 @@
 import type { PartnerInvoice } from '../types';
+import type { PayableInstallment, PayablePaymentMethod } from './payableDetails';
 
 export interface PayableAccount {
   id: string;
@@ -11,9 +12,17 @@ export interface PayableAccount {
   amount: number;
   paid_amount: number;
   due_date: string;
+  purchased_on?: string | null;
+  payment_method?: PayablePaymentMethod | null;
+  payment_method_detail?: string | null;
+  purchase_id?: string | null;
+  installment_number?: number | null;
+  installment_count?: number | null;
+  purchase_total?: number | null;
   status: 'aberta' | 'parcial' | 'paga' | 'cancelada';
   created_at: string;
 }
+export type PayableCreation = Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at' | 'purchase_id' | 'installment_number' | 'installment_count' | 'purchase_total'> & { installments?: PayableInstallment[] };
 
 export function accountPaid(account: { amount: number; paid_amount?: number; status: string }): number {
   return account.status === 'cancelada' ? 0 : Number(account.paid_amount ?? (account.status === 'paga' ? account.amount : 0));
