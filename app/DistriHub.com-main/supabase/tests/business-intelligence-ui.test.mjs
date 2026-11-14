@@ -26,6 +26,45 @@ const base = {
 const adminProps = { userId: 'company', sales: [], products: [], salespeople: [], customers: [], branches: [], movements: [],
   ownerView: true, allowedModules: ['relatorios', 'financeiro'], intelligenceAllowed: true, intelligenceDataReady: true };
 
+test('equivalent financial lists do not reload, while changed data, branches and manual refresh do', async () => {
+  const { load, calls } = fixture();
+  const useMovements = load('hooks/useFinancialMovements.ts').useFinancialMovements;
+  let result;
+  function Probe({ invoices = [], payables = [], branch = 'A' }) {
+    result = useMovements('company', branch, invoices, payables, true);
+    return null;
+  }
+  const render = props => React.createElement(Probe, props);
+  await act(async () => { renderer = Renderer.create(render({ invoices: [{ id: 'one', paid: 0 }] })); });
+  assert.equal(calls.length, 3); assert.equal(result.loading, false);
+  await act(async () => renderer.update(render({ invoices: [{ id: 'one', paid: 0 }] })));
+  assert.equal(calls.length, 3);
+  await act(async () => renderer.update(render({ invoices: [{ id: 'one', paid: 10 }] })));
+  assert.equal(calls.length, 6);
+  await act(async () => result.reload());
+  assert.equal(calls.length, 9);
+  await act(async () => renderer.update(render({ branch: 'B', invoices: [{ id: 'one', paid: 10 }] })));
+  assert.equal(calls.length, 12);
+});
+
+test('intelligence refreshes once per activation and branch despite callback and readiness changes', async () => {
+  const { load } = fixture();
+  const Component = load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;
+  let refreshed = 0;
+  const render = patch => React.createElement(Component, { ...base, onRefreshPayables: async () => { refreshed++; }, ...patch });
+  await act(async () => { renderer = Renderer.create(render()); });
+  assert.equal(refreshed, 1);
+  await act(async () => renderer.update(render()));
+  await act(async () => renderer.update(render({ dataReady: false })));
+  await act(async () => renderer.update(render()));
+  assert.equal(refreshed, 1);
+  await act(async () => renderer.update(render({ branchId: 'B' })));
+  assert.equal(refreshed, 2);
+  await act(async () => renderer.update(render({ isActive: false })));
+  await act(async () => renderer.update(render()));
+  assert.equal(refreshed, 3);
+});
+
 test('the automatic result uses registered expenses, responds to changes and displays profit, loss and its calculation', async () => {
   const { load } = fixture();
   const Component = load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;

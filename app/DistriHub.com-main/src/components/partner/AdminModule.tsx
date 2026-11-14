@@ -260,8 +260,8 @@ function AdminModuleInner({
   const [reportsInitialTab, setReportsInitialTab] = useState<'vendas' | 'financeiro' | 'estoque' | 'sem-giro' | 'crm'>('vendas');
   useEffect(() => { if (isActive) onDataScopeChange?.(activeAdminTab); }, [activeAdminTab, isActive, onDataScopeChange]);
   const payables = usePayables(userId);
-  const scopedInvoices = invoices.filter(invoice => !branchFilter || invoice.branch_id === branchFilter);
-  const scopedPayables = payables.accounts.filter(account => !branchFilter || account.branch_id === branchFilter);
+  const scopedInvoices = useMemo(() => invoices.filter(invoice => !branchFilter || invoice.branch_id === branchFilter), [invoices, branchFilter]);
+  const scopedPayables = useMemo(() => payables.accounts.filter(account => !branchFilter || account.branch_id === branchFilter), [payables.accounts, branchFilter]);
 
   useEffect(() => {
     setBranchFilter(selectedBranchId);

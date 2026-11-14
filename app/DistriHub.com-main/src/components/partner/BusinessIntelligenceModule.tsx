@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlertTriangle, ArrowUpRight, Calculator, CalendarDays, Lightbulb, ShieldCheck, Sparkles } from 'lucide-react';
 import type { PartnerBranch, PartnerCustomer, PartnerInvoice, PartnerProduct, PartnerSale, RmaRequest, StockMovement } from '../../types';
 import { money } from '../../utils';
@@ -50,13 +50,21 @@ export function BusinessIntelligenceModule(props: Props) {
   const scopedPayables = useMemo(() => intelligenceScope(payables, companyId, branchId), [payables, companyId, branchId]);
   const ledger = useFinancialMovements(companyId, branchId, scopedInvoices, scopedPayables, isActive && validBranch && dataReady && !dataError && !payablesLoading && !payablesError);
   const reloadLedger = ledger.reload;
+  const refreshPayables = useRef(onRefreshPayables);
+  refreshPayables.current = onRefreshPayables;
+  const activatedContext = useRef<string | null>(null);
   useEffect(() => {
-    if (!isActive || !validBranch || !dataReady || dataError) return;
-    void onRefreshPayables?.();
-    const refresh = () => { void onRefreshPayables?.(); reloadLedger(); };
+    if (!isActive) { activatedContext.current = null; return; }
+    if (!validBranch || !dataReady || dataError) return;
+    const context = `${companyId}:${branchId}`;
+    if (activatedContext.current !== context) {
+      activatedContext.current = context;
+      void refreshPayables.current?.();
+    }
+    const refresh = () => { void refreshPayables.current?.(); reloadLedger(); };
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
-  }, [companyId, branchId, isActive, validBranch, dataReady, dataError, onRefreshPayables, reloadLedger]);
+  }, [companyId, branchId, isActive, validBranch, dataReady, dataError, reloadLedger]);
   const model = useMemo(() => buildBusinessIntelligence({ company: companyId, branch: branchId, now, days, period, rmas,
     sales, products, customers, movements, invoices: scopedInvoices, payables: scopedPayables,
     receipts: ledger.receipts, payments: ledger.payments, refunds: ledger.refunds,

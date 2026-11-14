@@ -2164,7 +2164,7 @@ export function PartnerPanel({
                 onReportScopeChange={setReportDataScope}
                 intelligenceAllowed={canViewBusinessIntelligence(Boolean(identity && !identity.salespersonId && identity.authUserId === identity.companyUserId), !identity?.salespersonId,
                   ['administrativo', 'relatorios', 'financeiro'].filter(module => !blockedTabs.includes(module as Tab) && canUseSaasFeature(saas.subscription, module)))}
-                intelligenceDataReady={partner.resourcesReady && !partner.loading && !partner.syncing}
+                intelligenceDataReady={partner.resourcesReady && !partner.loading}
                 intelligenceDataError={partner.error || partner.syncError}
                 lastSyncedAt={partner.lastSyncedAt}
                 allowedModules={['cadastros', 'relatorios', 'fiscal', 'financeiro', 'configuracoes'].filter(module => !blockedTabs.includes(module as Tab) && canUseSaasFeature(saas.subscription, module))}

@@ -10,6 +10,8 @@ export function useFinancialMovements(userId: string | undefined, branchId: stri
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const reload = useCallback(() => setRevision(value => value + 1), []);
+  // A sincronização pode recriar as listas sem alterar seu conteúdo. Isso não exige outra consulta.
+  const sourceVersion = JSON.stringify([invoices, payables]);
   useEffect(() => {
     if (!isActive) return;
     let active = true;
@@ -43,6 +45,6 @@ export function useFinancialMovements(userId: string | undefined, branchId: stri
     void load().catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Falha ao consultar movimentos.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [userId, branchId, invoices, payables, revision, isActive]);
+  }, [userId, branchId, sourceVersion, revision, isActive]);
   return { receipts, payments, refunds, loading, error, reload };
 }
