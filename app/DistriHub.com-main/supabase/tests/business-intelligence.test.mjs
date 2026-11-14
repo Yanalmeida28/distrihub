@@ -24,6 +24,10 @@ test('monthly results include a late registered expense by original due date, wh
   assert.equal(october.currentRevenue, 100); assert.equal(october.result.expenses, 30); assert.equal(october.result.result, 30); assert.equal(october.paid, 0);
   const november = h.buildBusinessIntelligence({ ...data, selectedMonth: '2026-11' });
   assert.equal(november.result.expenses, 0); assert.equal(november.paid, 30);
+  const dated = { ...data, payments: data.payments.map(payment => ({ ...payment, paid_at: '2026-10-15T15:00:00Z' })) };
+  const correctedOctober = h.buildBusinessIntelligence(dated);
+  assert.equal(correctedOctober.paid, 30); assert.equal(correctedOctober.result.result, october.result.result);
+  assert.equal(h.buildBusinessIntelligence({ ...dated, selectedMonth: '2026-11' }).paid, 0);
 });
 
 test('custom periods include both selected days and reject missing, impossible and reversed dates', () => {

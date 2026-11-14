@@ -19,7 +19,11 @@ Os dias seguem o horário de São Paulo. Datas inválidas ou invertidas bloqueia
 
 O resultado gerencial inclui a despesa pelo vencimento original e considera seu valor total, mesmo que ainda esteja em aberto. A data em que ela foi cadastrada continua preservada. Compras de estoque ficam separadas para evitar descontá-las novamente além do custo das mercadorias vendidas.
 
-**Pagamento é diferente de despesa:** registrar o pagamento agora gera um movimento de caixa na data do registro. A tela atual não permite escolher uma data passada para o pagamento. O lançamento retroativo pelo vencimento corrige a estimativa de resultado daquele período, mas não reconstitui o caixa histórico nem substitui uma DRE contábil por competência.
+**Pagamento é diferente de despesa:** em **Registrar pagamento**, informe a **Data do pagamento**. O padrão é hoje, mas você pode selecionar uma data passada em que realmente pagou. A saída entra no fluxo de caixa dessa data, enquanto o instante do lançamento continua preservado para conferência. Datas futuras não são aceitas.
+
+Exemplo: despesa vencida em outubro, paga em outubro e cadastrada em novembro. Use o vencimento original e a data real de pagamento de outubro. O resultado e a saída de caixa serão apresentados em outubro. Se ela foi paga apenas em novembro, informe novembro no pagamento; o resultado e o caixa podem pertencer a meses diferentes.
+
+Pagamentos antigos mantêm a data já registrada. A alteração não muda pagamentos anteriores nem oferece edição de pagamentos já confirmados. Tentativas com falha de conexão guardam valor, data e identificador para recuperação sem duplicidade. O vencimento continua sendo uma aproximação gerencial e não substitui uma DRE contábil por competência.
 
 ## Implementação e verificação
 

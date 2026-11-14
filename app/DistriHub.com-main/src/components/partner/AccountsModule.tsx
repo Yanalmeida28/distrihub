@@ -5,6 +5,7 @@ import { money } from '../../utils';
 import { FinancialRecoveryPanel } from './FinancialRecoveryPanel';
 import type { FinancialRecovery } from '../../lib/invoicePayments';
 import type { usePayables } from '../../hooks/usePayables';
+import { localDate } from '../../lib/financialFlow';
 
 type Props = {
   contextKey?: string;
@@ -37,7 +38,7 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ description: '', creditor: '', category: 'outros', supplierId: '', branchId, amount: '', dueDate: '' });
-  const [payment, setPayment] = useState<{ id: string; token: string; amount: string } | null>(null);
+  const [payment, setPayment] = useState<{ id: string; token: string; amount: string; date: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const creationId = useRef<string | null>(null);
@@ -64,12 +65,16 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
     if (accountBalance(account) <= 0 || (kind === 'receber' && !onReceive)) return null;
     if (payment?.id !== account.id) {
       return <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => {
-        setPayment({ id: account.id, token: crypto.randomUUID(), amount: accountBalance(account).toFixed(2) });
+        setPayment({ id: account.id, token: crypto.randomUUID(), amount: accountBalance(account).toFixed(2), date: localDate(new Date().toISOString()) });
         setError('');
       }}>{kind === 'pagar' ? 'Registrar pagamento' : 'Registrar recebimento'}</button>;
     }
     return <form onSubmit={confirmPayment}>
       <label>Valor (R$)<input aria-label="Valor do pagamento ou recebimento" inputMode="decimal" required value={payment.amount} disabled={busy || pending || !isActive} onChange={e => setPayment({ ...payment, amount: e.target.value })} /></label>
+      {kind === 'pagar' && <>
+        <label>Data do pagamento<input aria-label="Data do pagamento" required type="date" min="0001-01-01" max={localDate(new Date().toISOString())} value={payment.date} disabled={busy || pending || !isActive} onChange={e => setPayment({ ...payment, date: e.target.value })} /></label>
+        <p>Informe quando você realmente pagou. A saída entrará no fluxo de caixa dessa data, mesmo que você esteja lançando hoje.</p>
+      </>}
       <button className="module-submit-btn" disabled={busy || pending || !isActive}>{busy ? 'Registrando…' : 'Confirmar'}</button>{' '}
       <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => setPayment(null)}>Cancelar</button>
     </form>;
@@ -100,15 +105,18 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
     const account = accounts.find(a => a.id === payment.id);
     const value = parseAmount(payment.amount);
     if (!account || !Number.isFinite(value) || value <= 0 || value > accountBalance(account)) { setError('Informe um valor positivo que não exceda o saldo.'); return; }
+    if (kind === 'pagar' && (!/^\d{4}-\d{2}-\d{2}$/.test(payment.date) || !Number.isFinite(Date.parse(payment.date))
+      || new Date(payment.date).toISOString().slice(0, 10) !== payment.date || payment.date < '0001-01-01'
+      || payment.date > localDate(new Date().toISOString()))) { setError('Informe a data real do pagamento, até hoje.'); return; }
     lock.current = true; setBusy(true); setError(''); setSuccess('');
     try {
-      if (kind === 'pagar') await payables.pay(account.id, value, payment.token);
+      if (kind === 'pagar') await payables.pay(account.id, value, payment.token, payment.date);
       else {
         if (!onReceive) throw new Error('Recebimento indisponível.');
         await onReceive(account.id, value, payment.token);
       }
       if (!mounted.current || !activeRef.current) return;
-      setPayment(null); setSuccess(kind === 'pagar' ? 'Pagamento registrado.' : 'Recebimento registrado.');
+      setPayment(null); setSuccess(kind === 'pagar' ? `Pagamento registrado com data de ${payment.date.split('-').reverse().join('/')}.` : 'Recebimento registrado.');
     } catch (cause) { if (mounted.current && activeRef.current) setError(cause instanceof Error ? cause.message : 'Não foi possível registrar.'); }
     finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
@@ -144,7 +152,7 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
       <label>Credor<input required maxLength={200} value={form.creditor} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, creditor: e.target.value })} /></label>
       <label>Valor (R$)<input required inputMode="decimal" placeholder="0,00" value={form.amount} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
       <label>Vencimento<input required type="date" value={form.dueDate} disabled={busy || pending || !isActive} aria-describedby="payable-date-help" onChange={e => setForm({ ...form, dueDate: e.target.value })} /></label>
-      <p id="payable-date-help">Esqueceu uma despesa? Informe o vencimento original, mesmo de um mês passado. Ela será considerada nesse período na Inteligência Empresarial. O pagamento registrado agora entra no fluxo de caixa na data do registro.</p>
+      <p id="payable-date-help">Esqueceu uma despesa? Informe o vencimento original, mesmo de um mês passado. Ela será considerada nesse período na Inteligência Empresarial. Ao registrar o pagamento, informe a data em que você realmente pagou; essa data define a saída no fluxo de caixa.</p>
       <p style={{ gridColumn: '1 / -1' }}>A categoria define como a conta entra no resultado. Escolha compra de mercadorias / estoque apenas para reposição de produtos; serviços, taxas e demais gastos usam a categoria de despesa correspondente. Selecionar um fornecedor não muda essa escolha.</p>
       <div><button className="module-submit-btn" disabled={busy || pending || !isActive}>{busy ? 'Salvando…' : 'Cadastrar'}</button> <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => setCreating(false)}>Cancelar</button></div>
     </form>}

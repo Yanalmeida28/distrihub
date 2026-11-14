@@ -41,7 +41,7 @@ export class InvoicePaymentAttempts {
 
 export type FinancialOperation =
   | { kind: 'payable-create'; account: Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at'> }
-  | { kind: 'payable-payment'; payableId: string; amount: number }
+  | { kind: 'payable-payment'; payableId: string; amount: number; paymentDate?: string }
   | { kind: 'rma-credit'; rmaId: string; invoiceId: string; amount: number };
 export class FinancialOperationAttempts {
   constructor(private storage: AttemptStorage) {}

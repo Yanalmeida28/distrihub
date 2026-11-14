@@ -80,7 +80,11 @@ export function usePayables(userId?: string) {
           p_category: account.category, p_amount: account.amount, p_due_date: account.due_date });
       } else if (payload.kind === 'payable-payment') {
         expected = payload.payableId;
-        response = await client.rpc('record_partner_payable_payment', { p_payable_id: payload.payableId, p_amount: payload.amount, p_payment_id: attempt.token });
+        const args = { p_payable_id: payload.payableId, p_amount: payload.amount, p_payment_id: attempt.token };
+        // Tentativas antigas continuam usando a mesma operação, sem inventar outra data na recuperação.
+        response = payload.paymentDate === undefined
+          ? await client.rpc('record_partner_payable_payment', args)
+          : await client.rpc('record_partner_payable_payment_dated', { ...args, p_payment_date: payload.paymentDate });
       } else throw new Error('Operação de contas inválida.');
       if (response.error) {
         if (!pending && isDefinitiveSaleRejection(response.error.code ?? '')) store.confirm(scope, payload.kind);
@@ -92,7 +96,7 @@ export function usePayables(userId?: string) {
     } finally { locks.current.delete(key); setAttemptVersion(version => version + 1); }
   };
   const create = (account: Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at'>, id: string) => execute({ kind: 'payable-create', account }, id);
-  const pay = (id: string, amount: number, paymentId: string) => execute({ kind: 'payable-payment', payableId: id, amount }, paymentId);
+  const pay = (id: string, amount: number, paymentId: string, paymentDate?: string) => execute({ kind: 'payable-payment', payableId: id, amount, ...(paymentDate === undefined ? {} : { paymentDate }) }, paymentId);
   const recoveries: FinancialRecovery[] = [];
   let recoveryError = '';
   void attemptVersion;

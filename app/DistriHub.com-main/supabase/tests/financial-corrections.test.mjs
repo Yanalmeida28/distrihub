@@ -31,6 +31,50 @@ const invoice={id:'invoice',user_id:'owner',branch_id:'A',customer_id:'customer'
 const payable={id:'payable',user_id:'owner',branch_id:'A',description:'Aluguel',creditor_name:'Credor',amount:100,paid_amount:0,status:'aberta',due_date:'2026-10-20'};
 const button=(r,label)=>r.root.findAllByType('button').find(node=>node.children.join('')===label);
 
+test('payment form uses the selected actual date and refuses invalid or future dates before saving',async()=>{
+ const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule,saved=[];let r;
+ try {
+  await act(async()=>{r=Renderer.create(React.createElement(Component,{kind:'pagar',invoices:[],payables:{accounts:[payable],loading:false,error:'',pay:async(...args)=>saved.push(args)},branches:[],suppliers:[],branchId:'A'}));});
+  await act(async()=>button(r,'Registrar pagamento').props.onClick());
+  const date=()=>r.root.findByProps({'aria-label':'Data do pagamento'});
+  const confirm=()=>r.root.findByType('form').props.onSubmit({preventDefault(){}});
+  for(const value of ['', '2026-02-30','9999-12-31']){
+   await act(async()=>date().props.onChange({target:{value}}));await act(async()=>confirm());assert.equal(saved.length,0);
+  }
+  await act(async()=>date().props.onChange({target:{value:'2025-10-15'}}));
+  await act(async()=>confirm());
+  assert.equal(saved.length,1);assert.equal(saved[0][0],'payable');assert.equal(saved[0][1],100);assert.equal(saved[0][3],'2025-10-15');
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('dated payment recovery preserves the date and token after lost response and rejects a changed date',async()=>{
+ const requests=[];let fail=true,current,r;
+ const client={auth:{getUser:async()=>({data:{user:{id:'owner'}},error:null})},rpc:async(name,args)=>{requests.push([name,args]);return fail?{error:{message:'Resposta perdida'}}:{data:'payable',error:null};},from:()=>{const q={select:()=>q,eq:()=>q,order:()=>q,range:async()=>({data:[payable],error:null})};return q;}};
+ const e=environment(client),usePayables=e.load('hooks/usePayables.ts').usePayables;
+ function Probe(){current=usePayables('owner');return null;}
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Probe));});
+  await act(async()=>assert.rejects(current.pay('payable',20,'dated-token','2025-10-15'),/Resposta perdida/));
+  await act(async()=>r.unmount());
+  await act(async()=>{r=Renderer.create(React.createElement(Probe));});
+  await act(async()=>assert.rejects(current.pay('payable',20,'new-token','2025-10-16'),/sem confirmação/));
+  assert.equal(requests.length,1);
+  fail=false;await act(async()=>current.recoveries[0].run());
+  assert.equal(requests[1][0],'record_partner_payable_payment_dated');assert.equal(requests[1][1].p_payment_date,'2025-10-15');assert.equal(requests[1][1].p_payment_id,'dated-token');
+  assert.equal(current.recoveries.length,0);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('cash uses the actual payment date, while legacy payments preserve registration dates',()=>{
+ const flow=environment().load('lib/financialFlow.ts');
+ const rows=flow.actualFinancialFlow([],[],[],[
+  {id:'retro',payable_id:'payable',amount:20,created_at:'2026-11-14T12:00:00Z',paid_at:'2026-10-31T15:00:00Z'},
+  {id:'old',payable_id:'payable',amount:10,created_at:'2026-09-01T02:00:00Z',paid_at:null},
+ ],[payable],[]);
+ assert.equal(flow.localDate(rows[0].date),'2026-10-31');assert.equal(flow.localDate(rows[1].date),'2026-08-31');
+ assert.equal(rows.reduce((sum,row)=>sum+row.amount,0),-30);
+});
+
 test('selecting a supplier preserves the chosen expense category and explicit inventory purchases remain separate', async () => {
  const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule;
  let r;const saved=[];
