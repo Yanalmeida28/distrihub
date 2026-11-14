@@ -1583,6 +1583,12 @@ select option:hover, select option:checked { background: #1d3445; color: #ffffff
 .accounts-entry-form label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .payable-purchase-details{display:grid;gap:4px;margin-top:6px;white-space:normal;overflow-wrap:anywhere}
 .payable-payment-form{max-width:100%;min-width:0;white-space:normal}
+.payable-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;white-space:normal}
+.payable-management{min-width:0;max-width:100%;overflow-wrap:anywhere;scroll-margin-top:90px}
+.payable-management p{margin:10px 0;line-height:1.6}
+.payable-management .accounts-entry-form>div:last-child{display:flex;flex-wrap:wrap;gap:10px}
+.partner-panel .payable-management .payable-delete-confirm{background:#b42318;color:#fff;border-color:#b42318}
+.payable-management textarea{width:100%;max-width:100%;min-width:0;min-height:90px;box-sizing:border-box;resize:vertical}
 .payable-payment-form label{display:grid;gap:6px;margin-bottom:8px;min-width:0}
 .payable-payment-form input,.payable-payment-form select{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
 .payable-schedule{grid-column:1 / -1;min-width:0;max-width:100%;padding:12px;border:1px solid var(--dh-border,#29465f);border-radius:8px}

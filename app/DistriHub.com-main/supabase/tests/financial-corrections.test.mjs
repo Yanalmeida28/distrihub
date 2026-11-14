@@ -31,6 +31,48 @@ const invoice={id:'invoice',user_id:'owner',branch_id:'A',customer_id:'customer'
 const payable={id:'payable',user_id:'owner',branch_id:'A',description:'Aluguel',creditor_name:'Credor',amount:100,paid_amount:0,status:'aberta',due_date:'2026-10-20'};
 const button=(r,label)=>r.root.findAllByType('button').find(node=>node.children.join('')===label);
 
+test('paid accounts can be edited or excluded only after review, with reason and archive filter',async()=>{
+ const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule,calls=[];let r;
+ const paid={...payable,paid_amount:100,status:'paga',revision:2};
+ const props={kind:'pagar',invoices:[],payables:{accounts:[paid],loading:false,error:'',update:async(...args)=>calls.push(['edit',...args]),remove:async(...args)=>calls.push(['delete',...args])},branches:[{id:'A',name:'Centro'}],suppliers:[],branchId:'A'};
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Component,props));});
+  await act(async()=>button(r,'Pagas').props.onClick());
+  await act(async()=>button(r,'Editar conta').props.onClick());
+  await act(async()=>r.root.findByProps({'aria-label':'Editar valor da conta'}).props.onChange({target:{value:'99'}}));
+  await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(calls.length,0);
+  await act(async()=>r.root.findByProps({'aria-label':'Editar valor da conta'}).props.onChange({target:{value:'100'}}));
+  await act(async()=>r.root.findByProps({'aria-label':'Editar descrição da conta'}).props.onChange({target:{value:'Nome corrigido'}}));
+  await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(calls[0][0],'edit');assert.equal(calls[0][2].description,'Nome corrigido');assert.equal(calls[0][3],2);
+  await act(async()=>button(r,'Excluir conta').props.onClick());assert.equal(calls.length,1);
+  assert.match(JSON.stringify(r.toJSON()),/não devolve dinheiro/);
+  await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(calls.length,1);
+  await act(async()=>r.root.findByProps({'aria-label':'Motivo da exclusão'}).props.onChange({target:{value:'Conta duplicada'}}));
+  await act(async()=>r.root.findByType('form').props.onSubmit({preventDefault(){}}));assert.equal(calls[1][0],'delete');assert.equal(calls[1][2],'Conta duplicada');
+  await act(async()=>r.update(React.createElement(Component,{...props,payables:{...props.payables,accounts:[{...paid,status:'cancelada',deleted_at:'2026-11-14T15:00:00Z',deletion_reason:'Conta duplicada'}]}})));
+  assert.equal(r.root.findAllByType('button').filter(node=>node.children.join('')==='Editar conta').length,0);
+  await act(async()=>button(r,'Excluídas').props.onClick());assert.match(JSON.stringify(r.toJSON()),/Conta duplicada/);
+  assert.equal(r.root.findAllByType('button').filter(node=>node.children.join('')==='Excluir conta').length,0);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('management recovery preserves the correction and stale revision proof clears a pending request',async()=>{
+ const requests=[];let mode='lost',current,r;
+ const client={auth:{getUser:async()=>({data:{user:{id:'owner'}},error:null})},rpc:async(name,args)=>{requests.push([name,args]);return mode==='lost'?{error:{message:'Resposta perdida'}}:mode==='stale'?{error:{code:'40001',message:'A conta mudou'}}:{data:'payable',error:null};},from:()=>{const q={select:()=>q,eq:()=>q,order:()=>q,range:async()=>({data:[{...payable,revision:4}],error:null})};return q;}};
+ const e=environment(client),usePayables=e.load('hooks/usePayables.ts').usePayables;
+ function Probe(){current=usePayables('owner');return null;}
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Probe));});
+  const patch={description:'Corrigido',creditor_name:'Credor',supplier_id:null,category:'outros',amount:100,due_date:'2026-10-20',purchased_on:null,payment_method:'pix',payment_method_detail:null};
+  await act(async()=>assert.rejects(current.update('payable',patch,3,'edit-token'),/Resposta perdida/));
+  await act(async()=>r.unmount());await act(async()=>{r=Renderer.create(React.createElement(Probe));});
+  await act(async()=>assert.rejects(current.update('payable',{...patch,amount:200},3,'new-token'),/sem confirmação/));
+  mode='ok';await act(async()=>current.recoveries[0].run());assert.equal(requests[1][1].p_request_id,'edit-token');assert.equal(requests[1][1].p_action,'edit');
+  mode='lost';await act(async()=>assert.rejects(current.remove('payable','Duplicada',3,'delete-token'),/Resposta perdida/));
+  mode='stale';await act(async()=>assert.rejects(current.recoveries[0].run(),/mudou/));assert.equal(current.recoveries.length,0);assert.equal(current.accounts[0].revision,4);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
 test('purchase form saves purchase date, credit method and revised installment dates without creating a duplicate total account',async()=>{
  const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule,saved=[];let r;
  try{

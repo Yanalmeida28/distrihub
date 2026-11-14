@@ -121,7 +121,7 @@ export function buildBusinessIntelligence(input: BusinessInput) {
   const invoiceIds = new Set(invoices.map(invoice => invoice.id));
   const payableIds = new Set(payables.map(account => account.id));
   const receipts = intelligenceScope(input.receipts, company, branch).filter(row => invoiceIds.has(row.invoice_id));
-  const payments = input.payments.filter(row => row.user_id === company && payableIds.has(row.payable_id));
+  const payments = input.payments.filter(row => !row.voided_at && row.user_id === company && payableIds.has(row.payable_id));
   const refunds = intelligenceScope(input.refunds, company, branch);
   const ledger = actualFinancialFlow(sales, movements, receipts, payments, payables, invoices, refunds);
   const periodLedger = ledger.filter(row => inRange(row.date, range.start, range.end));

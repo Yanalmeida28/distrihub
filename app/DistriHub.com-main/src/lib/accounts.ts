@@ -1,5 +1,6 @@
 import type { PartnerInvoice } from '../types';
 import type { PayableInstallment, PayablePaymentMethod } from './payableDetails';
+export const payableCategories = { fornecedor: 'Compra de mercadorias / estoque', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outras despesas' };
 
 export interface PayableAccount {
   id: string;
@@ -19,10 +20,14 @@ export interface PayableAccount {
   installment_number?: number | null;
   installment_count?: number | null;
   purchase_total?: number | null;
+  revision?: number;
+  deleted_at?: string | null;
+  deletion_reason?: string | null;
   status: 'aberta' | 'parcial' | 'paga' | 'cancelada';
   created_at: string;
 }
-export type PayableCreation = Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at' | 'purchase_id' | 'installment_number' | 'installment_count' | 'purchase_total'> & { installments?: PayableInstallment[] };
+export type PayableCreation = Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at' | 'purchase_id' | 'installment_number' | 'installment_count' | 'purchase_total' | 'revision' | 'deleted_at' | 'deletion_reason'> & { installments?: PayableInstallment[] };
+export type PayableEdit = Pick<PayableAccount, 'description' | 'creditor_name' | 'supplier_id' | 'category' | 'amount' | 'due_date' | 'purchased_on' | 'payment_method' | 'payment_method_detail'>;
 
 export function accountPaid(account: { amount: number; paid_amount?: number; status: string }): number {
   return account.status === 'cancelada' ? 0 : Number(account.paid_amount ?? (account.status === 'paga' ? account.amount : 0));

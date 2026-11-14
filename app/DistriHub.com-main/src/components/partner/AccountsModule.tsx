@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PartnerBranch, PartnerInvoice, PartnerSupplier } from '../../types';
-import { accountBalance, accountPaid, isOverdue, type PayableAccount } from '../../lib/accounts';
+import { accountBalance, accountPaid, isOverdue, payableCategories, type PayableAccount } from '../../lib/accounts';
 import { money } from '../../utils';
 import { FinancialRecoveryPanel } from './FinancialRecoveryPanel';
 import type { FinancialRecovery } from '../../lib/invoicePayments';
 import type { usePayables } from '../../hooks/usePayables';
 import { localDate } from '../../lib/financialFlow';
 import { payablePaymentMethods, payableMethodLabel, payableSchedule, validPayableDay, type PayablePaymentMethod } from '../../lib/payableDetails';
+import { PayableManagementPanel } from './PayableManagementPanel';
 
 type Props = {
   contextKey?: string;
@@ -22,7 +23,7 @@ type Props = {
   onReceive?: (id: string, amount: number, requestId?: string) => Promise<void>;
 };
 
-const categories = { fornecedor: 'Compra de mercadorias / estoque', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outras despesas' };
+const categories = payableCategories;
 const parseAmount = (text: string) => /^\d+(?:[.,]\d{1,2})?$/.test(text.trim()) ? Number(text.replace(',', '.')) : NaN;
 
 export function AccountsModule(props: Props) {
@@ -32,12 +33,13 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
   const mounted = useRef(true);
   const activeRef = useRef(isActive); activeRef.current = isActive;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => { if (!isActive) { setCreating(false); setPayment(null); } }, [isActive]);
+  useEffect(() => { if (!isActive) { setCreating(false); setPayment(null); setManagement(null); } }, [isActive]);
   const pending = Boolean(recoveryError || payables.recoveryError || recoveries.length || payables.recoveries?.length);
   const [filter, setFilter] = useState('abertas');
   const [view, setView] = useState<'table' | 'kanban'>('table');
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
+  const [management, setManagement] = useState<{ account: PayableAccount; mode: 'edit' | 'delete' } | null>(null);
   const emptyForm = () => ({ description: '', creditor: '', category: 'outros', supplierId: '', branchId, amount: '', dueDate: '',
     purchasedOn: localDate(new Date().toISOString()), paymentMethod: 'nao_informado' as PayablePaymentMethod, paymentMethodDetail: '', terms: 'vista', installmentCount: '2' });
   const [form, setForm] = useState(emptyForm);
@@ -53,9 +55,11 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
   const [success, setSuccess] = useState('');
   const accounts = kind === 'receber' ? invoices : payables.accounts.filter(account => !branchId || account.branch_id === branchId);
   const visible = accounts.filter(account => {
+    if ('description' in account && Boolean(account.deleted_at) !== (filter === 'excluidas')) return false;
+    if (filter === 'excluidas' && !('description' in account)) return false;
     const name = 'description' in account ? `${account.description} ${account.creditor_name} ${payableMethodLabel(account.payment_method, account.payment_method_detail)} ${account.purchased_on ?? ''}` : `${account.customer_name} ${account.number}`;
     return (!query.trim() || name.toLowerCase().includes(query.trim().toLowerCase()))
-      && (filter === 'todas' || (filter === 'abertas' && accountBalance(account) > 0)
+      && (filter === 'todas' || filter === 'excluidas' || (filter === 'abertas' && accountBalance(account) > 0)
         || (filter === 'vencidas' && isOverdue(account)) || (filter === 'pagas' && account.status === 'paga'));
   });
   const open = accounts.reduce((sum, a) => sum + accountBalance(a), 0);
@@ -65,13 +69,13 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
     { key: 'open', title: 'Em aberto', accounts: visible.filter(a => accountBalance(a) > 0 && !isOverdue(a)) },
     { key: 'overdue', title: 'Vencidas', accounts: visible.filter(a => isOverdue(a)) },
     { key: 'paid', title: 'Quitadas', accounts: visible.filter(a => a.status === 'paga') },
-    { key: 'cancelled', title: 'Canceladas', accounts: visible.filter(a => a.status === 'cancelada') },
+    { key: 'cancelled', title: filter === 'excluidas' ? 'Excluídas' : 'Canceladas', accounts: visible.filter(a => a.status === 'cancelada') },
   ];
 
   function renderPaymentAction(account: (typeof accounts)[number]) {
-    if (accountBalance(account) <= 0 || (kind === 'receber' && !onReceive)) return null;
+    if (accountBalance(account) <= 0 || ('description' in account && account.deleted_at) || (kind === 'receber' && !onReceive)) return null;
     if (payment?.id !== account.id) {
-      return <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => {
+      return <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive || Boolean(management)} onClick={() => {
         setPayment({ id: account.id, token: crypto.randomUUID(), amount: accountBalance(account).toFixed(2), date: localDate(new Date().toISOString()),
           method: 'description' in account ? account.payment_method ?? 'nao_informado' : 'nao_informado',
           methodDetail: 'description' in account ? account.payment_method_detail ?? '' : '' });
@@ -148,11 +152,26 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
       {account.installment_count && account.installment_count > 1 ? <span>Parcela {account.installment_number}/{account.installment_count} · Compra total: {money.format(account.purchase_total ?? account.amount)}</span> : null}
       <span>Compra em: {account.purchased_on ? account.purchased_on.split('-').reverse().join('/') : 'Não informada'}</span>
       <span>Forma prevista: {payableMethodLabel(account.payment_method, account.payment_method_detail)}</span>
+      {account.deleted_at && <span>Excluída em {new Date(account.deleted_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}. Motivo: {account.deletion_reason}</span>}
     </small>;
+  }
+  function renderManagementActions(account: (typeof accounts)[number]) {
+    if (kind !== 'pagar' || !('description' in account) || account.deleted_at) return null;
+    const start = (mode: 'edit' | 'delete') => { setCreating(false); setPayment(null); setError(''); setSuccess(''); setManagement({ account, mode }); };
+    const disabled = busy || pending || !isActive || Boolean(management) || payables.loading || Boolean(payables.error);
+    return <div className="payable-actions">
+      {account.status !== 'cancelada' && <button type="button" className="rma-advance-btn" disabled={disabled} onClick={() => start('edit')}>Editar conta</button>}
+      <button type="button" className="rma-advance-btn" disabled={disabled} onClick={() => start('delete')}>Excluir conta</button>
+    </div>;
   }
 
   return <section className="module-card">
-    <FinancialRecoveryPanel actions={[...recoveries, ...(payables.recoveries ?? [])]} error={recoveryError || payables.recoveryError} disabled={busy} />
+    <FinancialRecoveryPanel actions={[...recoveries, ...(payables.recoveries ?? []).map(action => ({ ...action, run: async () => {
+      await action.run();
+      if (mounted.current && activeRef.current && (action.id === 'payable-edit' || action.id === 'payable-delete')) {
+        setManagement(null); setSuccess('Alteração confirmada. Confira os dados atualizados na lista.');
+      }
+    } }))]} error={recoveryError || payables.recoveryError} disabled={busy} />
     <h4 className="report-section-title">Contas a {kind}</h4>
     <p>{kind === 'receber' ? 'Faturas de clientes, com saldo após os recebimentos registrados.' : 'Compras de fornecedores e despesas da loja. Registrar um pagamento não faz uma transferência bancária.'}</p>
     {kind === 'receber' && !onReceive && <p>O proprietário da loja pode registrar os recebimentos.</p>}
@@ -164,16 +183,22 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
       <div className="report-card"><small>{kind === 'pagar' ? 'Pago' : 'Liquidado (dinheiro + créditos)'}</small><strong>{money.format(paid)}</strong></div>
     </div>
     <div className="orders-filter-row" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
-      {['abertas', 'vencidas', 'pagas', 'todas'].map(value => <button key={value} type="button" className={`rma-advance-btn ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
+      {(kind === 'pagar' ? ['abertas', 'vencidas', 'pagas', 'todas', 'excluidas'] : ['abertas', 'vencidas', 'pagas', 'todas']).map(value => <button key={value} type="button" className={`rma-advance-btn ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{value === 'excluidas' ? 'Excluídas' : value[0].toUpperCase() + value.slice(1)}</button>)}
       <input type="search" aria-label="Buscar contas" placeholder="Buscar contas" value={query} onChange={e => setQuery(e.target.value)} />
       <div className="accounts-view-toggle" role="group" aria-label="Visualização das contas">
         <button type="button" className={`rma-advance-btn ${view === 'table' ? 'active' : ''}`} aria-pressed={view === 'table'} onClick={() => setView('table')}>Tabela</button>
         <button type="button" className={`rma-advance-btn ${view === 'kanban' ? 'active' : ''}`} aria-pressed={view === 'kanban'} onClick={() => setView('kanban')}>Quadro</button>
       </div>
-      {kind === 'pagar' && <button type="button" className="module-submit-btn" disabled={busy || pending || !isActive || payables.loading || Boolean(payables.error)} onClick={() => { creationId.current = null; installmentIds.current = []; setInstallmentDates({}); setForm(emptyForm()); setCreating(true); setError(''); }}>Nova conta a pagar</button>}
+      {kind === 'pagar' && <button type="button" className="module-submit-btn" disabled={busy || pending || !isActive || Boolean(management) || payables.loading || Boolean(payables.error)} onClick={() => { creationId.current = null; installmentIds.current = []; setInstallmentDates({}); setForm(emptyForm()); setCreating(true); setError(''); }}>Nova conta a pagar</button>}
     </div>
     {success && <p role="status">{success}</p>}
     {error && <p className="otp-error-msg" role="alert">{error}</p>}
+    {management && <PayableManagementPanel key={management.account.id + ':' + management.mode} account={management.account} mode={management.mode}
+      suppliers={suppliers} branchName={branches.find(branch => branch.id === management.account.branch_id)?.name ?? 'Filial da conta'}
+      blocked={pending} isActive={isActive}
+      onEdit={(changes, revision, token) => payables.update(management.account.id, changes, revision, token)}
+      onDelete={(reason, revision, token) => payables.remove(management.account.id, reason, revision, token)}
+      onDone={message => { if (mounted.current && activeRef.current) { setManagement(null); setSuccess(message); } }} onCancel={() => setManagement(null)} />}
     {creating && <form onSubmit={saveAccount} className="accounts-entry-form">
       <label>Filial<select required value={form.branchId} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">Selecione</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
       <label>Descrição<input required maxLength={200} value={form.description} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
@@ -202,21 +227,22 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
           {purchaseDetails(a)}
           <dl>
             <div><dt>Original</dt><dd>{money.format(a.amount)}</dd></div>
-            <div><dt>{kind === 'pagar' ? 'Pago' : 'Liquidado'}</dt><dd>{money.format(accountPaid(a))}</dd></div>
+            <div><dt>{kind === 'pagar' ? 'description' in a && a.deleted_at ? 'Pago no registro excluído' : 'Pago' : 'Liquidado'}</dt><dd>{money.format('description' in a && a.deleted_at ? a.paid_amount : accountPaid(a))}</dd></div>
             <div><dt>Saldo</dt><dd>{money.format(accountBalance(a))}</dd></div>
             <div><dt>Vencimento</dt><dd>{a.due_date ? new Date(a.due_date.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</dd></div>
           </dl>
           {renderPaymentAction(a)}
+          {renderManagementActions(a)}
         </article>)}
       </section>)}
     </div> : <div className="stock-table-wrap"><table className="rma-table">
       <thead><tr><th>{kind === 'pagar' ? 'Conta / Credor' : 'Cliente / Fatura'}</th><th>Original</th><th>{kind === 'pagar' ? 'Pago' : 'Liquidado'}</th><th>Saldo</th><th>Vencimento</th><th>Status</th><th>Ação</th></tr></thead>
       <tbody>{visible.length === 0 ? <tr><td colSpan={7} className="empty-row">Nenhuma conta nesta seleção.</td></tr> : visible.map(a => <tr key={a.id}>
         <td>{'description' in a ? <><strong>{a.description}</strong><br />{a.creditor_name}{purchaseDetails(a)}</> : <><strong>{a.customer_name}</strong><br />{a.number}</>}</td>
-        <td>{money.format(a.amount)}</td><td>{money.format(accountPaid(a))}</td><td>{money.format(accountBalance(a))}</td>
+        <td>{money.format(a.amount)}</td><td>{money.format('description' in a && a.deleted_at ? a.paid_amount : accountPaid(a))}{'description' in a && a.deleted_at && <small> · Desconsiderado</small>}</td><td>{money.format(accountBalance(a))}</td>
         <td>{a.due_date ? new Date(a.due_date.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
-        <td>{isOverdue(a) ? 'Vencida' : a.status === 'paga' ? 'Quitada' : a.status === 'parcial' ? 'Parcial' : a.status === 'cancelada' ? 'Cancelada' : 'Aberta'}</td>
-        <td>{renderPaymentAction(a)}</td>
+        <td>{'description' in a && a.deleted_at ? 'Excluída' : isOverdue(a) ? 'Vencida' : a.status === 'paga' ? 'Quitada' : a.status === 'parcial' ? 'Parcial' : a.status === 'cancelada' ? 'Cancelada' : 'Aberta'}</td>
+        <td>{renderPaymentAction(a)}{renderManagementActions(a)}</td>
       </tr>)}</tbody>
     </table></div>}
   </section>;

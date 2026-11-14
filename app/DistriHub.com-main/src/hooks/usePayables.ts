@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { FinancialOperationAttempts, type FinancialOperation, type FinancialRecovery } from '../lib/invoicePayments';
 import { isDefinitiveSaleRejection } from '../lib/pdv';
-import type { PayableAccount, PayableCreation } from '../lib/accounts';
+import type { PayableAccount, PayableCreation, PayableEdit } from '../lib/accounts';
 import type { PayablePaymentMethod } from '../lib/payableDetails';
 
 export function usePayables(userId?: string) {
@@ -98,8 +98,20 @@ export function usePayables(userId?: string) {
           : payload.paymentDate === undefined
           ? await client.rpc('record_partner_payable_payment', args)
           : await client.rpc('record_partner_payable_payment_dated', { ...args, p_payment_date: payload.paymentDate });
+      } else if (payload.kind === 'payable-edit' || payload.kind === 'payable-delete') {
+        expected = payload.payableId;
+        response = await client.rpc('manage_partner_payable', { p_payable_id: payload.payableId,
+          p_action: payload.kind === 'payable-edit' ? 'edit' : 'delete',
+          p_changes: payload.kind === 'payable-edit' ? payload.changes : {},
+          p_expected_revision: payload.revision, p_request_id: attempt.token,
+          p_reason: payload.kind === 'payable-edit' ? 'Correção do cadastro da conta' : payload.reason });
       } else throw new Error('Operação de contas inválida.');
       if (response.error) {
+        if ((payload.kind === 'payable-edit' || payload.kind === 'payable-delete') && response.error.code === '40001') {
+          // O servidor confere o comprovante da tentativa antes da versão: conflito comprova que ela não foi aplicada.
+          store.confirm(scope, payload.kind);
+          if (companyRef.current === company) await load();
+        }
         if (!pending && isDefinitiveSaleRejection(response.error.code ?? '')) store.confirm(scope, payload.kind);
         throw new Error(response.error.message);
       }
@@ -111,16 +123,19 @@ export function usePayables(userId?: string) {
   const create = (account: PayableCreation, id: string) => execute({ kind: 'payable-create', account }, id);
   const pay = (id: string, amount: number, paymentId: string, paymentDate?: string, paymentMethod?: PayablePaymentMethod, paymentMethodDetail?: string | null) => execute({ kind: 'payable-payment', payableId: id, amount, ...(paymentDate === undefined ? {} : { paymentDate }), ...(paymentMethod === undefined ? {} : { paymentMethod, paymentMethodDetail: paymentMethodDetail ?? null }) }, paymentId);
   const recoveries: FinancialRecovery[] = [];
+  const update = (id: string, changes: PayableEdit, revision: number, requestId: string) => execute({ kind: 'payable-edit', payableId: id, changes, revision }, requestId);
+  const remove = (id: string, reason: string, revision: number, requestId: string) => execute({ kind: 'payable-delete', payableId: id, reason, revision }, requestId);
   let recoveryError = '';
   void attemptVersion;
   if (userId) {
     try {
       const store = new FinancialOperationAttempts(window.localStorage);
-      for (const kind of ['payable-create', 'payable-payment'] as const) {
+      for (const kind of ['payable-create', 'payable-payment', 'payable-edit', 'payable-delete'] as const) {
         const attempt = store.pending(userId + ':' + userId, kind);
-        if (attempt) recoveries.push({ id: kind, label: kind === 'payable-create' ? 'Recuperar cadastro de conta' : 'Recuperar pagamento de conta', run: () => execute(attempt.payload, attempt.token) });
+        const labels = { 'payable-create': 'Recuperar cadastro de conta', 'payable-payment': 'Recuperar pagamento de conta', 'payable-edit': 'Recuperar edição de conta', 'payable-delete': 'Recuperar exclusão de conta' };
+        if (attempt) recoveries.push({ id: kind, label: labels[kind], run: () => execute(attempt.payload, attempt.token) });
       }
     } catch (cause) { recoveryError = cause instanceof Error ? cause.message : 'Não foi possível recuperar tentativas.'; }
   }
-  return { accounts, loading, error, reload: load, create, pay, recoveries, recoveryError };
+  return { accounts, loading, error, reload: load, create, pay, update, remove, recoveries, recoveryError };
 }

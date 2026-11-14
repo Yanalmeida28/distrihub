@@ -20,7 +20,17 @@ Os vencimentos sugeridos são mensais e preservam o dia original quando possíve
 
 Cadastrar a compra não registra pagamento. Cada parcela possui seu próprio saldo. Em **Registrar pagamento**, confirme a forma efetivamente usada e a data real. Um pagamento parcial pode usar uma forma diferente dos próximos pagamentos, sem alterar a forma prevista da compra.
 
-Os registros antigos ficam sem data da compra e forma de pagamento quando esses dados não existiam; eles não são inventados. As operações antigas e tentativas pendentes permanecem compatíveis. A tela não edita compras ou pagamentos já confirmados.
+Os registros antigos ficam sem data da compra e forma de pagamento quando esses dados não existiam; eles não são inventados. As operações antigas e tentativas pendentes permanecem compatíveis.
+
+## Editar e excluir contas
+
+Use **Editar conta** para corrigir descrição, credor, fornecedor, categoria, valor, vencimento, data da compra e forma prevista. O valor não pode ficar abaixo do total já pago. A data, a forma real e o valor de pagamentos confirmados continuam preservados.
+
+Use **Excluir conta** apenas para um registro indevido. Confira o aviso, informe o motivo e confirme. A conta sai dos saldos e do resultado, e os pagamentos vinculados deixam de contar no fluxo dos seus períodos originais. A exclusão não gera devolução bancária.
+
+O filtro **Excluídas** permite conferir o registro original e o motivo. O banco mantém o histórico dos pagamentos e das alterações. Em uma compra parcelada, a edição ou exclusão vale para a parcela escolhida. Alterar o valor de uma parcela atualiza o total informativo da compra, sem redistribuir as outras parcelas.
+
+Cada alteração verifica a versão da conta, incluindo pagamentos feitos em outro acesso. Dados desatualizados são recusados para evitar sobrescrever uma alteração. Tentativas com resposta perdida são recuperadas pelo mesmo identificador, sem aplicar a correção duas vezes.
 
 ## Integridade
 
