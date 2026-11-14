@@ -26,6 +26,30 @@ const base = {
 const adminProps = { userId: 'company', sales: [], products: [], salespeople: [], customers: [], branches: [], movements: [],
   ownerView: true, allowedModules: ['relatorios', 'financeiro'], intelligenceAllowed: true, intelligenceDataReady: true };
 
+test('month and custom selectors change the diagnosis without new ledger reads and invalid dates hide the result', async () => {
+  const { load, calls } = fixture();
+  const Component = load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;
+  await act(async () => { renderer = Renderer.create(React.createElement(Component, { ...base, rmas: [], payables: [payable({ amount: 30, paid_amount: 0, due_date: '2026-10-10' })] })); });
+  const select = value => renderer.root.findAllByType('select')[0].props.onChange({ target: { value } });
+  await act(async () => select('previousMonth'));
+  assert.match(text(renderer.toJSON()), /01\/09\/2026 a 30\/09\/2026/);
+  await act(async () => select('selectedMonth'));
+  await act(async () => renderer.root.findByProps({ type: 'month' }).props.onChange({ target: { value: '2026-10' } }));
+  assert.match(text(renderer.toJSON()), /01\/10\/2026 a 31\/10\/2026/);
+  assert.match(text(renderer.toJSON()), /Lucro estimado nos registros/);
+  await act(async () => select('custom'));
+  const dates = () => renderer.root.findAllByProps({ type: 'date' });
+  await act(async () => { dates()[0].props.onChange({ target: { value: '2026-10-10' } }); dates()[1].props.onChange({ target: { value: '2026-10-10' } }); });
+  assert.match(text(renderer.toJSON()), /10\/10\/2026 a 10\/10\/2026/);
+  await act(async () => dates()[1].props.onChange({ target: { value: '2026-10-09' } }));
+  assert.match(text(renderer.toJSON()), /A data inicial deve ser anterior/);
+  assert.doesNotMatch(text(renderer.toJSON()), /Lucro estimado nos registros/);
+  await act(async () => select('selectedMonth'));
+  await act(async () => renderer.root.findByProps({ type: 'month' }).props.onChange({ target: { value: '' } }));
+  assert.match(text(renderer.toJSON()), /Selecione um mês e ano válidos/);
+  assert.equal(calls.length, 3);
+});
+
 test('equivalent financial lists do not reload, while changed data, branches and manual refresh do', async () => {
   const { load, calls } = fixture();
   const useMovements = load('hooks/useFinancialMovements.ts').useFinancialMovements;

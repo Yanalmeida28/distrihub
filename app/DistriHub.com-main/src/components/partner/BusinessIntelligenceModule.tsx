@@ -5,6 +5,8 @@ import { money } from '../../utils';
 import { useFinancialMovements } from '../../hooks/useFinancialMovements';
 import type { PayableAccount } from '../../lib/accounts';
 import { buildBusinessIntelligence, intelligenceScope, simulateBusinessGoal } from '../../lib/businessIntelligence';
+import type { BusinessInput } from '../../lib/businessIntelligence';
+import { adminBusinessDay } from '../../lib/adminDashboard';
 
 type Props = {
   companyId: string; branchId: string; branches: PartnerBranch[]; isActive: boolean;
@@ -29,7 +31,10 @@ export function BusinessIntelligenceModule(props: Props) {
     invoices, rmas, payables, payablesLoading, payablesError, onRefreshPayables, onBranchChange, onNavigate, lastSyncedAt, now: suppliedNow } = props;
   const [clock, setClock] = useState(() => new Date());
   const [days, setDays] = useState<7 | 30 | 90>(30);
-  const [period, setPeriod] = useState<'closed' | 'month' | 'today'>('month');
+  const [period, setPeriod] = useState<NonNullable<BusinessInput['period']>>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => adminBusinessDay(suppliedNow ?? new Date()).slice(0, 7));
+  const [customStart, setCustomStart] = useState(() => adminBusinessDay(suppliedNow ?? new Date()).slice(0, 7) + '-01');
+  const [customEnd, setCustomEnd] = useState(() => adminBusinessDay(suppliedNow ?? new Date()));
   const [fixed, setFixed] = useState('');
   const [contribution, setContribution] = useState('');
   const [desired, setDesired] = useState('');
@@ -65,10 +70,10 @@ export function BusinessIntelligenceModule(props: Props) {
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
   }, [companyId, branchId, isActive, validBranch, dataReady, dataError, reloadLedger]);
-  const model = useMemo(() => buildBusinessIntelligence({ company: companyId, branch: branchId, now, days, period, rmas,
+  const model = useMemo(() => buildBusinessIntelligence({ company: companyId, branch: branchId, now, days, period, selectedMonth, customStart, customEnd, rmas,
     sales, products, customers, movements, invoices: scopedInvoices, payables: scopedPayables,
     receipts: ledger.receipts, payments: ledger.payments, refunds: ledger.refunds,
-  }), [companyId, branchId, now, days, period, rmas, sales, products, customers, movements, scopedInvoices, scopedPayables, ledger.receipts, ledger.payments, ledger.refunds]);
+  }), [companyId, branchId, now, days, period, selectedMonth, customStart, customEnd, rmas, sales, products, customers, movements, scopedInvoices, scopedPayables, ledger.receipts, ledger.payments, ledger.refunds]);
   const simulation = simulateBusinessGoal(fixed, contribution, desired, target, model.currentRevenue);
   const error = !validBranch ? 'A filial selecionada não pertence ao contexto disponível. Selecione uma filial válida.' : dataError || payablesError || ledger.error;
   const loading = !dataReady || payablesLoading || ledger.loading;
@@ -84,12 +89,22 @@ export function BusinessIntelligenceModule(props: Props) {
       <div className="bi-hero-note"><Lightbulb size={23} /><strong>Clareza antes da decisão</strong><span>Dados registrados, estimativas identificadas e nenhuma ação automática.</span></div>
     </header>
     <div className="admin-filter-bar bi-filters">
-      <label>Período de análise<select value={period === 'closed' ? String(days) : period} onChange={event => { const value = event.target.value; if (value === 'month' || value === 'today') setPeriod(value); else { setPeriod('closed'); setDays(Number(value) as 7 | 30 | 90); } }}><option value="month">Este mês até hoje</option><option value="today">Hoje</option><option value="7">Últimos 7 dias encerrados</option><option value="30">Últimos 30 dias encerrados</option><option value="90">Últimos 90 dias encerrados</option></select></label>
+      <label>Período de análise<select value={period === 'closed' ? String(days) : period} onChange={event => {
+        const value = event.target.value;
+        if (value === '7' || value === '30' || value === '90') { setPeriod('closed'); setDays(Number(value) as 7 | 30 | 90); }
+        else setPeriod(value as NonNullable<BusinessInput['period']>);
+      }}><option value="month">Este mês até hoje</option><option value="previousMonth">Mês passado</option><option value="selectedMonth">Selecionar mês e ano</option><option value="custom">Período personalizado</option><option value="today">Hoje</option><option value="7">Últimos 7 dias encerrados</option><option value="30">Últimos 30 dias encerrados</option><option value="90">Últimos 90 dias encerrados</option></select></label>
+      {period === 'selectedMonth' && <label>Mês e ano<input type="month" min="0001-01" max="9998-12" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} /></label>}
+      {period === 'custom' && <>
+        <label>Data inicial<input type="date" value={customStart} onChange={event => setCustomStart(event.target.value)} /></label>
+        <label>Data final<input type="date" value={customEnd} onChange={event => setCustomEnd(event.target.value)} /></label>
+      </>}
       <label>Filial<select value={branchId} onChange={event => onBranchChange(event.target.value)}><option value="">Visão consolidada</option>{branches.filter(branch => branch.user_id === companyId).map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
       <button type="button" className="rma-advance-btn" disabled={loading} onClick={() => { ledger.reload(); void onRefreshPayables?.(); }}>Atualizar financeiro</button>
-      <div className="bi-period"><CalendarDays size={15} /><span>{dayLabel(model.first)} a {dayLabel(model.last)}<small>America/Sao_Paulo · previsão a partir de {dayLabel(model.today)}</small></span></div>
+      {!model.periodError && <div className="bi-period"><CalendarDays size={15} /><span>{dayLabel(model.first)} a {dayLabel(model.last)}<small>America/Sao_Paulo · previsão a partir de {dayLabel(model.today)}</small></span></div>}
     </div>
-    {error ? <div className="module-card bi-notice" role="alert"><AlertTriangle size={20} /><div><strong>Análise indisponível</strong><p>{error}</p><p>Os valores não serão tratados como zero. Atualize a base no painel para tentar novamente.</p>{ledger.error && <button type="button" className="rma-advance-btn" onClick={ledger.reload}>Tentar novamente os movimentos</button>}</div></div>
+    {model.periodError ? <p className="module-card" role="alert">{model.periodError}</p>
+      : error ? <div className="module-card bi-notice" role="alert"><AlertTriangle size={20} /><div><strong>Análise indisponível</strong><p>{error}</p><p>Os valores não serão tratados como zero. Atualize a base no painel para tentar novamente.</p>{ledger.error && <button type="button" className="rma-advance-btn" onClick={ledger.reload}>Tentar novamente os movimentos</button>}</div></div>
       : loading ? <p className="module-card" role="status">Conferindo dados e movimentos financeiros antes de apresentar o diagnóstico…</p>
       : <>
         <section aria-labelledby="bi-result" className="bi-section">
@@ -153,7 +168,7 @@ export function BusinessIntelligenceModule(props: Props) {
         </section>
 
         <section aria-labelledby="bi-alerts" className="bi-section"><div className="bi-section-heading"><AlertTriangle size={19} /><div><h4 id="bi-alerts">Alertas inteligentes</h4><p>Regras explícitas, sem IA externa: queda de vendas ≥ 20%, margem ≥ 5 p.p., vencidos, sem giro e inatividade.</p></div></div>
-          {!model.comparisonReady && <p className="bi-hint">{period !== 'closed' ? 'Período em andamento: comparação de crescimento disponível nos períodos encerrados.' : 'Comparação de vendas e margem inconclusiva: exige histórico desde o início da referência e pelo menos cinco vendas no período anterior. Ausência de histórico não será tratada como vendas zero.'}</p>}
+          {!model.comparisonReady && <p className="bi-hint">{model.last >= model.today ? 'Período em andamento: comparação de crescimento disponível nos períodos encerrados.' : 'Comparação de vendas e margem inconclusiva: exige histórico desde o início da referência e pelo menos cinco vendas no período anterior. Ausência de histórico não será tratada como vendas zero.'}</p>}
           {model.growth !== null && <p className="bi-hint">Faturamento: {model.growth.toFixed(1)}% em relação aos {model.periodDays} dias anteriores. Quedas de margem usam custos estimados quando não há custo original.</p>}
           <div className="bi-alert-grid">{model.alerts.map(alert => <article key={alert.id} className={`module-card bi-alert bi-alert-${alert.severity}`}><span className="bi-tag">{alert.severity === 'critical' ? 'Prioridade' : 'Atenção'}</span><h5>{alert.title}</h5><p>{alert.detail}</p><p>{alert.action}</p><button type="button" className="rma-advance-btn" onClick={() => onNavigate(alert.target)}>Abrir {alert.target === 'financeiro' ? 'Financeiro' : 'Relatórios'} <ArrowUpRight size={14} /></button></article>)}</div>
           {!model.alerts.length && <p className="module-card">Nenhum alerta acionado pelos dados disponíveis. Isso não certifica a saúde financeira da empresa.</p>}

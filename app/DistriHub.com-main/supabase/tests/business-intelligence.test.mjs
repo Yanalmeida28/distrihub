@@ -2,6 +2,41 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { helpers as h, sale, product, invoice, payable, input } from './fixtures/business_intelligence_helpers.mjs';
 
+test('calendar months include complete months, leap days and the year boundary in Sao Paulo', () => {
+  for (const [now, period, selectedMonth, first, last, days] of [
+    ['2026-01-01T02:00:00Z', 'previousMonth', '', '2025-11-01', '2025-11-30', 30],
+    ['2026-01-01T12:00:00Z', 'previousMonth', '', '2025-12-01', '2025-12-31', 31],
+    ['2026-10-19T12:00:00Z', 'selectedMonth', '2024-02', '2024-02-01', '2024-02-29', 29],
+    ['2026-10-19T12:00:00Z', 'selectedMonth', '2025-02', '2025-02-01', '2025-02-28', 28],
+  ]) {
+    const result = h.buildBusinessIntelligence(input({ now: new Date(now), period, selectedMonth }));
+    assert.equal(result.periodError, ''); assert.equal(result.first, first); assert.equal(result.last, last); assert.equal(result.periodDays, days);
+  }
+});
+
+test('monthly results include a late registered expense by original due date, while cash uses the payment date', () => {
+  const data = input({ now: new Date('2026-11-14T12:00:00Z'), period: 'selectedMonth', selectedMonth: '2026-10', rmas: [],
+    sales: [sale({ completed_at: '2026-11-01T02:59:59Z' }), sale({ id: 'next', completed_at: '2026-11-01T03:00:00Z', total: 999 })],
+    payables: [payable({ amount: 30, paid_amount: 30, status: 'paga', due_date: '2026-10-15', created_at: '2026-11-14T12:00:00Z' })],
+    payments: [{ id: 'payment', user_id: 'company', payable_id: 'bill', amount: 30, created_at: '2026-11-14T12:00:00Z' }],
+  });
+  const october = h.buildBusinessIntelligence(data);
+  assert.equal(october.currentRevenue, 100); assert.equal(october.result.expenses, 30); assert.equal(october.result.result, 30); assert.equal(october.paid, 0);
+  const november = h.buildBusinessIntelligence({ ...data, selectedMonth: '2026-11' });
+  assert.equal(november.result.expenses, 0); assert.equal(november.paid, 30);
+});
+
+test('custom periods include both selected days and reject missing, impossible and reversed dates', () => {
+  const selected = h.buildBusinessIntelligence(input({ period: 'custom', customStart: '2026-10-10', customEnd: '2026-10-10' }));
+  assert.equal(selected.periodDays, 1); assert.equal(selected.currentRevenue, 100);
+  for (const patch of [
+    { period: 'selectedMonth', selectedMonth: '' }, { period: 'selectedMonth', selectedMonth: '2026-13' },
+    { period: 'custom', customStart: '', customEnd: '2026-10-10' },
+    { period: 'custom', customStart: '2026-02-30', customEnd: '2026-10-10' },
+    { period: 'custom', customStart: '2026-10-11', customEnd: '2026-10-10' },
+  ]) assert.ok(h.buildBusinessIntelligence(input(patch)).periodError);
+});
+
 test('historical cost wins over current cost; freight, open orders and cancelled sales are excluded from revenue', () => {
   const result = h.buildBusinessIntelligence(input({ sales: [sale(), sale({ id: 'open', status: 'pre_venda', total: 900 }), sale({ id: 'cancel', status: 'cancelada', total: 900 })] }));
   assert.equal(result.currentRevenue, 100);
