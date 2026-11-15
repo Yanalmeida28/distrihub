@@ -57,10 +57,10 @@ export function BreakEvenPanel({ companyId, branchId, model }: Props) {
     {!ready && !error && <p role="status">Carregando configurações…</p>}
     {error && <p role="alert">{error}</p>}
     {ready && <>
-      <p>Classifique cada categoria conforme o funcionamento da empresa. Se uma categoria mistura gastos fixos e variáveis, separe os lançamentos antes de usar a estimativa.</p>
+      <p>As contas marcadas como fixas ou variáveis no Financeiro usam essa escolha no cálculo. A classificação abaixo vale para os lançamentos antigos ou sem tipo de despesa definido.</p>
       <div className="bi-input-grid">{categories.map(category => <label key={category}>{payableCategories[category]}<select disabled={saving} value={settings[category]} onChange={event => { setSettings({ ...settings, [category]: event.target.value }); setReviewed(false); setMessage(''); }}><option value="">Selecionar classificação</option><option value="fixed">Fixa — não acompanha as vendas</option><option value="variable">Variável — acompanha as vendas</option></select></label>)}
         <label>Resultado desejado no período (R$)<input inputMode="decimal" disabled={saving} value={desired} onChange={event => { setDesired(event.target.value); setMessage(''); }} /></label></div>
-      <p>As classificações e o resultado desejado ficam salvos separadamente por filial e na visão consolidada. O valor desejado é reutilizado ao trocar o período; ajuste quando necessário.</p>
+      <p>Nas próximas contas a pagar, selecione o tipo de despesa ao cadastrar. Assim, uma mesma categoria pode reunir despesas fixas e variáveis sem misturar seus cálculos. Estas configurações e o resultado desejado ficam salvos por filial; revise o valor desejado ao trocar o período.</p>
       <button type="button" className="rma-advance-btn" disabled={saving} onClick={() => void save()}>{saving ? 'Salvando…' : 'Salvar configurações do ponto de equilíbrio'}</button>
       {message && <p role="status">{message}</p>}
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 16 }}><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} style={{ width: 'auto', flexShrink: 0 }} />Conferi os gastos deste período, incluindo taxas e tributos, e os custos dos produtos. Categorias sem lançamentos representam zero neste período.</label>

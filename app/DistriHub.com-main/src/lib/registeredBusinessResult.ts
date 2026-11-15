@@ -19,7 +19,7 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
 }) {
   const inPeriod = (value: string) => value >= first && value <= last;
   const active = payables.filter(account => account.status !== 'cancelada');
-  const categories = new Map<string, { amount: number; count: number }>();
+  const categories = new Map<string, { amount: number; count: number; fixed: number; variable: number; unclassified: number }>();
   let expenseCents = 0, purchaseCents = 0, expenseCount = 0, purchaseCount = 0;
   let undatedExpenses = 0, invalidExpenses = 0;
   for (const account of active) {
@@ -29,9 +29,11 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
     if (!amountValid(account.amount)) { invalidExpenses++; continue; }
     if (account.category === 'fornecedor') { purchaseCents += cents(account.amount); purchaseCount++; continue; }
     if (!expenseCategories.has(account.category)) { invalidExpenses++; continue; }
+    if (account.expense_behavior != null && account.expense_behavior !== 'fixed' && account.expense_behavior !== 'variable') { invalidExpenses++; continue; }
     expenseCents += cents(account.amount); expenseCount++;
-    const category = categories.get(account.category) ?? { amount: 0, count: 0 };
+    const category = categories.get(account.category) ?? { amount: 0, count: 0, fixed: 0, variable: 0, unclassified: 0 };
     category.amount += cents(account.amount); category.count++;
+    category[account.expense_behavior ?? 'unclassified'] += cents(account.amount);
     categories.set(account.category, category);
   }
 
@@ -88,7 +90,8 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
   const safeResult = result !== null && Number.isSafeInteger(cents(result)) ? result : null;
   return {
     expenses: expensesKnown ? expenseCents / 100 : null, expenseCount, purchases: purchaseCents / 100, purchaseCount,
-    categories: [...categories].map(([category, row]) => ({ category, amount: row.amount / 100, count: row.count })),
+    categories: [...categories].map(([category, row]) => ({ category, amount: row.amount / 100, count: row.count,
+      fixedAmount: row.fixed / 100, variableAmount: row.variable / 100, unclassifiedAmount: row.unclassified / 100 })),
     undatedExpenses, invalidExpenses, hasExpenseRecords, returnsKnown, invalidReturns, estimatedReturnCosts,
     returns, returnCount, restoredCost: returnsKnown ? restoredCostCents / 100 : null,
     netRevenue, netCost, grossAfterReturns, result: safeResult,

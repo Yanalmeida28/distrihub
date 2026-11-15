@@ -79,14 +79,15 @@ export function usePayables(userId?: string) {
         const args = { p_id: attempt.token, p_branch_id: account.branch_id,
           p_supplier_id: account.supplier_id, p_description: account.description, p_creditor_name: account.creditor_name,
           p_category: account.category, p_amount: account.amount, p_due_date: account.due_date };
-        response = account.purchased_on === undefined
+        response = account.purchased_on === undefined && account.expense_behavior === undefined
           ? await client.rpc('create_partner_payable', args)
           : await client.rpc('create_partner_payable_purchase', {
             p_purchase_id: attempt.token, p_branch_id: account.branch_id, p_supplier_id: account.supplier_id,
             p_description: account.description, p_creditor_name: account.creditor_name, p_category: account.category,
-            p_total: account.amount, p_purchased_on: account.purchased_on,
+            p_total: account.amount, p_purchased_on: account.purchased_on ?? null,
             p_payment_method: account.payment_method ?? 'nao_informado', p_payment_method_detail: account.payment_method_detail ?? null,
-            p_installments: account.installments ?? [{ id: attempt.token, amount: account.amount, due_date: account.due_date }],
+            p_installments: (account.installments ?? [{ id: attempt.token, amount: account.amount, due_date: account.due_date }])
+              .map(installment => ({ ...installment, ...(account.expense_behavior === undefined ? {} : { expense_behavior: account.expense_behavior }) })),
           });
       } else if (payload.kind === 'payable-payment') {
         expected = payload.payableId;

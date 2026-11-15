@@ -247,9 +247,13 @@ export function registeredBreakEven(data: ReturnType<typeof registeredBusinessRe
   if (data.netRevenue <= 0) return fail('É necessário ter receita líquida positiva no período para calcular a margem de contribuição.');
   let fixed = 0, variable = 0;
   for (const row of data.categories) {
+    fixed += cents(row.fixedAmount ?? 0);
+    variable += cents(row.variableAmount ?? 0);
+    const unclassified = row.unclassifiedAmount ?? row.amount;
+    if (unclassified === 0) continue;
     const kind = settings[row.category as keyof Omit<BreakEvenSettings, 'desired'>];
     if (kind !== 'fixed' && kind !== 'variable') return fail('Classifique todas as categorias com despesas neste período.');
-    if (kind === 'fixed') fixed += cents(row.amount); else variable += cents(row.amount);
+    if (kind === 'fixed') fixed += cents(unclassified); else variable += cents(unclassified);
   }
   const margin = (data.netRevenue - data.netCost - variable / 100) / data.netRevenue;
   if (margin <= 0) return fail('A margem de contribuição é nula ou negativa. Aumentar as vendas mantendo essa margem não cobre os gastos fixos.');

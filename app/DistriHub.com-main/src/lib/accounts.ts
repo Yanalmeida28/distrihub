@@ -2,6 +2,8 @@ import { adminBusinessDay } from './adminDashboard';
 import type { PartnerInvoice } from '../types';
 import type { PayableInstallment, PayablePaymentMethod } from './payableDetails';
 export const payableCategories = { fornecedor: 'Compra de mercadorias / estoque', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outras despesas' };
+export type PayableExpenseBehavior = 'fixed' | 'variable';
+export const expenseBehaviorLabels = { fixed: 'Despesa fixa', variable: 'Despesa variável' };
 
 export interface PayableAccount {
   id: string;
@@ -11,6 +13,7 @@ export interface PayableAccount {
   description: string;
   creditor_name: string;
   category: 'fornecedor' | 'aluguel' | 'energia' | 'salarios' | 'impostos' | 'outros';
+  expense_behavior?: PayableExpenseBehavior | null;
   amount: number;
   paid_amount: number;
   due_date: string;
@@ -28,7 +31,7 @@ export interface PayableAccount {
   created_at: string;
 }
 export type PayableCreation = Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at' | 'purchase_id' | 'installment_number' | 'installment_count' | 'purchase_total' | 'revision' | 'deleted_at' | 'deletion_reason'> & { installments?: PayableInstallment[] };
-export type PayableEdit = Pick<PayableAccount, 'description' | 'creditor_name' | 'supplier_id' | 'category' | 'amount' | 'due_date' | 'purchased_on' | 'payment_method' | 'payment_method_detail'>;
+export type PayableEdit = Pick<PayableAccount, 'description' | 'creditor_name' | 'supplier_id' | 'category' | 'expense_behavior' | 'amount' | 'due_date' | 'purchased_on' | 'payment_method' | 'payment_method_detail'>;
 
 export function accountPaid(account: { amount: number; paid_amount?: number; status: string }): number {
   return account.status === 'cancelada' ? 0 : Number(account.paid_amount ?? (account.status === 'paga' ? account.amount : 0));
