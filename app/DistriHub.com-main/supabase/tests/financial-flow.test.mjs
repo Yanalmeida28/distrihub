@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import ts from '../../node_modules/typescript/lib/typescript.js';
 const modules = {};
-for (const name of ['accounts', 'pdv', 'financialFlow']) {
+for (const name of ['adminDashboard', 'accounts', 'pdv', 'financialFlow']) {
   const exports = {};
   vm.runInNewContext(ts.transpileModule(await readFile(new URL(`../../src/lib/${name}.ts`, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },

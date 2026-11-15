@@ -1,3 +1,4 @@
+import { adminBusinessDay } from './adminDashboard';
 import type { PartnerInvoice } from '../types';
 import type { PayableInstallment, PayablePaymentMethod } from './payableDetails';
 export const payableCategories = { fornecedor: 'Compra de mercadorias / estoque', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outras despesas' };
@@ -42,8 +43,8 @@ export function accountBalance(account: { amount: number; paid_amount?: number; 
   return Math.max(0, Math.round(Number(account.amount) * 100) - Math.round(accountPaid(account) * 100)) / 100;
 }
 
-export function isOverdue(account: { amount: number; paid_amount?: number; status: string; due_date: string | null }, today = new Date()): boolean {
-  const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+export function isOverdue(account: { amount: number; paid_amount?: number; status: string; due_date: string | null }, today = new Date(), timeZone?: string): boolean {
+  const date = timeZone ? adminBusinessDay(today, timeZone) : `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   return accountBalance(account) > 0 && Boolean(account.due_date && account.due_date.slice(0, 10) < date);
 }
 

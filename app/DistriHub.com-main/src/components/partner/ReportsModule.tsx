@@ -1,5 +1,6 @@
+import { adminBusinessDay, adminSaleDate } from '../../lib/adminDashboard';
 import { saleRevenuePayments } from '../../lib/pdv';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3, TrendingUp, TrendingDown, Package, Users, Cake, MessageCircle, DollarSign,
   ShoppingCart, Wrench, UserCheck, CreditCard, Banknote, Wallet, Trophy, Crown, Medal, Download,
@@ -24,6 +25,8 @@ import { useStagnantStock } from '../../hooks/useStagnantStock';
 import { CrmWorkspace } from './CrmWorkspace';
 
 type Props = {
+  timeZone?: string;
+  initialCrmSegment?: string;
   canExport?: boolean;
   isActive?: boolean;
   onDataScopeChange?: (tab: string) => void;
@@ -82,7 +85,7 @@ const roleLabels: Record<SalespersonRole, string> = {
   logistica: 'Logística / Entregador',
 };
 
-export function ReportsModule({ canExport = false, isActive = true, onDataScopeChange, sales, products, customers, salespeople, movements = [], companyUserId = null, branchId = null, invoices = [], initialTab = 'vendas' }: Props) {
+export function ReportsModule({ timeZone, initialCrmSegment = 'todos', canExport = false, isActive = true, onDataScopeChange, sales, products, customers, salespeople, movements = [], companyUserId = null, branchId = null, invoices = [], initialTab = 'vendas' }: Props) {
   const [tab, setTab] = useState<ReportTab>(initialTab);
   const [range, setRange] = useState<SalesRange>('30d');
   const [startDate, setStartDate] = useState(() => localDateInput(new Date(Date.now() - 30 * 86_400_000)));
@@ -104,10 +107,10 @@ export function ReportsModule({ canExport = false, isActive = true, onDataScopeC
 
   const completedSales = useMemo(() => completedSalesOnly(sales), [sales]);
   const visibleSales = useMemo(
-    () => filterReportSales(sales, range, startDate, endDate).filter(sale =>
+    () => filterReportSales(sales, range, startDate, endDate, new Date(), timeZone).filter(sale =>
       (!customerFilter || sale.customer_id === customerFilter) && (!sellerFilter || sale.salesperson_id === sellerFilter)
       && (!paymentFilter || sale.payment_method === paymentFilter) && (!productFilter || sale.items.some(item => item.product_id === productFilter))),
-    [sales, range, startDate, endDate, customerFilter, sellerFilter, paymentFilter, productFilter],
+    [sales, range, startDate, endDate, timeZone, customerFilter, sellerFilter, paymentFilter, productFilter],
   );
 
   function exportCsv() {
@@ -183,11 +186,11 @@ export function ReportsModule({ canExport = false, isActive = true, onDataScopeC
           {productFilter && <small>Totais das vendas que contêm o produto selecionado, incluindo os demais itens dessas vendas.</small>}
         </div>}
         {tab === 'vendas' && <SalesReport sales={visibleSales} products={products} salespeople={salespeople} />}
-        {tab === 'financeiro' && <FinancialReport canExport={canExport} sales={visibleSales} allSales={completedSales} products={products} />}
+        {tab === 'financeiro' && <FinancialReport timeZone={timeZone} canExport={canExport} sales={visibleSales} allSales={completedSales} products={products} />}
         {tab === 'estoque' && <StockReport canExport={canExport} products={products} sales={visibleSales} />}
         {tab === 'sem-giro' && <StagnantStockReport canExport={canExport} isActive={isActive} products={products} sales={sales} movements={movements} />}
-        {tab === 'crm' && <><CrmReport canExport={canExport} customers={customers} sales={visibleSales} /><CrmWorkspace customers={customers} sales={completedSales} invoices={invoices} salespeople={salespeople} companyUserId={companyUserId} branchId={branchId} /></>}
-        {(tab === 'vendas' || tab === 'financeiro') && <details><summary>Vendas que compõem os totais ({visibleSales.length})</summary><div className="stock-table-wrap"><table className="rma-table"><thead><tr><th>Venda</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th>Total</th></tr></thead><tbody>{visibleSales.map(s=><tr key={s.id}><td>#{s.id.slice(0,8)}</td><td>{new Date(s.created_at).toLocaleString('pt-BR')}</td><td>{s.customer_name}</td><td>{s.payment_method}</td><td>{money.format(s.total)}</td></tr>)}</tbody></table></div></details>}
+        {tab === 'crm' && <><CrmReport canExport={canExport} customers={customers} sales={visibleSales} /><CrmWorkspace timeZone={timeZone} initialSegment={initialCrmSegment} customers={customers} sales={completedSales} invoices={invoices} salespeople={salespeople} companyUserId={companyUserId} branchId={branchId} /></>}
+        {(tab === 'vendas' || tab === 'financeiro') && <details><summary>Vendas que compõem os totais ({visibleSales.length})</summary><div className="stock-table-wrap"><table className="rma-table"><thead><tr><th>Venda</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th>Total</th></tr></thead><tbody>{visibleSales.map(s=><tr key={s.id}><td>#{s.id.slice(0,8)}</td><td>{new Date(timeZone ? adminSaleDate(s) : s.created_at).toLocaleString('pt-BR', timeZone ? { timeZone } : undefined)}</td><td>{s.customer_name}</td><td>{s.payment_method}</td><td>{money.format(s.total)}</td></tr>)}</tbody></table></div></details>}
       </div>
     </div>
   );
@@ -380,13 +383,15 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
   );
 }
 
-function FinancialReport({ canExport = false, sales, allSales, products }: { canExport?: boolean; sales: PartnerSale[]; allSales: PartnerSale[]; products: PartnerProduct[] }) {
+function FinancialReport({ timeZone, canExport = false, sales, allSales, products }: { timeZone?: string; canExport?: boolean; sales: PartnerSale[]; allSales: PartnerSale[]; products: PartnerProduct[] }) {
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const thisMonth = allSales.filter((s) => new Date(s.created_at).getMonth() === currentMonth && new Date(s.created_at).getFullYear() === currentYear);
+  const today = timeZone ? adminBusinessDay(now, timeZone) : '';
+  const currentMonth = timeZone ? Number(today.slice(5,7)) - 1 : now.getMonth();
+  const currentYear = timeZone ? Number(today.slice(0,4)) : now.getFullYear();
+  const monthOf = useCallback((sale: PartnerSale) => timeZone ? Number.isFinite(Date.parse(adminSaleDate(sale))) ? adminBusinessDay(new Date(adminSaleDate(sale)), timeZone).slice(0,7) : '' : `${new Date(sale.created_at).getFullYear()}-${String(new Date(sale.created_at).getMonth()+1).padStart(2,'0')}`, [timeZone]);
+  const thisMonth = allSales.filter((s) => monthOf(s) === `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`);
   const lastMonthDate = new Date(currentYear, currentMonth - 1);
-  const lastMonth = allSales.filter((s) => new Date(s.created_at).getMonth() === lastMonthDate.getMonth() && new Date(s.created_at).getFullYear() === lastMonthDate.getFullYear());
+  const lastMonth = allSales.filter((s) => monthOf(s) === `${lastMonthDate.getFullYear()}-${String(lastMonthDate.getMonth()+1).padStart(2,'0')}`);
 
   const thisTotal = thisMonth.reduce((s, x) => s + x.total, 0);
   const lastTotal = lastMonth.reduce((s, x) => s + x.total, 0);
@@ -408,11 +413,11 @@ function FinancialReport({ canExport = false, sales, allSales, products }: { can
     const months: { label: string; total: number }[] = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(currentYear, currentMonth - i);
-      const monthSales = allSales.filter((s) => new Date(s.created_at).getMonth() === d.getMonth() && new Date(s.created_at).getFullYear() === d.getFullYear());
+      const monthSales = allSales.filter((s) => monthOf(s) === `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
       months.push({ label: d.toLocaleDateString('pt-BR', { month: 'short' }), total: monthSales.reduce((sum, x) => sum + x.total, 0) });
     }
     return months;
-  }, [allSales, currentYear, currentMonth]);
+  }, [allSales, currentYear, currentMonth, monthOf]);
 
   const maxMonthly = Math.max(...monthlyData.map((m) => m.total), 1);
 
@@ -536,15 +541,15 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
   const levelName: Record<StagnantLevel, string> = { atencao: 'Atenção', alerta: 'Alerta', critico: 'Crítico' };
   const stagnantRows: CsvValue[][] = [
     ['Produto', 'SKU', 'Estoque', 'Última venda', 'Última reposição', 'Dias sem giro', 'Custo unitário', 'Capital parado', 'Classificação'],
-    ...rows.map(({ product, lastSaleAt, lastEntryAt, daysWithoutTurnover, unitCost, tiedUpCapital, level: itemLevel }) => [
+    ...rows.map(({ product, lastSaleAt, lastEntryAt, daysWithoutTurnover, costKnown, unitCost, tiedUpCapital, level: itemLevel }) => [
       product.name,
       product.sku ?? '',
       product.stock,
       lastSaleAt ? new Date(lastSaleAt).toLocaleDateString('pt-BR') : 'Nunca vendeu',
       lastEntryAt ? new Date(lastEntryAt).toLocaleDateString('pt-BR') : '—',
       daysWithoutTurnover,
-      unitCost.toFixed(2),
-      tiedUpCapital.toFixed(2),
+      costKnown ? unitCost.toFixed(2) : 'Custo desconhecido',
+      costKnown ? tiedUpCapital.toFixed(2) : 'Custo desconhecido',
       levelName[itemLevel],
     ]),
   ];
@@ -605,7 +610,7 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={9} className="empty-row">Nenhum produto parado nesta seleção.</td></tr>
-            ) : rows.map(({ product, lastSaleAt, lastEntryAt, daysWithoutTurnover, unitCost, tiedUpCapital, level: itemLevel }) => (
+            ) : rows.map(({ product, lastSaleAt, lastEntryAt, daysWithoutTurnover, costKnown, unitCost, tiedUpCapital, level: itemLevel }) => (
               <tr key={product.id}>
                 <td><strong>{product.name}</strong></td>
                 <td>{product.sku || '—'}</td>
@@ -613,8 +618,8 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
                 <td>{lastSaleAt ? new Date(lastSaleAt).toLocaleDateString('pt-BR') : 'Nunca vendeu'}</td>
                 <td>{lastEntryAt ? new Date(lastEntryAt).toLocaleDateString('pt-BR') : '—'}</td>
                 <td>{daysWithoutTurnover}</td>
-                <td>{money.format(unitCost)}</td>
-                <td>{money.format(tiedUpCapital)}</td>
+                <td>{costKnown ? money.format(unitCost) : 'Custo desconhecido'}</td>
+                <td>{costKnown ? money.format(tiedUpCapital) : 'Custo desconhecido'}</td>
                 <td style={{ color: levelColor[itemLevel], fontWeight: 600 }}>{levelName[itemLevel]}</td>
               </tr>
             ))}

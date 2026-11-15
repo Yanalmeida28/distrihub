@@ -3708,3 +3708,46 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .admin-panel .admin-company-card-actions button { width: 100%; }
   .admin-panel .admin-detail-grid { grid-template-columns: minmax(0, 1fr); }
 }
+/* Compact financial statement; scoped to preserve other financial screens. */
+.partner-panel .financial-flow { min-width: 0; padding: 16px; }
+.partner-panel .financial-flow-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
+.partner-panel .financial-flow-heading h4 { margin: 0; }
+.partner-panel .financial-flow-heading > span { color: var(--dh-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.partner-panel .financial-flow-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 8px 12px; }
+.partner-panel .financial-flow-toolbar .subtab-bar { margin: 0; align-self: end; }
+.partner-panel .financial-flow-toolbar label { display: grid; gap: 4px; min-width: 0; font-size: 12px; flex: 0 1 190px; }
+.partner-panel .financial-flow-toolbar :is(input, select) { min-width: 0; width: 100%; max-width: 100%; min-height: 38px; }
+.partner-panel .financial-flow-context { font-size: 12px; color: var(--dh-text-secondary); margin: 8px 0 12px; }
+.partner-panel .financial-flow .financial-flow-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.partner-panel .financial-flow-totals .report-card { padding: 10px 12px; gap: 4px; min-width: 0; }
+.partner-panel .financial-flow-totals .report-card strong { font-size: clamp(14px, 2vw, 21px); overflow-wrap: anywhere; }
+.partner-panel .financial-flow-desktop .rma-table { table-layout: fixed; width: 100%; min-width: 0; }
+.partner-panel .financial-flow-desktop :is(th, td) { padding: 10px; overflow-wrap: anywhere; }
+.partner-panel .financial-flow-desktop :is(th, td):nth-child(2) { width: 36%; }
+.partner-panel .financial-flow-mobile { display: none; }
+.partner-panel .financial-flow-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 12px; }
+.partner-panel .financial-flow-pagination > div { display: flex; gap: 8px; }
+.partner-panel .financial-flow :is(button, summary):focus-visible { outline: 2px solid var(--dh-primary, #3193e5); outline-offset: 3px; }
+@media (max-width: 640px) {
+  .partner-panel .financial-flow { padding: 12px; }
+  .partner-panel .financial-flow-toolbar { gap: 8px; }
+  .partner-panel .financial-flow-toolbar .subtab-bar { flex: 1 0 100%; display: flex; }
+  .partner-panel .financial-flow-toolbar .subtab { flex: 1; min-height: 44px; }
+  .partner-panel .financial-flow-toolbar label { flex: 1 1 calc(50% - 8px); }
+  .partner-panel .financial-flow-toolbar :is(input, select, button) { min-height: 44px; }
+  .partner-panel .financial-flow-toolbar > button { flex: 1 1 100%; justify-content: center; }
+  .partner-panel .financial-flow-totals .report-card { padding: 8px; }
+  .partner-panel .financial-flow-totals .report-card small { font-size: 11px; }
+  .partner-panel .financial-flow-desktop { display: none; }
+  .partner-panel .financial-flow-mobile { display: block; list-style: none; margin: 0; padding: 0; }
+  .partner-panel .financial-flow-mobile > li { padding: 10px 0; border-bottom: 1px solid var(--dh-border); }
+  .partner-panel .financial-flow-mobile-line { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+  .partner-panel .financial-flow-mobile-line > strong { min-width: 0; overflow-wrap: anywhere; }
+  .partner-panel .financial-flow-mobile-line > span { flex: 0 0 auto; display: grid; text-align: right; font-size: 11px; }
+  .partner-panel .financial-flow-mobile-line b { font-size: 14px; }
+  .partner-panel .financial-flow-mobile-detail { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; column-gap: 10px; font-size: 11px; color: var(--dh-text-secondary); }
+  .partner-panel .financial-flow-mobile-detail details { min-width: 0; max-width: 100%; }
+  .partner-panel .financial-flow-mobile-detail summary { cursor: pointer; min-height: 44px; padding: 13px 0; color: var(--dh-text); }
+  .partner-panel .financial-flow-mobile-detail details p { overflow-wrap: anywhere; margin: 0 0 8px; }
+  .partner-panel .financial-flow-pagination button { min-height: 44px; }
+}

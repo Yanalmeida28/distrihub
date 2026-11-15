@@ -1,6 +1,41 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { helpers as h, sale, product, invoice, payable, input } from './fixtures/business_intelligence_helpers.mjs';
+import { helpers as h, intelligenceHarness, sale, product, invoice, payable, input } from './fixtures/business_intelligence_helpers.mjs';
+
+test('calendar months include complete months, leap days and the year boundary in Sao Paulo', () => {
+  for (const [now, period, selectedMonth, first, last, days] of [
+    ['2026-01-01T02:00:00Z', 'previousMonth', '', '2025-11-01', '2025-11-30', 30],
+    ['2026-01-01T12:00:00Z', 'previousMonth', '', '2025-12-01', '2025-12-31', 31],
+    ['2026-10-19T12:00:00Z', 'selectedMonth', '2024-02', '2024-02-01', '2024-02-29', 29],
+    ['2026-10-19T12:00:00Z', 'selectedMonth', '2025-02', '2025-02-01', '2025-02-28', 28],
+  ]) {
+    const result = h.buildBusinessIntelligence(input({ now: new Date(now), period, selectedMonth }));
+    assert.equal(result.periodError, ''); assert.equal(result.first, first); assert.equal(result.last, last); assert.equal(result.periodDays, days);
+  }
+});
+
+test('monthly results include a late registered expense by original due date, while cash uses the payment date', () => {
+  const data = input({ now: new Date('2026-11-14T12:00:00Z'), period: 'selectedMonth', selectedMonth: '2026-10', rmas: [],
+    sales: [sale({ completed_at: '2026-11-01T02:59:59Z' }), sale({ id: 'next', completed_at: '2026-11-01T03:00:00Z', total: 999 })],
+    payables: [payable({ amount: 30, paid_amount: 30, status: 'paga', due_date: '2026-10-15', created_at: '2026-11-14T12:00:00Z' })],
+    payments: [{ id: 'payment', user_id: 'company', payable_id: 'bill', amount: 30, created_at: '2026-11-14T12:00:00Z' }],
+  });
+  const october = h.buildBusinessIntelligence(data);
+  assert.equal(october.currentRevenue, 100); assert.equal(october.result.expenses, 30); assert.equal(october.result.result, 30); assert.equal(october.paid, 0);
+  const november = h.buildBusinessIntelligence({ ...data, selectedMonth: '2026-11' });
+  assert.equal(november.result.expenses, 0); assert.equal(november.paid, 30);
+});
+
+test('custom periods include both selected days and reject missing, impossible and reversed dates', () => {
+  const selected = h.buildBusinessIntelligence(input({ period: 'custom', customStart: '2026-10-10', customEnd: '2026-10-10' }));
+  assert.equal(selected.periodDays, 1); assert.equal(selected.currentRevenue, 100);
+  for (const patch of [
+    { period: 'selectedMonth', selectedMonth: '' }, { period: 'selectedMonth', selectedMonth: '2026-13' },
+    { period: 'custom', customStart: '', customEnd: '2026-10-10' },
+    { period: 'custom', customStart: '2026-02-30', customEnd: '2026-10-10' },
+    { period: 'custom', customStart: '2026-10-11', customEnd: '2026-10-10' },
+  ]) assert.ok(h.buildBusinessIntelligence(input(patch)).periodError);
+});
 
 test('calendar months include complete months, leap days and the year boundary in Sao Paulo', () => {
   for (const [now, period, selectedMonth, first, last, days] of [
@@ -132,4 +167,51 @@ test('access requires proprietor operating as proprietor and all three existing 
   assert.equal(h.canViewBusinessIntelligence(false,true,modules),false);
   assert.equal(h.canViewBusinessIntelligence(true,false,modules),false);
   for (const blocked of modules) assert.equal(h.canViewBusinessIntelligence(true,true,modules.filter(module=>module!==blocked)),false);
+});
+
+
+test('Manaus 23:30 agrees across BI, administrative day, financial dates and custom sales report', () => {
+  const harness = h;
+  const { load } = intelligenceHarness();
+  const dates = load('lib/adminDashboard.ts'), flow = load('lib/financialFlow.ts'), metrics = load('lib/reportMetrics.ts');
+  const event = '2026-11-16T03:30:00Z';
+  assert.equal(dates.adminBusinessDay(new Date(event), 'America/Manaus'), '2026-11-15');
+  assert.equal(flow.localDate(event, 'America/Manaus'), '2026-11-15');
+  assert.equal(flow.localDate('2026-11-15', 'America/Manaus'), '2026-11-15');
+  const row = sale({ completed_at: event });
+  const model = harness.buildBusinessIntelligence(input({ timeZone: 'America/Manaus', now: new Date('2026-11-16T03:45:00Z'), period: 'today', sales: [row] }));
+  assert.equal(model.today, '2026-11-15'); assert.equal(model.currentRevenue, 100);
+  assert.equal(metrics.filterReportSales([row], 'custom', '2026-11-15', '2026-11-15', new Date(), 'America/Manaus').length, 1);
+  assert.equal(metrics.filterReportSales([row], 'custom', '2026-11-16', '2026-11-16', new Date(), 'America/Manaus').length, 0);
+});
+
+test('month comparison caps March to February common days and excludes unmatched March revenue', () => {
+  const prior = Array.from({ length: 5 }, (_, i) => sale({ id: 'prior' + i, completed_at: '2026-02-0' + (i + 1) + 'T15:00:00Z' }));
+  const rows = [...prior, sale({ id: 'early', completed_at: '2026-01-01T15:00:00Z' }), sale({ completed_at: '2026-03-10T15:00:00Z' }), sale({ id: 'unmatched', completed_at: '2026-03-30T15:00:00Z', total: 900 })];
+  const result = h.buildBusinessIntelligence(input({ branch: '', period: 'month', now: new Date('2026-03-31T16:00:00Z'), sales: rows }));
+  assert.equal(result.currentRevenue, 1000); assert.equal(result.comparisonRevenue, 100); assert.equal(result.previousRevenue, 500);
+  assert.equal(result.comparison.last, '2026-03-28'); assert.equal(result.comparison.previousLast, '2026-02-28'); assert.equal(result.growth, -80);
+  assert.equal(result.productReductions[0].reduction, 400); assert.equal(result.branchReductions[0].reduction, 400);
+  assert.equal(h.buildBusinessIntelligence(input({ period: 'month' })).growth, null);
+});
+
+test('month comparison uses equal Manaus cutoff and marks unreconciled products partial', () => {
+  const prior = Array.from({ length: 5 }, (_, i) => sale({ id: 'prior' + i, completed_at: '2026-10-0' + (i + 1) + 'T15:00:00Z' }));
+  const result = h.buildBusinessIntelligence(input({ timeZone: 'America/Manaus', period: 'month', now: new Date('2026-11-15T16:00:00Z'), sales: [...prior, sale({ id: 'early', completed_at: '2026-09-01T15:00:00Z' }), sale({ id: 'late', completed_at: '2026-10-15T16:01:00Z', total: 900 }), sale({ completed_at: '2026-11-15T15:59:00Z', total: 80 })] }));
+  assert.equal(result.previousRevenue, 500); assert.equal(result.comparisonRevenue, 80); assert.equal(result.growth, -84); assert.ok(result.comparison.cutoff); assert.equal(result.productAnalysisPartial, true);
+});
+
+test('attention balances exclude cancelled accounts, preserve partials and change with branch; unknown cost stays flagged', () => {
+  const data = input({ invoices: [invoice({ due_date: '2026-10-18' }), invoice({ id: 'cancel', status: 'cancelada', due_date: '2026-10-18' }), invoice({ id: 'b', branch_id: 'B', due_date: '2026-10-18' })], payables: [payable({ due_date: '2026-10-18' })], sales: [], products: [product({ cost_price: null })] });
+  const a = h.buildBusinessIntelligence(data), b = h.buildBusinessIntelligence({ ...data, branch: 'B' });
+  assert.equal(a.overdue.incoming.length, 1); assert.equal(a.overdue.incoming[0].balance, 75); assert.equal(a.overdue.outgoing[0].balance, 150);
+  assert.equal(a.stagnant.items[0].costKnown, false); assert.equal(a.stagnant.totalValue, 0);
+  assert.equal(b.overdue.incoming[0].id, 'b'); assert.equal(b.overdue.outgoing.length, 0); assert.equal(b.stagnant.count, 0);
+});
+
+
+test('month opening at exact Manaus midnight keeps valid comparison day labels and insufficient history', () => {
+  const result = h.buildBusinessIntelligence(input({ period: 'month', now: new Date('2026-11-01T04:00:00Z'), timeZone: 'America/Manaus', sales: [] }));
+  assert.equal(result.comparison.first, '2026-11-01'); assert.equal(result.comparison.last, '2026-11-01');
+  assert.equal(result.comparison.previousFirst, '2026-10-01'); assert.equal(result.comparison.previousLast, '2026-10-01'); assert.equal(result.growth, null);
 });

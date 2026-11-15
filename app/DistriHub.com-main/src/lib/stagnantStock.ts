@@ -7,6 +7,7 @@ export interface StagnantProduct {
   lastSaleAt: string | null;
   lastEntryAt: string | null;
   daysWithoutTurnover: number;
+  costKnown: boolean;
   unitCost: number;
   tiedUpCapital: number;
   level: StagnantLevel;
@@ -122,12 +123,14 @@ export function computeStagnantStock(
     const level = getStagnantLevel(daysWithoutTurnover);
     if (!level) continue;
 
-    const unitCost = Number(product.cost_price) || 0;
+    const costKnown = typeof product.cost_price === 'number' && Number.isFinite(product.cost_price) && product.cost_price >= 0;
+    const unitCost = costKnown ? product.cost_price : 0;
     items.push({
       product,
       lastSaleAt: saleTime === undefined ? null : new Date(saleTime).toISOString(),
       lastEntryAt: entryTime === undefined ? null : new Date(entryTime).toISOString(),
       daysWithoutTurnover,
+      costKnown,
       unitCost,
       tiedUpCapital: product.stock * unitCost,
       level,

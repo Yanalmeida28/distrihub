@@ -114,6 +114,7 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
         </div>
       </div>
 
+      <label className="personalization-text-field">Fuso do dia comercial<select aria-label="Fuso do dia comercial" value={settings.personalization?.business_time_zone ?? ''} onChange={e => updatePreference('business_time_zone', e.target.value || undefined)}><option value="">Manter comportamento atual</option><option value="America/Manaus">Manaus (America/Manaus)</option><option value="America/Sao_Paulo">Brasília (America/Sao_Paulo)</option></select></label>
       <nav className="personalization-tabs" aria-label="Seções de personalização">
         {([{ id: 'visual', label: 'Identidade visual' }, { id: 'painel', label: 'Painel' }, { id: 'cupom', label: 'Cupom e termos' }, { id: 'catalogo', label: 'Catálogo' }, { id: 'pdv', label: 'PDV' }] as const).map(tab => (
           <button key={tab.id} type="button" className={activeTab === tab.id ? 'active' : ''} aria-pressed={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>

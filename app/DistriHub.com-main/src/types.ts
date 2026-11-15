@@ -354,6 +354,7 @@ export interface CatalogPreferences {
 }
 
 export interface StorePersonalization {
+  business_time_zone?: string;
   receipt?: Partial<ReceiptPreferences>;
   panel?: Partial<PanelPreferences>;
   catalog?: Partial<CatalogPreferences>;

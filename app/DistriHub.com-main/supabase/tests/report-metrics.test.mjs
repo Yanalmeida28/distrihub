@@ -1,3 +1,4 @@
+import { intelligenceHarness } from './fixtures/business_intelligence_helpers.mjs';
 import { pdvHelpers } from './fixtures/pdv_helpers.mjs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
@@ -10,7 +11,7 @@ const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const metrics = {};
-vm.runInNewContext(compiled, {exports:metrics, Date, require(name){if(name==='./pdv')return pdvHelpers;throw Error(name);}});
+vm.runInNewContext(compiled, {exports:metrics, Date, require(name){if(name==='./adminDashboard')return intelligenceHarness().load('lib/adminDashboard.ts');if(name==='./pdv')return pdvHelpers;throw Error(name);}});
 
 function sale(overrides = {}) {
   return {

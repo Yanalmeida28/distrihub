@@ -16,7 +16,8 @@ type Props = {
   invoices: PartnerInvoice[]; payables: PayableAccount[]; payablesLoading: boolean; payablesError: string;
   rmas?: RmaRequest[];
   onRefreshPayables?: () => Promise<boolean>;
-  onBranchChange: (id: string) => void; onNavigate: (section: 'relatorios' | 'financeiro') => void;
+  onBranchChange: (id: string) => void; onNavigate: (section: 'relatorios' | 'financeiro', target?: 'pagar' | 'receber' | 'sem-giro' | 'inativos' | 'sem-compras') => void;
+  timeZone?: string;
   now?: Date;
 };
 
@@ -29,13 +30,13 @@ const expenseLabels: Record<string, string> = { fornecedor: 'Fornecedores / comp
 
 export function BusinessIntelligenceModule(props: Props) {
   const { companyId, branchId, branches, isActive, dataReady, dataError, sales, products, customers, movements,
-    invoices, rmas, payables, payablesLoading, payablesError, onRefreshPayables, onBranchChange, onNavigate, lastSyncedAt, now: suppliedNow } = props;
+    invoices, rmas, payables, payablesLoading, payablesError, onRefreshPayables, onBranchChange, onNavigate, lastSyncedAt, now: suppliedNow, timeZone } = props;
   const [clock, setClock] = useState(() => new Date());
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [period, setPeriod] = useState<NonNullable<BusinessInput['period']>>('month');
-  const [selectedMonth, setSelectedMonth] = useState(() => adminBusinessDay(suppliedNow ?? new Date()).slice(0, 7));
-  const [customStart, setCustomStart] = useState(() => adminBusinessDay(suppliedNow ?? new Date()).slice(0, 7) + '-01');
-  const [customEnd, setCustomEnd] = useState(() => adminBusinessDay(suppliedNow ?? new Date()));
+  const [selectedMonth, setSelectedMonth] = useState(() => adminBusinessDay(suppliedNow ?? new Date(), timeZone).slice(0, 7));
+  const [customStart, setCustomStart] = useState(() => adminBusinessDay(suppliedNow ?? new Date(), timeZone).slice(0, 7) + '-01');
+  const [customEnd, setCustomEnd] = useState(() => adminBusinessDay(suppliedNow ?? new Date(), timeZone));
   const [fixed, setFixed] = useState('');
   const [contribution, setContribution] = useState('');
   const [desired, setDesired] = useState('');
@@ -71,10 +72,10 @@ export function BusinessIntelligenceModule(props: Props) {
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
   }, [companyId, branchId, isActive, validBranch, dataReady, dataError, reloadLedger]);
-  const model = useMemo(() => buildBusinessIntelligence({ company: companyId, branch: branchId, now, days, period, selectedMonth, customStart, customEnd, rmas,
+  const model = useMemo(() => buildBusinessIntelligence({ company: companyId, branch: branchId, timeZone, now, days, period, selectedMonth, customStart, customEnd, rmas,
     sales, products, customers, movements, invoices: scopedInvoices, payables: scopedPayables,
     receipts: ledger.receipts, payments: ledger.payments, refunds: ledger.refunds,
-  }), [companyId, branchId, now, days, period, selectedMonth, customStart, customEnd, rmas, sales, products, customers, movements, scopedInvoices, scopedPayables, ledger.receipts, ledger.payments, ledger.refunds]);
+  }), [companyId, branchId, timeZone, now, days, period, selectedMonth, customStart, customEnd, rmas, sales, products, customers, movements, scopedInvoices, scopedPayables, ledger.receipts, ledger.payments, ledger.refunds]);
   const simulation = simulateBusinessGoal(fixed, contribution, desired, target, model.currentRevenue);
   const error = !validBranch ? 'A filial selecionada não pertence ao contexto disponível. Selecione uma filial válida.' : dataError || payablesError || ledger.error;
   const loading = !dataReady || payablesLoading || ledger.loading;
@@ -102,12 +103,39 @@ export function BusinessIntelligenceModule(props: Props) {
       </>}
       <label>Filial<select value={branchId} onChange={event => onBranchChange(event.target.value)}><option value="">Visão consolidada</option>{branches.filter(branch => branch.user_id === companyId).map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
       <button type="button" className="rma-advance-btn" disabled={loading} onClick={() => { ledger.reload(); void onRefreshPayables?.(); }}>Atualizar financeiro</button>
-      {!model.periodError && <div className="bi-period"><CalendarDays size={15} /><span>{dayLabel(model.first)} a {dayLabel(model.last)}<small>America/Sao_Paulo · previsão a partir de {dayLabel(model.today)}</small></span></div>}
+      {!model.periodError && <div className="bi-period"><CalendarDays size={15} /><span>{dayLabel(model.first)} a {dayLabel(model.last)}<small>{timeZone ?? 'America/Sao_Paulo'} · previsão a partir de {dayLabel(model.today)}</small></span></div>}
     </div>
     {model.periodError ? <p className="module-card" role="alert">{model.periodError}</p>
       : error ? <div className="module-card bi-notice" role="alert"><AlertTriangle size={20} /><div><strong>Análise indisponível</strong><p>{error}</p><p>Os valores não serão tratados como zero. Atualize a base no painel para tentar novamente.</p>{ledger.error && <button type="button" className="rma-advance-btn" onClick={ledger.reload}>Tentar novamente os movimentos</button>}</div></div>
       : loading ? <p className="module-card" role="status">Conferindo dados e movimentos financeiros antes de apresentar o diagnóstico…</p>
       : <>
+        <section className="bi-section" aria-labelledby="bi-attention">
+          <div className="bi-section-heading"><AlertTriangle size={19} /><div><h4 id="bi-attention">O que precisa da sua atenção</h4><p>Situação de hoje, {dayLabel(model.today)} · {branchName}. Independente do período histórico selecionado.</p></div></div>
+          <div className="bi-forecast-grid">
+            {(['incoming', 'outgoing'] as const).map(kind => <article className="module-card" key={kind}><h5>Contas vencidas — {kind === 'incoming' ? 'a receber' : 'a pagar'}</h5>
+              <strong>{model.overdue[kind].length} conta(s) · {amount(kind === 'incoming' ? model.forecast.overdueIncoming : model.forecast.overdueOutgoing)}</strong>
+              <p>Saldo em aberto após pagamentos parciais; canceladas excluídas.</p>
+              <ul>{model.overdue[kind].slice(0,3).map(row => <li key={row.id}>{row.name} · {dayLabel(row.due)} · {amount(row.balance)}</li>)}</ul>
+              <button className="rma-advance-btn" onClick={() => onNavigate('financeiro', kind === 'incoming' ? 'receber' : 'pagar')}>Abrir vencidas {kind === 'incoming' ? 'a receber' : 'a pagar'}</button>
+            </article>)}
+            <article className="module-card"><h5>Estoque sem giro hoje</h5><strong>{model.stagnant.count} produto(s) · {amount(model.stagnant.totalValue)} em capital estimado conhecido</strong>
+              <ul>{[...model.stagnant.items].sort((a,b) => b.tiedUpCapital - a.tiedUpCapital).slice(0,5).map(row => <li key={row.product.id}>{row.product.name} · {row.product.stock} un. · {row.daysWithoutTurnover} dias · {row.costKnown ? amount(row.tiedUpCapital) : 'Custo desconhecido'}{row.costKnown && row.unitCost === 0 ? ' · custo zero: conferir cadastro' : ''}</li>)}</ul>
+              {model.stagnant.items.some(row => !row.costKnown) && <p>Valor parcial: há produtos com custo desconhecido.</p>}
+              <button className="rma-advance-btn" onClick={() => onNavigate('relatorios', 'sem-giro')}>Abrir relatório Sem giro</button></article>
+            <article className="module-card"><h5>Clientes inativos hoje</h5><p>{model.inactiveCount} sem comprar há 90 dias · {model.neverPurchased} sem compras registradas nesta seleção.</p>
+              <button className="rma-advance-btn" onClick={() => onNavigate('relatorios', 'inativos')}>Abrir clientes inativos no CRM</button>{' '}
+              <button className="rma-advance-btn" onClick={() => onNavigate('relatorios', 'sem-compras')}>Abrir clientes sem compras</button></article>
+          </div>
+        </section>
+        <section className="bi-section" aria-labelledby="bi-comparison"><h4 id="bi-comparison">Comparação de faturamento</h4>
+          <p>{dayLabel(model.comparison.first)} a {dayLabel(model.comparison.last)} versus {dayLabel(model.comparison.previousFirst)} a {dayLabel(model.comparison.previousLast)}{model.comparison.cutoff ? ' · mesmo horário de corte: ' + model.comparison.cutoff : ' · dias encerrados'}</p>
+          {model.growth === null ? <p>Histórico insuficiente. A comparação exige cobertura desde o início da referência e pelo menos cinco vendas anteriores com valores utilizáveis.</p> : <><p>{amount(model.comparisonRevenue)} versus {amount(model.previousRevenue)} · {model.growth.toFixed(1)}%</p>
+            <p>Maiores contribuições observadas à redução em reais. Os registros não comprovam a causa da variação.</p>
+            <h5>Produtos</h5>{model.productAnalysisPartial && <p>Análise por produto parcial: os itens não reconciliam com o valor das vendas.</p>}
+            <ul>{model.productReductions.map(row => <li key={row.id}>{row.name} · redução de {amount(row.reduction)}</li>)}</ul>
+            {!branchId && <><h5>Filiais</h5><ul>{model.branchReductions.map(row => <li key={row.id}>{branches.find(b => b.user_id === companyId && b.id === row.id)?.name ?? 'Sem filial identificada'} · redução de {amount(row.reduction)}</li>)}</ul></>}
+          </>}
+        </section>
         <section aria-labelledby="bi-result" className="bi-section">
           <div className="bi-section-heading"><Activity size={19} /><div><h4 id="bi-result">Resultado após despesas</h4><p>Vendas, devoluções, custos e despesas cadastradas no período selecionado.</p></div></div>
           <div className={`module-card bi-result-status bi-result-${model.result.status}`} role="status">
@@ -169,9 +197,9 @@ export function BusinessIntelligenceModule(props: Props) {
         </section>
 
         <section aria-labelledby="bi-alerts" className="bi-section"><div className="bi-section-heading"><AlertTriangle size={19} /><div><h4 id="bi-alerts">Alertas inteligentes</h4><p>Regras explícitas, sem IA externa: queda de vendas ≥ 20%, margem ≥ 5 p.p., vencidos, sem giro e inatividade.</p></div></div>
-          {!model.comparisonReady && <p className="bi-hint">{model.last >= model.today ? 'Período em andamento: comparação de crescimento disponível nos períodos encerrados.' : 'Comparação de vendas e margem inconclusiva: exige histórico desde o início da referência e pelo menos cinco vendas no período anterior. Ausência de histórico não será tratada como vendas zero.'}</p>}
-          {model.growth !== null && <p className="bi-hint">Faturamento: {model.growth.toFixed(1)}% em relação aos {model.periodDays} dias anteriores. Quedas de margem usam custos estimados quando não há custo original.</p>}
-          <div className="bi-alert-grid">{model.alerts.map(alert => <article key={alert.id} className={`module-card bi-alert bi-alert-${alert.severity}`}><span className="bi-tag">{alert.severity === 'critical' ? 'Prioridade' : 'Atenção'}</span><h5>{alert.title}</h5><p>{alert.detail}</p><p>{alert.action}</p><button type="button" className="rma-advance-btn" onClick={() => onNavigate(alert.target)}>Abrir {alert.target === 'financeiro' ? 'Financeiro' : 'Relatórios'} <ArrowUpRight size={14} /></button></article>)}</div>
+          {!model.comparisonReady && <p className="bi-hint">{model.last >= model.today ? 'Histórico insuficiente para comparar este período.' : 'Comparação de vendas e margem inconclusiva: exige histórico desde o início da referência e pelo menos cinco vendas no período anterior. Ausência de histórico não será tratada como vendas zero.'}</p>}
+          {model.growth !== null && <p className="bi-hint">Faturamento: {model.growth.toFixed(1)}% no intervalo comum indicado na comparação. Quedas de margem usam custos estimados quando não há custo original.</p>}
+          <div className="bi-alert-grid">{model.alerts.map(alert => <article key={alert.id} className={`module-card bi-alert bi-alert-${alert.severity}`}><span className="bi-tag">{alert.severity === 'critical' ? 'Prioridade' : 'Atenção'}</span><h5>{alert.title}{['overdue', 'stock', 'customers'].includes(alert.id) ? ' (hoje)' : ''}</h5><p>{alert.detail}</p><p>{alert.action}</p><button type="button" className="rma-advance-btn" onClick={() => onNavigate(alert.target, alert.id === 'stock' ? 'sem-giro' : alert.id === 'customers' ? 'inativos' : alert.id === 'overdue' ? 'receber' : undefined)}>Abrir {alert.target === 'financeiro' ? 'Financeiro' : 'Relatórios'} <ArrowUpRight size={14} /></button></article>)}</div>
           {!model.alerts.length && <p className="module-card">Nenhum alerta acionado pelos dados disponíveis. Isso não certifica a saúde financeira da empresa.</p>}
           <p className="bi-hint">Clientes inativos: 90 dias sem compra concluída {branchId ? 'nesta filial' : 'na empresa'}. {model.neverPurchased} cliente(s) sem compras registradas foram separados da inatividade.</p>
         </section>
@@ -199,7 +227,7 @@ export function BusinessIntelligenceModule(props: Props) {
           {model.alerts.map(alert => <li key={alert.id}><strong>{alert.title}:</strong> {alert.action}</li>)}
           {!model.comparisonReady && <li>Acompanhe períodos completos e confirme a cobertura do histórico antes de concluir tendência de crescimento ou queda.</li>}
           <li>Use o simulador com gastos fixos e margem de contribuição conferidos. Custos não cadastrados, tributos e mão de obra podem mudar o resultado.</li>
-        </ol><small className="bi-disclaimer">Nenhuma recomendação modifica preços, estoque, cobranças ou cadastros. {lastSyncedAt ? `Base sincronizada em ${lastSyncedAt.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}.` : 'Horário de sincronização não informado.'}</small></section>
+        </ol><small className="bi-disclaimer">Nenhuma recomendação modifica preços, estoque, cobranças ou cadastros. {lastSyncedAt ? `Base sincronizada em ${lastSyncedAt.toLocaleString('pt-BR', { timeZone: timeZone ?? 'America/Sao_Paulo' })}.` : 'Horário de sincronização não informado.'}</small></section>
       </>}
   </section>;
 }

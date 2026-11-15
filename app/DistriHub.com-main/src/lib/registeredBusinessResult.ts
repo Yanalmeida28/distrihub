@@ -4,17 +4,17 @@ import { localDate } from './financialFlow';
 
 const amountValid = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0 && Number.isSafeInteger(Math.round(value * 100));
 const cents = (value: number) => Math.round(value * 100);
-const day = (value: string | null | undefined) => {
+const day = (value: string | null | undefined, timeZone?: string) => {
   if (!value) return '';
-  const result = localDate(value);
+  const result = localDate(value, timeZone);
   return /^\d{4}-\d{2}-\d{2}$/.test(result) && Number.isFinite(Date.parse(result)) && new Date(result).toISOString().slice(0, 10) === result ? result : '';
 };
 const expenseCategories = new Set(['aluguel', 'energia', 'salarios', 'impostos', 'outros']);
 
 // A managerial estimate based on registered due dates, not an accounting competence ledger.
 // Inputs are already filtered by company/branch by buildBusinessIntelligence.
-export function registeredBusinessResult({ revenue, cost, sales, products, payables, rmas, first, last }: {
-  revenue: number | null; cost: number | null; sales: PartnerSale[]; products: PartnerProduct[];
+export function registeredBusinessResult({ revenue, cost, sales, products, payables, rmas, first, last, timeZone }: {
+  timeZone?: string; revenue: number | null; cost: number | null; sales: PartnerSale[]; products: PartnerProduct[];
   payables: PayableAccount[]; rmas?: RmaRequest[]; first: string; last: string;
 }) {
   const inPeriod = (value: string) => value >= first && value <= last;
@@ -46,7 +46,7 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
     const credit = rma.credit_amount ?? 0, refund = rma.refund_amount ?? 0;
     if (!amountValid(credit) || !amountValid(refund) || (credit > 0 && refund > 0)) { invalidReturns++; continue; }
     const returnAmount = credit || refund;
-    const date = day(credit > 0 ? rma.credited_at : rma.refunded_at);
+    const date = day(credit > 0 ? rma.credited_at : rma.refunded_at, timeZone);
     const sale = rma.sale_id ? salesById.get(rma.sale_id) : undefined;
     const index = rma.sale_item_index;
     const item = sale && Number.isInteger(index) && index! >= 0 ? sale.items?.[index!] : undefined;
@@ -58,7 +58,7 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
       else { returnCents += cents(returnAmount); returnCount++; }
     }
 
-    const restoredAt = day(rma.stock_restored_at);
+    const restoredAt = day(rma.stock_restored_at, timeZone);
     if (!restoredAt) {
       if (rma.stock_restored_at || rma.status === 'reintegrado_estoque') invalidReturns++;
       continue;

@@ -1,3 +1,4 @@
+import { intelligenceHarness } from './fixtures/business_intelligence_helpers.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -41,6 +42,7 @@ async function load(name, window, directPrint, document) {
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020},
   }).outputText,{exports,window,document,require(name){
     if(name==='./directPrint')return directPrint ?? {printerPreferences:()=>null,sendReceipt:async()=>{}};
+    if(name==='./adminDashboard')return intelligenceHarness().load('lib/adminDashboard.ts');
     if(name==='./pdv')return pdvHelpers;
     if(name==='./personalization')return personalizationHelpers;
     if(name==='../utils')return {money:currency};

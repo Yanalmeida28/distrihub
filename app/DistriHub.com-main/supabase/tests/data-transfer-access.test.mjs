@@ -80,6 +80,7 @@ test('administrative JSON/CSV/XLSX exports require explicit authorization', asyn
 
 test('every report export respects the same permission without removing the report itself', async () => {
   const { ReportsModule } = await load('components/partner/ReportsModule.tsx', {
+    '../../lib/adminDashboard': await load('lib/adminDashboard.ts'),
     '../../utils': { money: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }) },
     '../../lib/pdv': {},
     '../../lib/reportMetrics': {
