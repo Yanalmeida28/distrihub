@@ -82,6 +82,7 @@ test('purchase form saves purchase date, credit method and revised installment d
   await act(async()=>r.root.findAllByType('label').find(label=>label.children[0]==='Descrição').findByType('input').props.onChange({target:{value:'Compra parcelada'}}));
   await act(async()=>r.root.findAllByType('select').find(select=>select.findAllByType('option').some(option=>option.props.value==='supplier')).props.onChange({target:{value:'supplier'}}));
   await act(async()=>r.root.findByProps({inputMode:'decimal'}).props.onChange({target:{value:'100,00'}}));
+  await change('Tipo de despesa','variable');
   await change('Data da compra','2025-01-15');await change('Forma de pagamento da conta','cartao_credito');
   await change('Condição de pagamento','parcelado');await change('Quantidade de parcelas','3');await change('Vencimento','2025-01-31');
   await change('Vencimento da parcela 2','2025-03-05');
@@ -184,6 +185,7 @@ test('selecting a supplier preserves the chosen expense category and explicit in
    await act(async()=>button(r,'Nova conta a pagar').props.onClick());
    const option=value=>r.root.findAllByType('select').find(select=>select.findAllByType('option').some(node=>node.props.value===value));
    await act(async()=>option('energia').props.onChange({target:{value:category}}));
+   if(category!=='fornecedor') await act(async()=>r.root.findByProps({'aria-label':'Tipo de despesa'}).props.onChange({target:{value:'variable'}}));
    await act(async()=>option('utility').props.onChange({target:{value:'utility'}}));
    assert.equal(option('energia').props.value,category);
    const description=r.root.findAllByType('label').find(label=>label.children[0]==='Descrição').findByType('input');

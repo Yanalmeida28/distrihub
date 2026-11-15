@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PartnerSupplier } from '../../types';
-import { payableCategories, type PayableAccount, type PayableEdit } from '../../lib/accounts';
+import { payableCategories, type PayableAccount, type PayableEdit, type PayableExpenseBehavior } from '../../lib/accounts';
 import { payablePaymentMethods, validPayableDay, type PayablePaymentMethod } from '../../lib/payableDetails';
 import { localDate } from '../../lib/financialFlow';
 import { money } from '../../utils';
@@ -15,6 +15,7 @@ type Props = {
 export function PayableManagementPanel({ account, mode, suppliers, branchName, blocked, isActive, onEdit, onDelete, onDone, onCancel }: Props) {
   const [form, setForm] = useState(() => ({
     description: account.description, creditor: account.creditor_name, supplier: account.supplier_id ?? '', category: account.category,
+    behavior: account.expense_behavior ?? '' as PayableExpenseBehavior | '',
     amount: String(account.amount).replace('.', ','), due: account.due_date, purchased: account.purchased_on ?? '',
     method: account.payment_method ?? 'nao_informado', detail: account.payment_method_detail ?? '',
   }));
@@ -42,7 +43,8 @@ export function PayableManagementPanel({ account, mode, suppliers, branchName, b
       if (mode === 'delete') await onDelete(reason.trim(), account.revision ?? 0, token.current);
       else await onEdit({
         description: form.description.trim(), creditor_name: form.creditor.trim(), supplier_id: form.supplier || null,
-        category: form.category, amount, due_date: form.due, purchased_on: form.purchased || null,
+        category: form.category, expense_behavior: form.category === 'fornecedor' ? null : form.behavior || null,
+        amount, due_date: form.due, purchased_on: form.purchased || null,
         payment_method: form.method, payment_method_detail: form.method === 'outro' ? form.detail.trim() : null,
       }, account.revision ?? 0, token.current);
       if (mounted.current) onDone(mode === 'delete' ? 'Conta excluída dos cálculos. O histórico foi preservado para conferência.' : 'Conta atualizada.');
@@ -64,6 +66,7 @@ export function PayableManagementPanel({ account, mode, suppliers, branchName, b
         <label>Credor<input aria-label="Editar credor da conta" required maxLength={200} value={form.creditor} disabled={disabled} onChange={event => setForm({ ...form, creditor: event.target.value })} /></label>
         <label>Fornecedor<select aria-label="Editar fornecedor da conta" value={form.supplier} disabled={disabled} onChange={event => setForm({ ...form, supplier: event.target.value })}><option value="">Sem fornecedor</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
         <label>Categoria<select aria-label="Editar categoria da conta" value={form.category} disabled={disabled} onChange={event => setForm({ ...form, category: event.target.value as PayableAccount['category'] })}>{Object.entries(payableCategories).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        {form.category !== 'fornecedor' && <label>Tipo de despesa<select aria-label="Editar tipo de despesa" value={form.behavior} disabled={disabled} onChange={event => setForm({ ...form, behavior: event.target.value as PayableExpenseBehavior })}><option value="">Usar classificação da categoria no ponto de equilíbrio</option><option value="fixed">Fixa — não acompanha as vendas</option><option value="variable">Variável — acompanha as vendas</option></select></label>}
         <label>Valor desta conta ou parcela (R$)<input aria-label="Editar valor da conta" inputMode="decimal" required value={form.amount} disabled={disabled} onChange={event => setForm({ ...form, amount: event.target.value })} /></label>
         <label>Vencimento<input aria-label="Editar vencimento da conta" type="date" required value={form.due} disabled={disabled} onChange={event => setForm({ ...form, due: event.target.value })} /></label>
         <label>Data da compra<input aria-label="Editar data da compra" type="date" max={localDate(new Date().toISOString())} value={form.purchased} disabled={disabled} onChange={event => setForm({ ...form, purchased: event.target.value })} /></label>

@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "node --test supabase/tests/*.test.mjs",
     "test:intelligence": "node --test --test-concurrency=1 supabase/tests/business-intelligence.test.mjs supabase/tests/business-intelligence-ui.test.mjs supabase/tests/business-result.test.mjs supabase/tests/admin-corrections.test.mjs supabase/tests/accounts.test.mjs supabase/tests/financial-flow.test.mjs supabase/tests/financial-corrections.test.mjs supabase/tests/report-metrics.test.mjs supabase/tests/stagnant-stock.test.mjs",
-    "test:financial-flow": "node --test --test-concurrency=1 supabase/tests/financial-flow.test.mjs supabase/tests/financial-flow-ui.test.mjs supabase/tests/financial-corrections.test.mjs"
+    "test:financial-flow": "node --test --test-concurrency=1 supabase/tests/financial-flow.test.mjs supabase/tests/financial-flow-ui.test.mjs supabase/tests/financial-corrections.test.mjs",
+    "test:expense-behavior": "node --test --test-concurrency=1 supabase/tests/expense-behavior.test.mjs supabase/tests/expense-behavior-ui.test.mjs supabase/tests/financial-corrections.test.mjs supabase/tests/payable-purchase.test.mjs supabase/tests/payable-management.test.mjs supabase/tests/break-even.test.mjs supabase/tests/break-even-ui.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.4",

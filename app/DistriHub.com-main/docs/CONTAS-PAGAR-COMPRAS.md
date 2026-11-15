@@ -32,6 +32,16 @@ O filtro **Excluídas** permite conferir o registro original e o motivo. O banco
 
 Cada alteração verifica a versão da conta, incluindo pagamentos feitos em outro acesso. Dados desatualizados são recusados para evitar sobrescrever uma alteração. Tentativas com resposta perdida são recuperadas pelo mesmo identificador, sem aplicar a correção duas vezes.
 
+## Despesa fixa ou variável
+
+Ao cadastrar uma despesa, escolha **Tipo de despesa**: fixa (não acompanha as vendas) ou variável (acompanha as vendas). A categoria continua indicando a finalidade do gasto. Contas da mesma categoria podem ter tipos diferentes. Na compra parcelada, a escolha vale para todas as parcelas.
+
+O ponto de equilíbrio usa primeiro o tipo definido na própria conta. Contas antigas sem tipo continuam usando a classificação da categoria salva para a filial em Inteligência Empresarial. Nenhuma conta antiga é reclassificada automaticamente. Em **Editar conta**, é possível corrigir o tipo com motivo e histórico de alteração, inclusive em contas pagas, sem alterar os pagamentos. A edição vale para a parcela escolhida.
+
+Compras de estoque (categoria fornecedor) não recebem esse tipo: o custo dos produtos vendidos já participa do cálculo. Classificar uma despesa não muda seu valor, seu vencimento nem o fluxo de caixa. O ponto de equilíbrio ainda exige dados suficientes, conferência dos gastos e margem de contribuição positiva.
+
+Validação: `npm run test:expense-behavior`, `npm run test:intelligence`, `npm run typecheck`, `npm run lint -- --max-warnings 0` e `npm run build`.
+
 ## Integridade
 
 A compra inteira é salva em uma transação. Se uma parcela for inválida, nenhuma é confirmada. Tentativas com falha de conexão preservam os identificadores, parcelas, datas e formas de pagamento para recuperação sem duplicação. Repetir uma tentativa não zera pagamentos já feitos.
