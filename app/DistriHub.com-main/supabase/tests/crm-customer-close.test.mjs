@@ -1,3 +1,4 @@
+import { intelligenceHarness } from './fixtures/business_intelligence_helpers.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -9,6 +10,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 const require=createRequire(import.meta.url),exports={};
 const source=await readFile(new URL('../../src/components/partner/CrmWorkspace.tsx',import.meta.url),'utf8');
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText,{exports,require(name){
+    if(name==='../../lib/adminDashboard')return intelligenceHarness().load('lib/adminDashboard.ts');
  if(name==='../../lib/supabase')return {supabase:null};
  if(name==='../../lib/accounts')return {accountBalance:()=>0,isOverdue:()=>false};
  if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};

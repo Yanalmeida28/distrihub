@@ -14,6 +14,8 @@ type Props = {
   isActive?: boolean;
   recoveries?: FinancialRecovery[];
   recoveryError?: string;
+  timeZone?: string;
+  initialFilter?: string;
   kind: 'pagar' | 'receber';
   invoices: PartnerInvoice[];
   payables: ReturnType<typeof usePayables>;
@@ -29,13 +31,13 @@ const parseAmount = (text: string) => /^\d+(?:[.,]\d{1,2})?$/.test(text.trim()) 
 export function AccountsModule(props: Props) {
   return <AccountsScreen key={props.contextKey ?? [props.kind, props.branchId].join(':')} {...props} />;
 }
-function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchId, onReceive, recoveries = [], recoveryError, isActive = true }: Props) {
+function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, payables, branches, suppliers, branchId, onReceive, recoveries = [], recoveryError, isActive = true }: Props) {
   const mounted = useRef(true);
   const activeRef = useRef(isActive); activeRef.current = isActive;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   useEffect(() => { if (!isActive) { setCreating(false); setPayment(null); setManagement(null); } }, [isActive]);
   const pending = Boolean(recoveryError || payables.recoveryError || recoveries.length || payables.recoveries?.length);
-  const [filter, setFilter] = useState('abertas');
+  const [filter, setFilter] = useState(initialFilter);
   const [view, setView] = useState<'table' | 'kanban'>('table');
   const [query, setQuery] = useState('');
   const [creating, setCreating] = useState(false);
@@ -60,14 +62,14 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
     const name = 'description' in account ? `${account.description} ${account.creditor_name} ${payableMethodLabel(account.payment_method, account.payment_method_detail)} ${account.purchased_on ?? ''}` : `${account.customer_name} ${account.number}`;
     return (!query.trim() || name.toLowerCase().includes(query.trim().toLowerCase()))
       && (filter === 'todas' || filter === 'excluidas' || (filter === 'abertas' && accountBalance(account) > 0)
-        || (filter === 'vencidas' && isOverdue(account)) || (filter === 'pagas' && account.status === 'paga'));
+        || (filter === 'vencidas' && isOverdue(account, new Date(), timeZone)) || (filter === 'pagas' && account.status === 'paga'));
   });
   const open = accounts.reduce((sum, a) => sum + accountBalance(a), 0);
-  const overdue = accounts.filter(a => isOverdue(a)).reduce((sum, a) => sum + accountBalance(a), 0);
+  const overdue = accounts.filter(a => isOverdue(a, new Date(), timeZone)).reduce((sum, a) => sum + accountBalance(a), 0);
   const paid = accounts.reduce((sum, a) => sum + accountPaid(a), 0);
   const kanbanColumns = [
-    { key: 'open', title: 'Em aberto', accounts: visible.filter(a => accountBalance(a) > 0 && !isOverdue(a)) },
-    { key: 'overdue', title: 'Vencidas', accounts: visible.filter(a => isOverdue(a)) },
+    { key: 'open', title: 'Em aberto', accounts: visible.filter(a => accountBalance(a) > 0 && !isOverdue(a, new Date(), timeZone)) },
+    { key: 'overdue', title: 'Vencidas', accounts: visible.filter(a => isOverdue(a, new Date(), timeZone)) },
     { key: 'paid', title: 'Quitadas', accounts: visible.filter(a => a.status === 'paga') },
     { key: 'cancelled', title: filter === 'excluidas' ? 'Excluídas' : 'Canceladas', accounts: visible.filter(a => a.status === 'cancelada') },
   ];
@@ -241,7 +243,7 @@ function AccountsScreen({ kind, invoices, payables, branches, suppliers, branchI
         <td>{'description' in a ? <><strong>{a.description}</strong><br />{a.creditor_name}{purchaseDetails(a)}</> : <><strong>{a.customer_name}</strong><br />{a.number}</>}</td>
         <td>{money.format(a.amount)}</td><td>{money.format('description' in a && a.deleted_at ? a.paid_amount : accountPaid(a))}{'description' in a && a.deleted_at && <small> · Desconsiderado</small>}</td><td>{money.format(accountBalance(a))}</td>
         <td>{a.due_date ? new Date(a.due_date.slice(0, 10) + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</td>
-        <td>{'description' in a && a.deleted_at ? 'Excluída' : isOverdue(a) ? 'Vencida' : a.status === 'paga' ? 'Quitada' : a.status === 'parcial' ? 'Parcial' : a.status === 'cancelada' ? 'Cancelada' : 'Aberta'}</td>
+        <td>{'description' in a && a.deleted_at ? 'Excluída' : isOverdue(a, new Date(), timeZone) ? 'Vencida' : a.status === 'paga' ? 'Quitada' : a.status === 'parcial' ? 'Parcial' : a.status === 'cancelada' ? 'Cancelada' : 'Aberta'}</td>
         <td>{renderPaymentAction(a)}{renderManagementActions(a)}</td>
       </tr>)}</tbody>
     </table></div>}

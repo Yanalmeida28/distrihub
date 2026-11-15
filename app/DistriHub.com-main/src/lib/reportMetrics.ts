@@ -1,3 +1,4 @@
+import { adminSaleDate, getAdminPeriodRange } from './adminDashboard';
 import { salePaymentDescription } from './pdv';
 import type { PartnerProduct, PartnerSale } from '../types';
 
@@ -13,10 +14,15 @@ export function filterReportSales(
   startDate: string,
   endDate: string,
   now = new Date(),
+  timeZone?: string,
 ): PartnerSale[] {
   const completed = completedSalesOnly(sales);
   if (range === 'all') return completed;
 
+  if (timeZone && range === 'custom') {
+    const bounds = getAdminPeriodRange('custom', startDate, endDate, now, timeZone);
+    return bounds.error ? [] : completed.filter(sale => { const time = Date.parse(adminSaleDate(sale)); return time >= +bounds.start && time < +bounds.end; });
+  }
   if (range === 'custom') {
     if (!startDate || !endDate) return [];
     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
@@ -33,7 +39,7 @@ export function filterReportSales(
       || end.getFullYear() !== endYear || end.getMonth() !== endMonth - 1 || end.getDate() !== endDay
     ) return [];
     return completed.filter((sale) => {
-      const createdAt = new Date(sale.created_at).getTime();
+      const createdAt = new Date(timeZone ? adminSaleDate(sale) : sale.created_at).getTime();
       return Number.isFinite(createdAt) && createdAt >= start.getTime() && createdAt <= end.getTime();
     });
   }
@@ -41,7 +47,7 @@ export function filterReportSales(
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() - (range === '30d' ? 30 : 90));
   return completed.filter((sale) => {
-    const createdAt = new Date(sale.created_at).getTime();
+    const createdAt = new Date(timeZone ? adminSaleDate(sale) : sale.created_at).getTime();
     return Number.isFinite(createdAt) && createdAt >= cutoff.getTime() && createdAt <= now.getTime();
   });
 }

@@ -1,3 +1,4 @@
+import { intelligenceHarness } from './fixtures/business_intelligence_helpers.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -20,6 +21,7 @@ async function fixture() {
   };}};
   const exports={};
   vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText,{exports,crypto:{randomUUID},require(name){
+    if(name==='../../lib/adminDashboard')return intelligenceHarness().load('lib/adminDashboard.ts');
     if(name==='../../lib/supabase')return {supabase:client};
     if(name==='../../lib/accounts')return {accountBalance:()=>0,isOverdue:()=>false};
     if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};

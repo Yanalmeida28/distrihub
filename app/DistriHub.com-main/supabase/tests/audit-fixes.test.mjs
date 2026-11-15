@@ -20,7 +20,7 @@ async function load(path, dependencies = {}, globals = {}, extra = '') {
 const documentUtils = await load('utils.ts', { './data': {} });
 const safety = await load('lib/exportSafety.ts');
 const catalog = await load('lib/catalogOrders.ts');
-const metrics = await load('lib/reportMetrics.ts', { './pdv': { salePaymentDescription: () => 'PIX' } });
+const metrics = await load('lib/reportMetrics.ts', { './adminDashboard': await load('lib/adminDashboard.ts'), './pdv': { salePaymentDescription: () => 'PIX' } });
 const b2b = await load('lib/b2bOrder.ts', { './catalogOrders': catalog });
 const { saveB2bOrder } = b2b;
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });

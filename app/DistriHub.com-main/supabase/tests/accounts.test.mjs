@@ -1,3 +1,4 @@
+import { intelligenceHarness } from './fixtures/business_intelligence_helpers.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 const exports = {};
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/lib/accounts.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
-}).outputText, { exports });
+}).outputText, { exports, require: () => intelligenceHarness().load('lib/adminDashboard.ts') });
 const { accountBalance, accountPaid, financialAccounts, isOverdue } = exports;
 
 test('crédito de devolução liquida saldo sem aumentar dinheiro recebido', () => {

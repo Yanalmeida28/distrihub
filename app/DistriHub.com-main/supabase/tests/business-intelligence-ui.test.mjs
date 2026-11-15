@@ -220,3 +220,35 @@ test('branch context remount clears all scenario inputs and late old-branch ledg
   await act(async () => resolveOld({ data: [], error: null }));
   assert.ok(scenarioInputs().every(input => input.props.value === ''));
 });
+
+
+test('attention opens the exact existing financial, stock and CRM destinations in the selected branch', async () => {
+  for (const [label, target, filter] of [
+    ['Abrir vencidas a receber', 'receber', 'vencidas'], ['Abrir vencidas a pagar', 'pagar', 'vencidas'],
+    ['Abrir relat\u00f3rio Sem giro', 'sem-giro'], ['Abrir clientes inativos no CRM', 'crm', 'inativos'], ['Abrir clientes sem compras', 'crm', 'sem-compras'],
+  ]) {
+    const { load } = fixture();
+    const Component = load('components/partner/AdminModule.tsx').AdminModule;
+    await act(async () => { renderer = Renderer.create(React.createElement(Component, { ...adminProps, selectedBranchId: 'A', branches: base.branches, timeZone: 'America/Manaus' })); });
+    const sections = renderer.root.findAll(node => node.props.className?.startsWith?.('admin-sidebar-section-header'));
+    await act(async () => sections.find(section => text(section).trim() === 'Intelig\u00eancia Empresarial').props.onClick());
+    await act(async () => renderer.root.findAllByType('button').find(button => text(button) === label).props.onClick());
+    const destination = renderer.root.findAll(node => typeof node.type === 'function').find(node => target === 'receber' || target === 'pagar' ? node.props.kind === target : node.props.initialTab === target);
+    assert.ok(destination, label); assert.equal(destination.props.branchId, 'A'); assert.equal(destination.props.timeZone, 'America/Manaus');
+    if (target === 'crm') assert.equal(destination.props.initialCrmSegment, filter);
+    if (target === 'receber' || target === 'pagar') assert.equal(destination.props.initialFilter, filter);
+    await act(async () => renderer.unmount()); renderer = null;
+  }
+});
+
+
+test('CRM configured business day uses completion and keeps inactive buyers separate from never purchased', async () => {
+  const { load } = fixture();
+  const Component = load('components/partner/CrmWorkspace.tsx').CrmWorkspace;
+  const before = days => new Date(Date.now() - days * 86400000).toISOString();
+  const props = { companyUserId: 'company', branchId: 'A', timeZone: 'America/Manaus', initialSegment: 'inativos', customers: [{ id: 'old', name: 'Dormant buyer' }, { id: 'never', name: 'Never buyer' }, { id: 'recent', name: 'Recent buyer' }], sales: [sale({ customer_id: 'old', created_at: before(1), completed_at: before(100) }), sale({ id: 'recent', customer_id: 'recent', completed_at: before(1) })], invoices: [], salespeople: [] };
+  await act(async () => { renderer = Renderer.create(React.createElement(Component, props)); });
+  assert.match(text(renderer.toJSON()), /Dormant buyer/); assert.doesNotMatch(text(renderer.toJSON()), /Never buyer|Recent buyer/);
+  await act(async () => renderer.root.findByProps({ 'aria-label': 'Segmento de clientes' }).props.onChange({ target: { value: 'sem-compras' } }));
+  assert.match(text(renderer.toJSON()), /Never buyer/); assert.doesNotMatch(text(renderer.toJSON()), /Dormant buyer|Recent buyer/);
+});

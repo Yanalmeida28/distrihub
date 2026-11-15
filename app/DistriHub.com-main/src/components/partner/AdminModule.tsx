@@ -65,6 +65,7 @@ class AdminErrorBoundary extends Component<
 }
 
 type Props = {
+  timeZone?: string;
   canImportExport?: boolean;
   onDataScopeChange?: (tab: string) => void;
   onReportScopeChange?: (tab: string) => void;
@@ -195,7 +196,7 @@ const sidebarSections: {
 ];
 
 export function AdminModule({
-  canImportExport = false,
+  timeZone, canImportExport = false,
   onDataScopeChange, onReportScopeChange,
   intelligenceAllowed = false, intelligenceDataReady = false, intelligenceDataError, lastSyncedAt,
   renderSettings,
@@ -206,7 +207,7 @@ export function AdminModule({
 }: Props) {
   return (
     <AdminErrorBoundary>
-      <AdminModuleInner onDataScopeChange={onDataScopeChange} onReportScopeChange={onReportScopeChange} intelligenceAllowed={intelligenceAllowed} intelligenceDataReady={intelligenceDataReady} intelligenceDataError={intelligenceDataError} lastSyncedAt={lastSyncedAt} allowedModules={allowedModules} key={contextKey} contextKey={contextKey} isActive={isActive} recoveries={recoveries} recoveryError={recoveryError}
+      <AdminModuleInner timeZone={timeZone} onDataScopeChange={onDataScopeChange} onReportScopeChange={onReportScopeChange} intelligenceAllowed={intelligenceAllowed} intelligenceDataReady={intelligenceDataReady} intelligenceDataError={intelligenceDataError} lastSyncedAt={lastSyncedAt} allowedModules={allowedModules} key={contextKey} contextKey={contextKey} isActive={isActive} recoveries={recoveries} recoveryError={recoveryError}
         renderSettings={renderSettings}
         renderCadastros={renderCadastros}
         invoices={invoices}
@@ -232,7 +233,7 @@ export function AdminModule({
 }
 
 function AdminModuleInner({
-  canImportExport = false,
+  timeZone, canImportExport = false,
   onDataScopeChange, onReportScopeChange,
   intelligenceAllowed = false, intelligenceDataReady = false, intelligenceDataError, lastSyncedAt,
   renderSettings,
@@ -257,11 +258,13 @@ function AdminModuleInner({
   const canViewCurrent = allowed(currentModule) && (ownerView || !ownerPages.includes(activeAdminTab))
     && (canImportExport || (activeItemId !== 'importar' && activeAdminTab !== 'gestao-dados'));
   const [branchFilter, setBranchFilter] = useState(selectedBranchId);
+  const [attentionFilter, setAttentionFilter] = useState<string | undefined>();
+  const [crmSegment, setCrmSegment] = useState('todos');
   const [reportsInitialTab, setReportsInitialTab] = useState<'vendas' | 'financeiro' | 'estoque' | 'sem-giro' | 'crm'>('vendas');
   useEffect(() => { if (isActive) onDataScopeChange?.(activeAdminTab); }, [activeAdminTab, isActive, onDataScopeChange]);
   const payables = usePayables(userId);
-  const scopedInvoices = useMemo(() => invoices.filter(invoice => !branchFilter || invoice.branch_id === branchFilter), [invoices, branchFilter]);
-  const scopedPayables = useMemo(() => payables.accounts.filter(account => !branchFilter || account.branch_id === branchFilter), [payables.accounts, branchFilter]);
+  const scopedInvoices = useMemo(() => invoices.filter(invoice => (!userId || invoice.user_id === userId) && (!branchFilter || invoice.branch_id === branchFilter)), [invoices, branchFilter, userId]);
+  const scopedPayables = useMemo(() => payables.accounts.filter(account => (!userId || account.user_id === userId) && (!branchFilter || account.branch_id === branchFilter)), [payables.accounts, branchFilter, userId]);
 
   useEffect(() => {
     setBranchFilter(selectedBranchId);
@@ -276,6 +279,7 @@ function AdminModuleInner({
     if (!canImportExport && (item.id === 'importar' || item.page === 'gestao-dados')) return;
     const module = item.tab ?? (item.page === 'dashboard' ? 'dashboard' : 'configuracoes');
     if (!allowed(module) || (!ownerView && ownerPages.includes(item.page ?? ''))) return;
+    setAttentionFilter(undefined); setCrmSegment('todos');
     onDataScopeChange?.(item.tab ?? item.page ?? 'dashboard');
     setActiveItemId(item.id);
     if (item.tab === 'relatorios') {
@@ -346,7 +350,7 @@ function AdminModuleInner({
         <div className="admin-content-area">
           {!canViewCurrent ? <p role="alert">Acesso a esta seção indisponível para este usuário ou assinatura. Selecione outra seção.</p> : <>
           {activeAdminTab === 'dashboard' && (
-            <ExecutiveDashboard
+            <ExecutiveDashboard timeZone={timeZone}
               canExport={canImportExport}
               isActive={isActive}
               sales={sales}
@@ -366,7 +370,7 @@ function AdminModuleInner({
             />
           )}
           {activeAdminTab === 'relatorios' && (
-            <ReportsModule
+            <ReportsModule timeZone={timeZone} initialCrmSegment={crmSegment}
               canExport={canImportExport}
               isActive={isActive}
               onDataScopeChange={onReportScopeChange}
@@ -375,23 +379,26 @@ function AdminModuleInner({
               invoices={scopedInvoices}
               key={reportsInitialTab}
               initialTab={reportsInitialTab}
-              movements={movements}
-              sales={sales}
-              products={products}
-              customers={customers}
+              movements={movements.filter(row => row.user_id === userId && (!branchFilter || row.branch_id === branchFilter))}
+              sales={sales.filter(row => row.user_id === userId && (!branchFilter || row.branch_id === branchFilter))}
+              products={products.filter(row => row.user_id === userId && (!branchFilter || row.branch_id === branchFilter))}
+              customers={customers.filter(row => row.user_id === userId && (!branchFilter || !row.branch_id || row.branch_id === branchFilter))}
               salespeople={salespeople}
             />
           )}
           {activeAdminTab === 'inteligencia' && allowed('inteligencia') && userId && (
             <Suspense fallback={<p role="status">Carregando Inteligência Empresarial…</p>}>
-              <BusinessIntelligenceModule key={`${contextKey}:${branchFilter}`} companyId={userId} branchId={branchFilter}
+              <BusinessIntelligenceModule timeZone={timeZone} key={`${contextKey}:${branchFilter}`} companyId={userId} branchId={branchFilter}
                 branches={branches} isActive={isActive} dataReady={intelligenceDataReady} dataError={intelligenceDataError}
                 lastSyncedAt={lastSyncedAt} sales={sales} products={products} customers={customers} movements={movements}
                 invoices={invoices} rmas={rmas} payables={payables.accounts} payablesLoading={payables.loading} payablesError={payables.error} onRefreshPayables={payables.reload}
-                onBranchChange={handleBranchChange} onNavigate={section => {
+                onBranchChange={handleBranchChange} onNavigate={(section, target) => {
                   if (!allowed(section)) return;
-                  setExpandedSection(section); setActiveAdminTab(section); setActiveItemId(section === 'financeiro' ? 'pagar' : 'vendas');
-                  if (section === 'relatorios') setReportsInitialTab('vendas');
+                  setExpandedSection(section); setActiveAdminTab(section);
+                  setAttentionFilter(section === 'financeiro' && target ? 'vencidas' : undefined);
+                  const report = target === 'sem-giro' ? 'sem-giro' : target === 'inativos' || target === 'sem-compras' ? 'crm' : 'vendas';
+                  setActiveItemId(section === 'financeiro' ? target === 'receber' ? 'receber' : 'pagar' : report);
+                  if (section === 'relatorios') { setReportsInitialTab(report); setCrmSegment(target === 'inativos' || target === 'sem-compras' ? target : 'todos'); onReportScopeChange?.(report); }
                 }} />
             </Suspense>
           )}
@@ -416,14 +423,14 @@ function AdminModuleInner({
             />
             )}
             {(activeItemId === 'pagar' || activeItemId === 'receber') && (
-              <AccountsModule
+              <AccountsModule timeZone={timeZone} initialFilter={attentionFilter}
                 key={[activeItemId, branchFilter, contextKey].join(':')}
                 isActive={isActive}
                 recoveries={recoveries}
                 recoveryError={recoveryError}
                 kind={activeItemId === 'pagar' ? 'pagar' : 'receber'}
                 invoices={scopedInvoices}
-                payables={payables}
+                payables={{ ...payables, accounts: scopedPayables }}
                 branches={branches}
                 suppliers={suppliers}
                 branchId={branchFilter}
@@ -431,7 +438,7 @@ function AdminModuleInner({
               />
             )}
             {activeItemId === 'cliente-fiado' && <CustomerAccountsModule key={[contextKey, branchFilter].join(':')} isActive={isActive} recoveries={recoveries} recoveryError={recoveryError} customers={customers} invoices={scopedInvoices} payables={payables} branches={branches} suppliers={suppliers} branchId={branchFilter} onReceive={onReceiveInvoice} />}
-            {activeItemId === 'fluxo' && <FinancialFlowModule key={[contextKey, branchFilter].join(':')} isActive={isActive} userId={userId} branchId={branchFilter} invoices={scopedInvoices} payables={scopedPayables} sales={sales} movements={movements} payablesUnavailable={payables.loading || Boolean(payables.error)} />}
+            {activeItemId === 'fluxo' && <FinancialFlowModule branches={branches} onBranchChange={ownerView ? handleBranchChange : undefined} timeZone={timeZone} key={[contextKey, branchFilter].join(':')} isActive={isActive} userId={userId} branchId={branchFilter} invoices={scopedInvoices} payables={scopedPayables} sales={sales} movements={movements} payablesUnavailable={payables.loading || Boolean(payables.error)} />}
             </>
           )}
           {activeAdminTab === 'fiscal' && (
@@ -471,8 +478,8 @@ function AdminModuleInner({
 
 /* ============ Date Range Helpers ============ */
 
-function getPeriodRange(period: TimePeriod, customStart?: string, customEnd?: string) {
-  return getAdminPeriodRange(period, customStart, customEnd);
+function getPeriodRange(period: TimePeriod, customStart?: string, customEnd?: string, timeZone?: string) {
+  return getAdminPeriodRange(period, customStart, customEnd, new Date(), timeZone);
 }
 
 function growthPct(current: number, previous: number): number | null {
@@ -494,9 +501,11 @@ function GrowthBadge({ pct }: { pct: number | null }) {
 /* ============ Executive Dashboard ============ */
 
 function ExecutiveDashboard({
+  timeZone,
   canExport = false,
   isActive = true, sales, products, movements = [], salespeople = [], customers, branches, branchFilter, onBranchChange, onOpenStagnantStock,
 }: {
+  timeZone?: string;
   canExport?: boolean;
   isActive?: boolean;
   sales: PartnerSale[];
@@ -516,7 +525,7 @@ function ExecutiveDashboard({
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
-  const range = useMemo(() => getPeriodRange(period, customStart, customEnd), [period, customStart, customEnd]);
+  const range = useMemo(() => getPeriodRange(period, customStart, customEnd, timeZone), [period, customStart, customEnd, timeZone]);
 
   const branchFilteredSales = useMemo(() => {
     const completed = sales.filter((s) => s.status === 'concluida');
@@ -570,7 +579,7 @@ function ExecutiveDashboard({
   // Daily revenue line chart data
   const dailyData = useMemo(() => {
     const days: { date: Date; gross: number; net: number }[] = [];
-    for (const bucket of adminChartBuckets(range.start, range.end)) {
+    for (const bucket of adminChartBuckets(range.start, range.end, timeZone)) {
       const dayStart = bucket.start;
       const dayEnd = bucket.end;
       const daySales = currentSales.filter((s) => {
@@ -587,7 +596,7 @@ function ExecutiveDashboard({
       days.push({ date: dayStart, gross, net: gross - cost });
     }
     return days;
-  }, [currentSales, range, productCostMap]);
+  }, [currentSales, range, productCostMap, timeZone]);
 
   // Profit by category
   const profitByCategory = useMemo(() => {
@@ -693,7 +702,7 @@ function ExecutiveDashboard({
       let cost = 0;
       for (const item of safeItems(s)) cost += (s.cost_snapshot?.[item.product_id] ?? productCostMap[item.product_id] ?? 0) * item.quantity;
       return [
-        new Date(adminSaleDate(s)).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }),
+        new Date(adminSaleDate(s)).toLocaleString('pt-BR', { timeZone: timeZone ?? 'America/Sao_Paulo' }),
         s.customer_name ?? '—',
         (s.total ?? 0).toFixed(2),
         cost.toFixed(2),
@@ -725,7 +734,7 @@ function ExecutiveDashboard({
       .kpi strong{font-size:24px;display:block}.kpi small{color:#888}</style></head>
       <body><h1>Relatório Executivo — DistriHub</h1>
       <p>${legacyCostSalesCount(currentSales, products)} venda(s) sem custo histórico completo. Nesses casos, CMV e margem são estimativas pelo cadastro atual.</p>
-      <p>Período: ${range.start.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} a ${new Date(range.end.getTime() - 1).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</p>
+      <p>Período: ${range.start.toLocaleDateString('pt-BR', { timeZone: timeZone ?? 'America/Sao_Paulo' })} a ${new Date(range.end.getTime() - 1).toLocaleDateString('pt-BR', { timeZone: timeZone ?? 'America/Sao_Paulo' })}</p>
       <div>
         <div class="kpi"><small>Receita Bruta</small><strong>${money.format(current.grossRevenue)}</strong></div>
         <div class="kpi"><small>Custo dos Produtos</small><strong>${money.format(current.totalCost)}</strong></div>
@@ -869,7 +878,7 @@ function ExecutiveDashboard({
       {/* Daily Revenue Line Chart */}
       <h4 className="report-section-title"><LineChartIcon size={16} /> Faturamento × Lucro bruto estimado</h4>
       {range.end.getTime() - range.start.getTime() > 90 * 86400000 && <p>Período agrupado em até 90 intervalos. Cada ponto soma todas as vendas do intervalo, cobrindo o período inteiro.</p>}
-      <DailyRevenueChart data={dailyData} grossTotal={current.grossRevenue} profitTotal={current.netRevenue} />
+      <DailyRevenueChart timeZone={timeZone} data={dailyData} grossTotal={current.grossRevenue} profitTotal={current.netRevenue} />
       <p className="admin-empty-hint">Lucro bruto estimado = faturamento menos o custo dos produtos vendidos. Não desconta impostos e despesas operacionais.</p>
 
       {/* Profit by Category + Payment Donut */}
@@ -1071,7 +1080,7 @@ function ExecutiveDashboard({
 
 /* ============ Daily Revenue SVG Line Chart ============ */
 
-function DailyRevenueChart({ data, grossTotal, profitTotal }: { data: { date: Date; gross: number; net: number }[]; grossTotal: number; profitTotal: number }) {
+function DailyRevenueChart({ timeZone, data, grossTotal, profitTotal }: { timeZone?: string; data: { date: Date; gross: number; net: number }[]; grossTotal: number; profitTotal: number }) {
   const width = 800;
   const height = 240;
   const labelWidth = Math.max(70, ...data.map(day => Math.max(money.format(day.gross).length, money.format(day.net).length) * 6 + 16));
@@ -1149,7 +1158,7 @@ function DailyRevenueChart({ data, grossTotal, profitTotal }: { data: { date: Da
           const x = padding.left + i * stepX;
           return (
             <text key={i} x={x} y={height - 8} textAnchor="middle" fill="#6e8799" fontSize="10">
-              {d.date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })}
+              {d.date.toLocaleDateString('pt-BR', { timeZone: timeZone ?? 'America/Sao_Paulo', day: '2-digit', month: '2-digit' })}
             </text>
           );
         })}
@@ -1162,7 +1171,7 @@ function DailyRevenueChart({ data, grossTotal, profitTotal }: { data: { date: Da
             <g key={i} className="chart-tooltip-group">
               <circle cx={x} cy={yGross} r="3" fill="#3b9bed" className="chart-dot" />
               <circle cx={x} cy={yNet} r="3" fill="#5bbc87" className="chart-dot" />
-              <title>{`${d.date.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} — Faturamento: ${money.format(d.gross)} | Lucro bruto estimado: ${money.format(d.net)}`}</title>
+              <title>{`${d.date.toLocaleDateString('pt-BR', { timeZone: timeZone ?? 'America/Sao_Paulo' })} — Faturamento: ${money.format(d.gross)} | Lucro bruto estimado: ${money.format(d.net)}`}</title>
             </g>
           );
         })}

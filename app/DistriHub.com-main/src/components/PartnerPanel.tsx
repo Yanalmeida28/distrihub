@@ -2159,7 +2159,7 @@ export function PartnerPanel({
             {visitedTabs.has('administrativo') && (
               <div hidden={activeTab !== 'administrativo'}>
               {renderTab('administrativo',
-              <AdminModule
+              <AdminModule timeZone={storeSettings.personalization?.business_time_zone}
                 onDataScopeChange={setAdminDataScope}
                 onReportScopeChange={setReportDataScope}
                 intelligenceAllowed={canViewBusinessIntelligence(Boolean(identity && !identity.salespersonId && identity.authUserId === identity.companyUserId), !identity?.salespersonId,
