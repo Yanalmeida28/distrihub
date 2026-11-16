@@ -7,7 +7,7 @@ import { intelligenceHarness, helpers, input, payable } from './fixtures/busines
 const text = node => typeof node === 'string' ? node : (node?.children ?? []).map(text).join('');
 const model = helpers.buildBusinessIntelligence(input({ period: 'selectedMonth', selectedMonth: '2026-10', rmas: [], payables: [payable({ due_date: '2026-10-10', amount: 30 })] }));
 
-test('break even saves explicit settings, reloads them on remount, requires period review and isolates branch changes', async () => {
+test('break even calculates automatically, saves only requested preferences and isolates branch changes', async () => {
   const saved = new Map(); let failSave = false;
   const client = { from(table) {
     assert.equal(table, 'partner_break_even_settings'); const filters = {};
@@ -28,15 +28,15 @@ test('break even saves explicit settings, reloads them on remount, requires peri
     await act(async () => button().props.onClick());
     assert.equal(saved.get('company:A').desired, 10); assert.equal(saved.get('company:A').aluguel, 'fixed');
     assert.match(text(renderer.toJSON()), /Configurações salvas/);
-    await act(async () => renderer.root.findByProps({ type: 'checkbox' }).props.onChange({ target: { checked: true } }));
+    assert.equal(renderer.root.findAllByProps({ type: 'checkbox' }).length, 0);
     assert.match(text(renderer.toJSON()), /Ponto de equilíbrio estimado/); assert.match(text(renderer.toJSON()), /50,00/);
     await act(async () => renderer.update(render({ model: { ...model, first: '2026-09-01' } })));
-    assert.equal(renderer.root.findByProps({ type: 'checkbox' }).props.checked, false);
+    assert.match(text(renderer.toJSON()), /Ponto de equilíbrio estimado/);
     await act(async () => renderer.unmount());
     await act(async () => { renderer = Renderer.create(render()); });
     assert.equal(renderer.root.findAllByType('select')[0].props.value, 'fixed');
     assert.equal(renderer.root.findAllByType('input')[0].props.value, '10');
-    assert.equal(renderer.root.findByProps({ type: 'checkbox' }).props.checked, false);
+    assert.match(text(renderer.toJSON()), /Ponto de equilíbrio estimado/);
     await act(async () => renderer.update(render({ branchId: 'B' })));
     assert.equal(renderer.root.findAllByType('select')[0].props.value, '');
     assert.equal(renderer.root.findAllByType('input')[0].props.value, '0');
@@ -59,4 +59,28 @@ test('an old branch settings response cannot replace the current branch and load
     await act(async () => pending[1]({ data: null, error: { message: 'falha' } }));
     assert.match(text(renderer.toJSON()), /Não foi possível carregar/); assert.equal(renderer.root.findAllByType('input').length, 0);
   } finally { if (renderer) await act(async () => renderer.unmount()); }
+});
+
+test('new registered data updates the estimate without confirmation or writes and incomplete periods hide it', async () => {
+  let writes=0;
+  const client={from(){const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:null,error:null}),upsert:async()=>{writes++;return{error:null};}};return q;}};
+  const Component=intelligenceHarness({client}).load('components/partner/BreakEvenPanel.tsx').BreakEvenPanel;
+  const build=amount=>helpers.buildBusinessIntelligence(input({period:'selectedMonth',selectedMonth:'2026-10',rmas:[],payables:[payable({due_date:'2026-10-10',amount,expense_behavior:'fixed'})]}));
+  let renderer;
+  const render=model=>React.createElement(Component,{companyId:'company',branchId:'A',model});
+  try {
+    await act(async()=>{renderer=Renderer.create(render(build(30)));});
+    assert.match(text(renderer.toJSON()),/Cálculo automático/); assert.match(text(renderer.toJSON()),/50,00/);
+    assert.equal(renderer.root.findAllByProps({type:'checkbox'}).length,0); assert.equal(writes,0);
+    await act(async()=>renderer.update(render(build(60)))); assert.match(text(renderer.toJSON()),/100,00/); assert.equal(writes,0);
+    await act(async()=>renderer.root.findByType('input').props.onChange({target:{value:'10'}}));
+    assert.match(text(renderer.toJSON()),/ainda não salvas/); assert.equal(writes,0);
+    const bad=build(60); await act(async()=>renderer.update(render({...bad,result:{...bad.result,netCost:null}})));
+    assert.doesNotMatch(text(renderer.toJSON()),/Ponto de equilíbrio estimado/); assert.match(text(renderer.toJSON()),/incompletos/);
+    await act(async()=>renderer.update(render({...bad,result:{...bad.result,netCost:200}})));
+    assert.doesNotMatch(text(renderer.toJSON()),/Ponto de equilíbrio estimado/); assert.match(text(renderer.toJSON()),/nula ou negativa/);
+    await act(async()=>renderer.update(render({...bad,result:{...bad.result,expenseCount:0,categories:[]}})));
+    assert.doesNotMatch(text(renderer.toJSON()),/Ponto de equilíbrio estimado/); assert.match(text(renderer.toJSON()),/Dados insuficientes/);
+    await act(async()=>renderer.update(render(build(30)))); assert.match(text(renderer.toJSON()),/Ponto de equilíbrio estimado/); assert.equal(writes,0);
+  } finally { if(renderer) await act(async()=>renderer.unmount()); }
 });
