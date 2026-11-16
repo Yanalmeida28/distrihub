@@ -40,7 +40,7 @@ export function actualFinancialFlow(sales: PartnerSale[], movements: StockMoveme
     })),
     ...receipts.map(r => ({ id: `receipt-${r.id}`, date: r.occurred_at, description: `Fatura ${r.invoice_number} — ${r.customer_name}`, amount: Number(r.amount) })),
     ...payments.filter(p => !p.voided_at && accounts.has(p.payable_id)).map(p => ({ id: `payment-${p.id}`, date: p.paid_at ?? p.created_at,
-      description: `${accounts.get(p.payable_id)!.description} — ${accounts.get(p.payable_id)!.creditor_name}${p.payment_method && p.payment_method !== 'nao_informado' ? ' · ' + payableMethodLabel(p.payment_method, p.payment_method_detail) : ''}`, amount: -Number(p.amount) })),
+      description: `${accounts.get(p.payable_id)!.category === 'retirada' ? 'Retirada de sócios / uso pessoal — ' : ''}${accounts.get(p.payable_id)!.description} — ${accounts.get(p.payable_id)!.creditor_name}${p.payment_method && p.payment_method !== 'nao_informado' ? ' · ' + payableMethodLabel(p.payment_method, p.payment_method_detail) : ''}`, amount: -Number(p.amount) })),
     ...[...confirmedRefunds].map(([id, refund]) => ({ id: `rma-refund-${id}`, date: refund.refunded_at ?? null,
       description: `Reembolso de devolução — ${refund.customer_name ?? 'Cliente'}`, amount: -Number(refund.refund_amount) })),
   ];
@@ -51,7 +51,7 @@ export function projectedFinancialFlow(invoices: PartnerInvoice[], payables: Pay
     ...invoices.filter(i => accountBalance(i) > 0).map(i => ({ id: `invoice-${i.id}`, date: i.due_date,
       description: `A receber — ${i.customer_name} / ${i.number}`, amount: accountBalance(i) })),
     ...payables.filter(a => accountBalance(a) > 0).map(a => ({ id: `payable-${a.id}`, date: a.due_date,
-      description: `A pagar — ${a.description} / ${a.creditor_name}`, amount: -accountBalance(a) })),
+      description: `${a.category === 'retirada' ? 'Retirada prevista' : 'A pagar'} — ${a.description} / ${a.creditor_name}`, amount: -accountBalance(a) })),
   ];
 }
 

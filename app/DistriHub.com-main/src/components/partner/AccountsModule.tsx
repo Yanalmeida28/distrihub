@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PartnerBranch, PartnerInvoice, PartnerSupplier } from '../../types';
-import { accountBalance, accountPaid, isOverdue, payableCategories, expenseBehaviorLabels, type PayableAccount, type PayableExpenseBehavior } from '../../lib/accounts';
+import { accountBalance, accountPaid, isOverdue, payableCategories, expenseBehaviorLabels, isOperatingExpense, withdrawalSummary, type PayableAccount, type PayableExpenseBehavior } from '../../lib/accounts';
 import { money } from '../../utils';
 import { FinancialRecoveryPanel } from './FinancialRecoveryPanel';
 import type { FinancialRecovery } from '../../lib/invoicePayments';
@@ -40,6 +40,9 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
   const [filter, setFilter] = useState(initialFilter);
   const [view, setView] = useState<'table' | 'kanban'>('table');
   const [query, setQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [dueFrom, setDueFrom] = useState('');
+  const [dueTo, setDueTo] = useState('');
   const [creating, setCreating] = useState(false);
   const [management, setManagement] = useState<{ account: PayableAccount; mode: 'edit' | 'delete' } | null>(null);
   const emptyForm = () => ({ description: '', creditor: '', category: 'outros', behavior: '' as PayableExpenseBehavior | '', supplierId: '', branchId, amount: '', dueDate: '',
@@ -55,7 +58,11 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
   const creationId = useRef<string | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const accounts = kind === 'receber' ? invoices : payables.accounts.filter(account => !branchId || account.branch_id === branchId);
+  const invalidPeriod = Boolean((dueFrom && !validPayableDay(dueFrom)) || (dueTo && !validPayableDay(dueTo)) || (dueFrom && dueTo && dueFrom > dueTo));
+  const accounts = kind === 'receber' ? invoices : payables.accounts.filter(account => (!branchId || account.branch_id === branchId)
+    && (!categoryFilter || account.category === categoryFilter) && !invalidPeriod
+    && (!dueFrom || account.due_date >= dueFrom) && (!dueTo || account.due_date <= dueTo));
+  const withdrawals = kind === 'pagar' ? withdrawalSummary(accounts as PayableAccount[]) : [];
   const visible = accounts.filter(account => {
     if ('description' in account && Boolean(account.deleted_at) !== (filter === 'excluidas')) return false;
     if (filter === 'excluidas' && !('description' in account)) return false;
@@ -107,7 +114,7 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     if (!validPayableDay(form.purchasedOn) || form.purchasedOn > localDate(new Date().toISOString())) { setError('Informe a data real da compra, até hoje.'); return; }
     if (!schedule.length || (form.terms === 'parcelado' && Number(form.installmentCount) < 2) || schedule.some(item => !validPayableDay(item.due_date))) { setError('Confira a quantidade de parcelas, os vencimentos e o valor total.'); return; }
     if (form.paymentMethod === 'outro' && !form.paymentMethodDetail.trim()) { setError('Informe qual é a outra forma de pagamento.'); return; }
-    if (form.category !== 'fornecedor' && !['fixed', 'variable'].includes(form.behavior)) { setError('Selecione se a despesa é fixa ou variável.'); return; }
+    if (isOperatingExpense(form.category) && !['fixed', 'variable'].includes(form.behavior)) { setError('Selecione se a despesa é fixa ou variável.'); return; }
     lock.current = true; setBusy(true); setError(''); setSuccess('');
     creationId.current ??= crypto.randomUUID();
     const installments = schedule.map((item, index) => {
@@ -116,8 +123,8 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     });
     try {
       await payables.create({ description: form.description, creditor_name: form.creditor,
-        supplier_id: form.supplierId || null, category: form.category as PayableAccount['category'],
-        expense_behavior: form.category === 'fornecedor' ? null : form.behavior as PayableExpenseBehavior,
+        supplier_id: form.category === 'retirada' ? null : form.supplierId || null, category: form.category as PayableAccount['category'],
+        expense_behavior: isOperatingExpense(form.category) ? form.behavior as PayableExpenseBehavior : null,
         branch_id: form.branchId, amount, due_date: installments[0].due_date, purchased_on: form.purchasedOn,
         payment_method: form.paymentMethod, payment_method_detail: form.paymentMethod === 'outro' ? form.paymentMethodDetail.trim() : null,
         installments }, creationId.current);
@@ -153,10 +160,11 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
   function purchaseDetails(account: (typeof accounts)[number]) {
     if (!('description' in account)) return null;
     return <small className="payable-purchase-details">
+      <span style={{ display: 'block' }}>{categories[account.category]}</span>
       {account.installment_count && account.installment_count > 1 ? <span>Parcela {account.installment_number}/{account.installment_count} · Compra total: {money.format(account.purchase_total ?? account.amount)}</span> : null}
       <span>Compra em: {account.purchased_on ? account.purchased_on.split('-').reverse().join('/') : 'Não informada'}</span>
       <span>Forma prevista: {payableMethodLabel(account.payment_method, account.payment_method_detail)}</span>
-      {account.category !== 'fornecedor' && <span>{account.expense_behavior ? expenseBehaviorLabels[account.expense_behavior] : 'Tipo: segue a classificação da categoria'}</span>}
+      {isOperatingExpense(account.category) && <span>{account.expense_behavior ? expenseBehaviorLabels[account.expense_behavior] : 'Tipo: segue a classificação da categoria'}</span>}
       {account.deleted_at && <span>Excluída em {new Date(account.deleted_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}. Motivo: {account.deletion_reason}</span>}
     </small>;
   }
@@ -178,15 +186,27 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
       }
     } }))]} error={recoveryError || payables.recoveryError} disabled={busy} />
     <h4 className="report-section-title">Contas a {kind}</h4>
-    <p>{kind === 'receber' ? 'Faturas de clientes, com saldo após os recebimentos registrados.' : 'Compras de fornecedores e despesas da loja. Registrar um pagamento não faz uma transferência bancária.'}</p>
+    <p>{kind === 'receber' ? 'Faturas de clientes, com saldo após os recebimentos registrados.' : 'Compras, despesas da loja e retiradas de sócios. Registrar um pagamento não faz uma transferência bancária.'}</p>
     {kind === 'receber' && !onReceive && <p>O proprietário da loja pode registrar os recebimentos.</p>}
     {kind === 'pagar' && payables.loading && <p role="status">Carregando contas…</p>}
     {kind === 'pagar' && payables.error && <p role="alert">{payables.error} <button type="button" className="rma-advance-btn" onClick={() => void payables.reload()}>Tentar novamente</button></p>}
+    {kind === 'pagar' && <div className="orders-filter-row" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
+      <label>Categoria<select aria-label="Filtrar categoria das contas" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="">Todas as categorias</option>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      <label>Vencimento de<input aria-label="Vencimento de" type="date" value={dueFrom} onChange={event => setDueFrom(event.target.value)} /></label>
+      <label>Vencimento até<input aria-label="Vencimento até" type="date" value={dueTo} onChange={event => setDueTo(event.target.value)} /></label>
+      <button type="button" className="rma-advance-btn" onClick={() => { setCategoryFilter(''); setDueFrom(''); setDueTo(''); }}>Limpar filtros de categoria e período</button>
+    </div>}
+    {invalidPeriod && <p role="alert">Confira o período: a data inicial deve ser anterior ou igual à final.</p>}
     <div className="report-cards">
       <div className="report-card"><small>Saldo em aberto</small><strong>{money.format(open)}</strong></div>
       <div className="report-card"><small>Vencido</small><strong>{money.format(overdue)}</strong></div>
       <div className="report-card"><small>{kind === 'pagar' ? 'Pago' : 'Liquidado (dinheiro + créditos)'}</small><strong>{money.format(paid)}</strong></div>
     </div>
+    {kind === 'pagar' && withdrawals.length > 0 && <details className="module-card" open>
+      <summary>Retiradas por pessoa — contas do período de vencimento</summary>
+      <p>Considera as contas ativas da categoria e filial filtradas acima, em todos os estados de pagamento. O valor pago é o total liquidado dessas contas; para saídas por data de pagamento, consulte o Fluxo Financeiro. Buscas e abas de status abaixo filtram apenas a lista.</p>
+      {withdrawals.map(row => <p key={row.recipient}><strong>{row.recipient}</strong> · Registrado: {money.format(row.registered)} · Pago: {money.format(row.paid)} · Em aberto: {money.format(row.open)}</p>)}
+    </details>}
     <div className="orders-filter-row" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
       {(kind === 'pagar' ? ['abertas', 'vencidas', 'pagas', 'todas', 'excluidas'] : ['abertas', 'vencidas', 'pagas', 'todas']).map(value => <button key={value} type="button" className={`rma-advance-btn ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{value === 'excluidas' ? 'Excluídas' : value[0].toUpperCase() + value.slice(1)}</button>)}
       <input type="search" aria-label="Buscar contas" placeholder="Buscar contas" value={query} onChange={e => setQuery(e.target.value)} />
@@ -207,21 +227,24 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     {creating && <form onSubmit={saveAccount} className="accounts-entry-form">
       <label>Filial<select required value={form.branchId} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">Selecione</option>{branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
       <label>Descrição<input required maxLength={200} value={form.description} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-      <label>Categoria<select value={form.category} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, category: e.target.value, behavior: e.target.value === 'fornecedor' ? '' : form.behavior })}>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-      {form.category !== 'fornecedor' && <label>Tipo de despesa<select aria-label="Tipo de despesa" required value={form.behavior} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, behavior: e.target.value as PayableExpenseBehavior })}><option value="">Selecionar fixa ou variável</option><option value="fixed">Fixa — não acompanha as vendas</option><option value="variable">Variável — acompanha as vendas</option></select><small>Esta escolha será usada no ponto de equilíbrio e em todas as parcelas desta conta.</small></label>}
-      <label>Fornecedor (opcional)<select value={form.supplierId} disabled={busy || pending || !isActive} onChange={e => { const supplier = suppliers.find(s => s.id === e.target.value); setForm({ ...form, supplierId: e.target.value, creditor: supplier?.name ?? form.creditor }); }}><option value="">Sem fornecedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-      <label>Credor<input required maxLength={200} value={form.creditor} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, creditor: e.target.value })} /></label>
-      <label>Data da compra<input aria-label="Data da compra" required type="date" min="0001-01-01" max={localDate(new Date().toISOString())} value={form.purchasedOn} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, purchasedOn: e.target.value })} /></label>
-      <label>Valor total da compra (R$)<input required inputMode="decimal" placeholder="0,00" value={form.amount} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
+      <label>Categoria<select aria-label="Categoria da nova conta" value={form.category} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, category: e.target.value, behavior: isOperatingExpense(e.target.value) ? form.behavior : '', supplierId: e.target.value === 'retirada' ? '' : form.supplierId })}>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+      {isOperatingExpense(form.category) && <label>Tipo de despesa<select aria-label="Tipo de despesa" required value={form.behavior} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, behavior: e.target.value as PayableExpenseBehavior })}><option value="">Selecionar fixa ou variável</option><option value="fixed">Fixa — existe mesmo sem vendas</option><option value="variable">Variável — varia conforme as vendas</option></select><small>Esta escolha será usada no ponto de equilíbrio e em todas as parcelas desta conta. O valor de uma despesa fixa pode mudar entre os meses.</small></label>}
+      {form.category === 'retirada' && <p style={{ gridColumn: '1 / -1' }}>Identifique quem recebeu e descreva o motivo. A retirada sai no caixa quando paga, mas não entra como despesa operacional nem no ponto de equilíbrio. Use esta categoria para retiradas e uso pessoal; a compra de água para consumo da loja é uma despesa da operação.</p>}
+      {form.category !== 'retirada' && <label>Fornecedor (opcional)<select value={form.supplierId} disabled={busy || pending || !isActive} onChange={e => { const supplier = suppliers.find(s => s.id === e.target.value); setForm({ ...form, supplierId: e.target.value, creditor: supplier?.name ?? form.creditor }); }}><option value="">Sem fornecedor</option>{suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>}
+      <label>{form.category === 'retirada' ? 'Quem recebeu / beneficiário' : 'Credor'}<input aria-label="Credor ou beneficiário" required maxLength={200} value={form.creditor} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, creditor: e.target.value })} /></label>
+      <label>{form.category === 'retirada' ? 'Data do lançamento' : 'Data da compra'}<input aria-label="Data da compra" required type="date" min="0001-01-01" max={localDate(new Date().toISOString())} value={form.purchasedOn} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, purchasedOn: e.target.value })} /></label>
+      <label>{form.category === 'retirada' ? 'Valor total da retirada (R$)' : 'Valor total da compra (R$)'}<input required inputMode="decimal" placeholder="0,00" value={form.amount} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, amount: e.target.value })} /></label>
       <label>Forma de pagamento da conta<select aria-label="Forma de pagamento da conta" value={form.paymentMethod} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, paymentMethod: e.target.value as PayablePaymentMethod, paymentMethodDetail: '' })}>{Object.entries(payablePaymentMethods).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       {form.paymentMethod === 'outro' && <label>Qual forma de pagamento?<input aria-label="Detalhe da forma de pagamento da conta" required maxLength={80} value={form.paymentMethodDetail} disabled={busy || pending || !isActive} onChange={e => setForm({ ...form, paymentMethodDetail: e.target.value })} /></label>}
       <label>Condição de pagamento<select aria-label="Condição de pagamento" value={form.terms} disabled={busy || pending || !isActive} onChange={e => { setForm({ ...form, terms: e.target.value }); setInstallmentDates({}); }}><option value="vista">À vista / uma parcela</option><option value="parcelado">Parcelado</option></select></label>
       {form.terms === 'parcelado' && <label>Quantidade de parcelas<input aria-label="Quantidade de parcelas" type="number" required min={2} max={120} step={1} value={form.installmentCount} disabled={busy || pending || !isActive} onChange={e => { setForm({ ...form, installmentCount: e.target.value }); setInstallmentDates({}); }} /></label>}
       <label>{form.terms === 'parcelado' ? 'Vencimento da primeira parcela' : 'Vencimento'}<input aria-label="Vencimento" required type="date" value={form.dueDate} disabled={busy || pending || !isActive} aria-describedby="payable-date-help" onChange={e => { setForm({ ...form, dueDate: e.target.value }); setInstallmentDates({}); }} /></label>
       {form.terms === 'parcelado' && <div className="payable-schedule" aria-label="Prévia das parcelas"><strong>Confira as parcelas antes de cadastrar</strong><p>O total é dividido entre as parcelas. Inclua juros e taxas no valor total, se houver. Ajuste os vencimentos conforme a compra.</p>{schedule.length ? <ol>{schedule.map((item, index) => <li key={index}><span>Parcela {index + 1}/{schedule.length} · {money.format(item.amount)}</span><label>Vencimento<input aria-label={`Vencimento da parcela ${index + 1}`} type="date" required value={item.due_date} disabled={busy || pending || !isActive} onChange={e => setInstallmentDates({ ...installmentDates, [index]: e.target.value })} /></label></li>)}</ol> : <p>Informe valor total, quantidade de parcelas e primeiro vencimento para visualizar.</p>}</div>}
+      {form.category === 'retirada' ? <p style={{ gridColumn: '1 / -1' }}>Informe a data real do lançamento e o vencimento. Cadastrar não movimenta o caixa: confirme o pagamento com a data em que o dinheiro saiu. Para corrigir uma conta já paga, edite o registro existente em vez de criar outra retirada.</p> : <>
       <p style={{ gridColumn: '1 / -1' }}>Data da compra informa quando você comprou. Vencimento é o prazo para pagar. Cadastrar a conta não registra pagamento; cada parcela ficará em aberto até você confirmar o pagamento.</p>
       <p id="payable-date-help" style={{ gridColumn: '1 / -1' }}>Esqueceu uma despesa? Informe o vencimento original, mesmo de um mês passado. Ela será considerada nesse período na Inteligência Empresarial. Ao registrar o pagamento, informe a data em que você realmente pagou; essa data define a saída no fluxo de caixa.</p>
       <p style={{ gridColumn: '1 / -1' }}>A categoria define como a conta entra no resultado. Escolha compra de mercadorias / estoque apenas para reposição de produtos; serviços, taxas e demais gastos usam a categoria de despesa correspondente. Selecionar um fornecedor não muda essa escolha.</p>
+      </>}
       <div><button className="module-submit-btn" disabled={busy || pending || !isActive}>{busy ? 'Salvando…' : 'Cadastrar'}</button> <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => setCreating(false)}>Cancelar</button></div>
     </form>}
     {view === 'kanban' ? <div className="accounts-kanban" aria-label={`Quadro de contas a ${kind}`}>

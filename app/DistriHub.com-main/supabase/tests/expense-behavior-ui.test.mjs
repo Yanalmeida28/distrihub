@@ -50,7 +50,7 @@ test('new expenses require an explicit type, persist variable choice, and invent
   await act(async () => renderer.root.findByType('form').props.onSubmit({preventDefault(){}}));
   assert.equal(saved[0].expense_behavior,'variable'); assert.equal(saved[0].category,'outros'); assert.equal(saved[0].amount,30);
   await act(async () => button('Nova conta a pagar').props.onClick());
-  const category=renderer.root.findAllByType('select').find(node=>node.findAllByType('option').some(option=>option.props.value==='fornecedor'));
+  const category=renderer.root.findByProps({'aria-label':'Categoria da nova conta'});
   await act(async () => category.props.onChange({target:{value:'fornecedor'}}));
   assert.equal(renderer.root.findAllByProps({'aria-label':'Tipo de despesa'}).length,0);
 });
@@ -81,4 +81,42 @@ test('installment RPC and uncertain-operation recovery retain the exact expense 
   await act(async()=>{renderer=Renderer.create(React.createElement(Probe));});
   fail=false; await act(async()=>state.recoveries[0].run());
   assert.equal(calls[1].args.p_purchase_id,'original'); assert.deepEqual(JSON.parse(JSON.stringify(calls[1].args.p_installments)),JSON.parse(JSON.stringify(calls[0].args.p_installments))); assert.equal(state.recoveries.length,0);
+});
+
+test('withdrawals require a recipient, omit fixed/variable, filter due periods and reset on branch changes', async () => {
+  const {load}=environment(),Component=load('components/partner/AccountsModule.tsx').AccountsModule,saved=[];
+  const accounts=[{id:'w',branch_id:'A',category:'retirada',description:'Pessoal',creditor_name:'Maria',amount:100,paid_amount:40,status:'parcial',due_date:'2026-10-10'},
+    {id:'b',branch_id:'B',category:'retirada',description:'Outra filial',creditor_name:'Ana',amount:900,paid_amount:0,status:'aberta',due_date:'2026-10-10'},
+    {id:'e',branch_id:'A',category:'outros',description:'Água da loja',creditor_name:'Distribuidor',expense_behavior:'fixed',amount:30,paid_amount:0,status:'aberta',due_date:'2026-10-10'}];
+  const props={...base,payables:{...base.payables,accounts,create:async account=>saved.push(account)}};
+  await act(async()=>{renderer=Renderer.create(React.createElement(Component,props));});
+  await change('Filtrar categoria das contas','retirada');
+  assert.match(text(renderer.toJSON()),/Maria/); assert.doesNotMatch(text(renderer.toJSON()),/Outra filial|Água da loja/);
+  await change('Vencimento de','2026-11-01'); assert.doesNotMatch(text(renderer.toJSON()),/Maria/);
+  await change('Vencimento até','2026-10-01'); assert.match(text(renderer.toJSON()),/Confira o período/);
+  await act(async()=>button('Limpar filtros de categoria e período').props.onClick());
+  await act(async()=>button('Nova conta a pagar').props.onClick());
+  await change('Categoria da nova conta','retirada');
+  assert.equal(renderer.root.findAllByProps({'aria-label':'Tipo de despesa'}).length,0);
+  assert.equal(renderer.root.findByProps({'aria-label':'Credor ou beneficiário'}).props.required,true);
+  await act(async()=>renderer.root.findAllByType('label').find(node=>node.children[0]==='Descrição').findByType('input').props.onChange({target:{value:'Uso pessoal'}}));
+  await change('Credor ou beneficiário','Maria');
+  await act(async()=>renderer.root.findByProps({inputMode:'decimal'}).props.onChange({target:{value:'100'}}));
+  await change('Vencimento','2026-10-15');
+  await act(async()=>renderer.root.findByType('form').props.onSubmit({preventDefault(){}}));
+  assert.equal(saved[0].category,'retirada'); assert.equal(saved[0].expense_behavior,null); assert.equal(saved[0].creditor_name,'Maria'); assert.equal(saved[0].supplier_id,null);
+  await change('Filtrar categoria das contas','retirada');
+  await act(async()=>renderer.update(React.createElement(Component,{...props,branchId:'B'})));
+  assert.equal(renderer.root.findByProps({'aria-label':'Filtrar categoria das contas'}).props.value,'');
+  assert.doesNotMatch(text(renderer.toJSON()),/Maria/); assert.match(text(renderer.toJSON()),/Ana/);
+});
+
+test('a paid expense can be reclassified as withdrawal without asking for another payment', async () => {
+  const {load}=environment(),Component=load('components/partner/PayableManagementPanel.tsx').PayableManagementPanel,updates=[];
+  const account={id:'paid',description:'Uso pessoal',creditor_name:'Maria',category:'outros',expense_behavior:'variable',amount:100,paid_amount:100,status:'paga',due_date:'2026-10-15',revision:3};
+  await act(async()=>{renderer=Renderer.create(React.createElement(Component,{account,mode:'edit',suppliers:[],blocked:false,isActive:true,onEdit:async(...args)=>updates.push(args),onDone(){},onCancel(){}}));});
+  await change('Editar categoria da conta','retirada');
+  assert.equal(renderer.root.findAllByProps({'aria-label':'Editar tipo de despesa'}).length,0);
+  await act(async()=>renderer.root.findByType('form').props.onSubmit({preventDefault(){}}));
+  assert.equal(updates[0][0].category,'retirada'); assert.equal(updates[0][0].expense_behavior,null); assert.equal(updates[0][0].amount,100); assert.equal(updates[0][1],3); assert.equal(account.paid_amount,100);
 });

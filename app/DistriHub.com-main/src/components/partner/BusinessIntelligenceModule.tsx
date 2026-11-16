@@ -26,7 +26,7 @@ function Kpi({ label, value, note }: { label: string; value: string; note: strin
 }
 const amount = (value: number | null) => value === null || !Number.isFinite(value) ? 'Dados insuficientes' : money.format(value);
 const dayLabel = (day: string) => day.split('-').reverse().join('/');
-const expenseLabels: Record<string, string> = { fornecedor: 'Fornecedores / compras', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outros' };
+const expenseLabels: Record<string, string> = { fornecedor: 'Fornecedores / compras', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outros', retirada: 'Retiradas de sócios / uso pessoal' };
 
 export function BusinessIntelligenceModule(props: Props) {
   const { companyId, branchId, branches, isActive, dataReady, dataError, sales, products, customers, movements,
@@ -163,6 +163,12 @@ export function BusinessIntelligenceModule(props: Props) {
             <p>Compras / fornecedores no período: <strong>{amount(model.result.purchases)}</strong> ({model.result.purchaseCount} conta(s)), separadas da dedução de despesas para evitar duplicidade com o custo das vendas. A categoria Fornecedor é tratada como compra de mercadorias; serviços e outros gastos devem ser cadastrados na categoria de despesa correspondente.</p>
           </details>
           {model.result.categories.length > 0 && <div className="module-card bi-quality"><strong>Despesas consideradas no resultado</strong><div className="bi-inline-stats">{model.result.categories.map(row => <span key={row.category}>{expenseLabels[row.category] ?? row.category}: <strong>{amount(row.amount)}</strong> · {row.count} conta(s)</span>)}</div><p>Valores integrais das contas com vencimento no período, independentemente da data em que foram pagas.</p></div>}
+          <div className="module-card bi-quality"><strong>Retiradas de sócios / uso pessoal</strong>
+            <p>Contas com vencimento no período: <strong>{amount(model.result.withdrawals)}</strong> ({model.result.withdrawalCount} conta(s)). Retiradas efetivamente pagas no período: <strong>{amount(model.paidWithdrawals)}</strong>.</p>
+            <p>Separadas das despesas operacionais, do resultado estimado e do ponto de equilíbrio. Os pagamentos continuam nas saídas do caixa. Vencimento e pagamento podem pertencer a períodos diferentes.</p>
+            {model.withdrawalRecipients.map(row => <p key={row.recipient}>{row.recipient}: <strong>{amount(row.amount)}</strong> pagos no período.</p>)}
+            <p>Para corrigir uma conta antiga, edite sua categoria em Contas a Pagar. Confira o beneficiário e preserve o pagamento existente, sem cadastrar uma segunda saída.</p>
+          </div>
           <div className="module-card bi-quality"><strong>O que precisa ser conferido</strong><ul>
             {!model.result.hasExpenseRecords && <li>Nenhuma despesa operacional cadastrada nesta seleção. Compras de fornecedores, sozinhas, não comprovam despesa operacional zero.</li>}
             {model.result.hasExpenseRecords && model.result.expenseCount === 0 && <li>Não há despesas operacionais com vencimento no período. Confira se o cadastro deste período está completo antes de interpretar o resultado.</li>}

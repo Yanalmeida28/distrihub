@@ -183,7 +183,7 @@ test('selecting a supplier preserves the chosen expense category and explicit in
   await act(async()=>{r=Renderer.create(React.createElement(Component,props));});
   for(const category of ['energia','fornecedor']) {
    await act(async()=>button(r,'Nova conta a pagar').props.onClick());
-   const option=value=>r.root.findAllByType('select').find(select=>select.findAllByType('option').some(node=>node.props.value===value));
+   const option=value=>['fornecedor','aluguel','energia','salarios','impostos','outros','retirada'].includes(value)?r.root.findByProps({'aria-label':'Categoria da nova conta'}):r.root.findAllByType('select').find(select=>select.findAllByType('option').some(node=>node.props.value===value));
    await act(async()=>option('energia').props.onChange({target:{value:category}}));
    if(category!=='fornecedor') await act(async()=>r.root.findByProps({'aria-label':'Tipo de despesa'}).props.onChange({target:{value:'variable'}}));
    await act(async()=>option('utility').props.onChange({target:{value:'utility'}}));

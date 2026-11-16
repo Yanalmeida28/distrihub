@@ -20,13 +20,14 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
   const inPeriod = (value: string) => value >= first && value <= last;
   const active = payables.filter(account => account.status !== 'cancelada');
   const categories = new Map<string, { amount: number; count: number; fixed: number; variable: number; unclassified: number }>();
-  let expenseCents = 0, purchaseCents = 0, expenseCount = 0, purchaseCount = 0;
+  let expenseCents = 0, purchaseCents = 0, expenseCount = 0, purchaseCount = 0, withdrawalCents = 0, withdrawalCount = 0;
   let undatedExpenses = 0, invalidExpenses = 0;
   for (const account of active) {
     const date = day(account.due_date);
     if (!date) { undatedExpenses++; continue; }
     if (!inPeriod(date)) continue;
     if (!amountValid(account.amount)) { invalidExpenses++; continue; }
+    if (account.category === 'retirada') { withdrawalCents += cents(account.amount); withdrawalCount++; continue; }
     if (account.category === 'fornecedor') { purchaseCents += cents(account.amount); purchaseCount++; continue; }
     if (!expenseCategories.has(account.category)) { invalidExpenses++; continue; }
     if (account.expense_behavior != null && account.expense_behavior !== 'fixed' && account.expense_behavior !== 'variable') { invalidExpenses++; continue; }
@@ -90,6 +91,7 @@ export function registeredBusinessResult({ revenue, cost, sales, products, payab
   const safeResult = result !== null && Number.isSafeInteger(cents(result)) ? result : null;
   return {
     expenses: expensesKnown ? expenseCents / 100 : null, expenseCount, purchases: purchaseCents / 100, purchaseCount,
+    withdrawals: withdrawalCents / 100, withdrawalCount,
     categories: [...categories].map(([category, row]) => ({ category, amount: row.amount / 100, count: row.count,
       fixedAmount: row.fixed / 100, variableAmount: row.variable / 100, unclassifiedAmount: row.unclassified / 100 })),
     undatedExpenses, invalidExpenses, hasExpenseRecords, returnsKnown, invalidReturns, estimatedReturnCosts,

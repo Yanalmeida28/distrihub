@@ -1,7 +1,7 @@
 import { adminBusinessDay } from './adminDashboard';
 import type { PartnerInvoice } from '../types';
 import type { PayableInstallment, PayablePaymentMethod } from './payableDetails';
-export const payableCategories = { fornecedor: 'Compra de mercadorias / estoque', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outras despesas' };
+export const payableCategories = { fornecedor: 'Compra de mercadorias / estoque', aluguel: 'Aluguel', energia: 'Energia', salarios: 'Salários', impostos: 'Impostos', outros: 'Outras despesas', retirada: 'Retirada de sócios / uso pessoal' };
 export type PayableExpenseBehavior = 'fixed' | 'variable';
 export const expenseBehaviorLabels = { fixed: 'Despesa fixa', variable: 'Despesa variável' };
 
@@ -12,7 +12,7 @@ export interface PayableAccount {
   supplier_id: string | null;
   description: string;
   creditor_name: string;
-  category: 'fornecedor' | 'aluguel' | 'energia' | 'salarios' | 'impostos' | 'outros';
+  category: keyof typeof payableCategories;
   expense_behavior?: PayableExpenseBehavior | null;
   amount: number;
   paid_amount: number;
@@ -32,6 +32,24 @@ export interface PayableAccount {
 }
 export type PayableCreation = Omit<PayableAccount, 'id' | 'user_id' | 'paid_amount' | 'status' | 'created_at' | 'purchase_id' | 'installment_number' | 'installment_count' | 'purchase_total' | 'revision' | 'deleted_at' | 'deletion_reason'> & { installments?: PayableInstallment[] };
 export type PayableEdit = Pick<PayableAccount, 'description' | 'creditor_name' | 'supplier_id' | 'category' | 'expense_behavior' | 'amount' | 'due_date' | 'purchased_on' | 'payment_method' | 'payment_method_detail'>;
+
+export const isOperatingExpense = (category: string) => ['aluguel', 'energia', 'salarios', 'impostos', 'outros'].includes(category);
+
+export function withdrawalSummary(accounts: PayableAccount[]) {
+  const people = new Map<string, { recipient: string; registered: number; paid: number; open: number }>();
+  for (const account of accounts) {
+    if (account.category !== 'retirada' || account.status === 'cancelada' || account.deleted_at) continue;
+    const recipient = account.creditor_name.trim();
+    const key = recipient.toLocaleLowerCase('pt-BR');
+    const row = people.get(key) ?? { recipient, registered: 0, paid: 0, open: 0 };
+    row.registered += Math.round(account.amount * 100);
+    row.paid += Math.round(accountPaid(account) * 100);
+    row.open += Math.round(accountBalance(account) * 100);
+    people.set(key, row);
+  }
+  return [...people.values()].map(row => ({ recipient: row.recipient, registered: row.registered / 100, paid: row.paid / 100, open: row.open / 100 }))
+    .sort((a, b) => b.paid - a.paid || a.recipient.localeCompare(b.recipient, 'pt-BR'));
+}
 
 export function accountPaid(account: { amount: number; paid_amount?: number; status: string }): number {
   return account.status === 'cancelada' ? 0 : Number(account.paid_amount ?? (account.status === 'paga' ? account.amount : 0));

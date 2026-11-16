@@ -166,10 +166,17 @@ export function buildBusinessIntelligence(input: BusinessInput) {
   const payableById = new Map(payables.map(account => [account.id, account]));
   const paymentById = new Map(payments.map(payment => [`payment-${payment.id}`, payment]));
   const categoryTotals = new Map<string, number>();
+  const withdrawalRecipients = new Map<string, { recipient: string; cents: number }>();
   for (const record of periodLedger) {
     const payment = paymentById.get(record.id);
     const category = payment ? payableById.get(payment.payable_id)?.category : undefined;
     if (category) categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + cents(Math.abs(record.amount)));
+    if (category === 'retirada' && payment) {
+      const recipient = payableById.get(payment.payable_id)!.creditor_name.trim();
+      const key = recipient.toLocaleLowerCase('pt-BR');
+      const previous = withdrawalRecipients.get(key);
+      withdrawalRecipients.set(key, { recipient: previous?.recipient ?? recipient, cents: (previous?.cents ?? 0) + cents(Math.abs(record.amount)) });
+    }
   }
   const stagnant = computeStagnantStock(products, sales, movements, now);
   const lastPurchase = new Map<string, string>();
@@ -216,6 +223,9 @@ export function buildBusinessIntelligence(input: BusinessInput) {
     today, first, last, periodError, periodDays, result, cashResult, invalidCashAmounts, missingCashHistory, currentRevenue, previousRevenue, profit, margin, quality, previousQuality, comparisonReady, growth,
     salesCount: currentSales.length, previousCount: previousSales.length, forecast, received, paid, refunded,
     expenseCategories: [...categoryTotals].map(([category, value]) => ({ category, amount: value / 100 })),
+    paidWithdrawals: cashResult === null ? null : (categoryTotals.get('retirada') ?? 0) / 100,
+    withdrawalRecipients: cashResult === null ? [] : [...withdrawalRecipients.values()].map(row => ({ recipient: row.recipient, amount: row.cents / 100 }))
+      .sort((a, b) => b.amount - a.amount || a.recipient.localeCompare(b.recipient, 'pt-BR')),
     undatedMovements,
     receivable: invoices.reduce((sum, invoice) => sum + cents(accountBalance(invoice)), 0) / 100,
     payable: forecast.expenseData ? payables.reduce((sum, account) => sum + cents(accountBalance(account)), 0) / 100 : null,

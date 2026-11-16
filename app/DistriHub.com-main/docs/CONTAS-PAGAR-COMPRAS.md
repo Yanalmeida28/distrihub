@@ -42,6 +42,18 @@ Compras de estoque (categoria fornecedor) não recebem esse tipo: o custo dos pr
 
 Validação: `npm run test:expense-behavior`, `npm run test:intelligence`, `npm run typecheck`, `npm run lint -- --max-warnings 0` e `npm run build`.
 
+## Retiradas de sócios / uso pessoal
+
+Use a categoria **Retirada de sócios / uso pessoal** em Contas a Pagar. Preencha quem recebeu no campo de beneficiário e informe o motivo na descrição. A retirada usa os mesmos controles de filial, vencimento, pagamento parcial, parcelas, revisão e histórico das demais contas. Ela não recebe tipo fixo/variável e não entra nas despesas operacionais nem no ponto de equilíbrio; o pagamento continua como saída no fluxo realizado, e o saldo pendente continua no previsto.
+
+Os filtros de categoria e vencimento permitem consultar as contas por período. O resumo de retiradas por pessoa considera todas as contas ativas desses filtros e da filial, independente da busca ou aba de status. **Pago** nesse resumo significa o valor liquidado dessas contas, mesmo que em outro período. A Inteligência Empresarial mostra separadamente contas por vencimento e pagamentos efetivos no período selecionado, com nomes de beneficiários. Histórico de pagamentos incompleto mantém os valores de caixa indisponíveis.
+
+Para corrigir uma conta antiga, use **Editar conta**, selecione a categoria de retirada, confira quem recebeu e descreva o motivo da correção. Não cadastre um segundo pagamento. A correção preserva os pagamentos e registra o antes/depois; nenhuma conta histórica é reclassificada automaticamente. Em compras parceladas, a correção vale somente para a parcela selecionada.
+
+Água para consumo da loja pode ser registrada em **Outras despesas → Fixa** quando o gasto existe independentemente das vendas. Fixo não significa valor idêntico todo mês. Água para revenda é compra de estoque. A categoria de retiradas destina-se a uso pessoal e retiradas dos sócios, não aos gastos de funcionamento da loja.
+
+Verificações específicas: `node --test supabase/tests/owner-withdrawals.test.mjs supabase/tests/expense-behavior-ui.test.mjs`.
+
 ## Integridade
 
 A compra inteira é salva em uma transação. Se uma parcela for inválida, nenhuma é confirmada. Tentativas com falha de conexão preservam os identificadores, parcelas, datas e formas de pagamento para recuperação sem duplicação. Repetir uma tentativa não zera pagamentos já feitos.
