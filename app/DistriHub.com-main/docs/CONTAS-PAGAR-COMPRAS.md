@@ -40,6 +40,10 @@ O ponto de equilíbrio usa primeiro o tipo definido na própria conta. Contas an
 
 Compras de estoque (categoria fornecedor) não recebem esse tipo: o custo dos produtos vendidos já participa do cálculo. Classificar uma despesa não muda seu valor, seu vencimento nem o fluxo de caixa. O ponto de equilíbrio ainda exige dados suficientes, conferência dos gastos e margem de contribuição positiva.
 
+O ponto de equilíbrio aparece automaticamente na Inteligência Empresarial quando há despesas operacionais no período, classificações utilizáveis, receita e custos disponíveis e margem de contribuição positiva. Atualizar os dados ou trocar o período recalcula a estimativa sem uma confirmação manual. Ausência de despesas operacionais não é interpretada como gasto zero: a tela informa dados insuficientes; cenários sem despesas podem ser avaliados no simulador livre.
+
+**Ajustar classificações e meta do ponto de equilíbrio** abre as preferências. A edição gera uma prévia identificada como não salva; **Salvar ajustes do ponto de equilíbrio** mantém as escolhas para a empresa e filial selecionadas. Atualizar registros não grava preferências nem cria contas. O cálculo não certifica que todos os gastos foram cadastrados; revise a cobertura das despesas do período.
+
 Validação: `npm run test:expense-behavior`, `npm run test:intelligence`, `npm run typecheck`, `npm run lint -- --max-warnings 0` e `npm run build`.
 
 ## Retiradas de sócios / uso pessoal

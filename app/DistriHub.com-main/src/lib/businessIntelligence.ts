@@ -248,7 +248,7 @@ export function simulateBusinessGoal(fixed: string, contribution: string, desire
 
 export type BreakEvenSettings = Record<'aluguel' | 'energia' | 'salarios' | 'impostos' | 'outros', '' | 'fixed' | 'variable'> & { desired: number };
 
-// Caller must confirm completeness of this period before displaying the estimate.
+// Estimate from registered data; the UI must disclose coverage and missing records.
 export function registeredBreakEven(data: ReturnType<typeof registeredBusinessResult>, settings: BreakEvenSettings) {
   const fail = (error: string) => ({ error, result: null });
   if (!validAmount(settings.desired) || settings.desired > 1e12) return fail('Informe um resultado desejado válido.');
