@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PartnerSupplier } from '../../types';
-import { payableCategories, type PayableAccount, type PayableEdit, type PayableExpenseBehavior } from '../../lib/accounts';
+import { payableCategories, isOperatingExpense, type PayableAccount, type PayableEdit, type PayableExpenseBehavior } from '../../lib/accounts';
 import { payablePaymentMethods, validPayableDay, type PayablePaymentMethod } from '../../lib/payableDetails';
 import { localDate } from '../../lib/financialFlow';
 import { money } from '../../utils';
@@ -42,8 +42,8 @@ export function PayableManagementPanel({ account, mode, suppliers, branchName, b
     try {
       if (mode === 'delete') await onDelete(reason.trim(), account.revision ?? 0, token.current);
       else await onEdit({
-        description: form.description.trim(), creditor_name: form.creditor.trim(), supplier_id: form.supplier || null,
-        category: form.category, expense_behavior: form.category === 'fornecedor' ? null : form.behavior || null,
+        description: form.description.trim(), creditor_name: form.creditor.trim(), supplier_id: form.category === 'retirada' ? null : form.supplier || null,
+        category: form.category, expense_behavior: isOperatingExpense(form.category) ? form.behavior || null : null,
         amount, due_date: form.due, purchased_on: form.purchased || null,
         payment_method: form.method, payment_method_detail: form.method === 'outro' ? form.detail.trim() : null,
       }, account.revision ?? 0, token.current);
@@ -63,10 +63,11 @@ export function PayableManagementPanel({ account, mode, suppliers, branchName, b
     <form className="accounts-entry-form" onSubmit={submit}>
       {mode === 'delete' ? <label style={{ gridColumn: '1 / -1' }}>Motivo da exclusão<textarea aria-label="Motivo da exclusão" required maxLength={500} value={reason} disabled={disabled} onChange={event => setReason(event.target.value)} /></label> : <>
         <label>Descrição<input aria-label="Editar descrição da conta" required maxLength={200} value={form.description} disabled={disabled} onChange={event => setForm({ ...form, description: event.target.value })} /></label>
-        <label>Credor<input aria-label="Editar credor da conta" required maxLength={200} value={form.creditor} disabled={disabled} onChange={event => setForm({ ...form, creditor: event.target.value })} /></label>
-        <label>Fornecedor<select aria-label="Editar fornecedor da conta" value={form.supplier} disabled={disabled} onChange={event => setForm({ ...form, supplier: event.target.value })}><option value="">Sem fornecedor</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>
+        <label>{form.category === 'retirada' ? 'Quem recebeu / beneficiário' : 'Credor'}<input aria-label="Editar credor da conta" required maxLength={200} value={form.creditor} disabled={disabled} onChange={event => setForm({ ...form, creditor: event.target.value })} /></label>
+        {form.category !== 'retirada' && <label>Fornecedor<select aria-label="Editar fornecedor da conta" value={form.supplier} disabled={disabled} onChange={event => setForm({ ...form, supplier: event.target.value })}><option value="">Sem fornecedor</option>{suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</select></label>}
         <label>Categoria<select aria-label="Editar categoria da conta" value={form.category} disabled={disabled} onChange={event => setForm({ ...form, category: event.target.value as PayableAccount['category'] })}>{Object.entries(payableCategories).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        {form.category !== 'fornecedor' && <label>Tipo de despesa<select aria-label="Editar tipo de despesa" value={form.behavior} disabled={disabled} onChange={event => setForm({ ...form, behavior: event.target.value as PayableExpenseBehavior })}><option value="">Usar classificação da categoria no ponto de equilíbrio</option><option value="fixed">Fixa — não acompanha as vendas</option><option value="variable">Variável — acompanha as vendas</option></select></label>}
+        {isOperatingExpense(form.category) && <label>Tipo de despesa<select aria-label="Editar tipo de despesa" value={form.behavior} disabled={disabled} onChange={event => setForm({ ...form, behavior: event.target.value as PayableExpenseBehavior })}><option value="">Usar classificação da categoria no ponto de equilíbrio</option><option value="fixed">Fixa — existe mesmo sem vendas</option><option value="variable">Variável — varia conforme as vendas</option></select></label>}
+        {form.category === 'retirada' && <p style={{ gridColumn: '1 / -1' }}>Confira quem recebeu e o motivo na descrição. A retirada será separada das despesas operacionais e do ponto de equilíbrio. Os pagamentos existentes serão preservados; não registre a mesma saída novamente.</p>}
         <label>Valor desta conta ou parcela (R$)<input aria-label="Editar valor da conta" inputMode="decimal" required value={form.amount} disabled={disabled} onChange={event => setForm({ ...form, amount: event.target.value })} /></label>
         <label>Vencimento<input aria-label="Editar vencimento da conta" type="date" required value={form.due} disabled={disabled} onChange={event => setForm({ ...form, due: event.target.value })} /></label>
         <label>Data da compra<input aria-label="Editar data da compra" type="date" max={localDate(new Date().toISOString())} value={form.purchased} disabled={disabled} onChange={event => setForm({ ...form, purchased: event.target.value })} /></label>
