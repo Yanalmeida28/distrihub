@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import React from 'react';
 import Renderer, { act } from 'react-test-renderer';
-import { intelligenceHarness, fixedNow, sale, product, payable, invoice } from './fixtures/business_intelligence_helpers.mjs';
+import { intelligenceHarness, fixedNow, sale, product, payable, invoice, helpers, input } from './fixtures/business_intelligence_helpers.mjs';
 
 let renderer;
 afterEach(async () => { if (renderer) await act(async () => renderer.unmount()); renderer = null; });
@@ -326,4 +326,53 @@ test('current CRM cards keep dormant buyers separate from customers without purc
   const crm=renderer.root.findByProps({'aria-labelledby':'bi-crm-title'});
   const rows=crm.findAll(node=>node.type==='section'); assert.equal(rows.length,2);
   assert.match(text(rows[0]),/Sem comprar há 90 dias1/); assert.match(text(rows[1]),/Sem compras registradas1/);
+});
+
+const financialCardsModel = () => helpers.buildBusinessIntelligence(input({ period:'selectedMonth',selectedMonth:'2026-10',rmas:[],sales:[sale({total:1000})],
+  invoices:[invoice({amount:80,paid_amount:20,due_date:'2026-09-01'})],
+  payables:[payable({id:'op',category:'outros',amount:100,paid_amount:40,due_date:'2026-09-01'}),
+    payable({id:'personal',category:'retirada',creditor_name:'Maria',amount:200,paid_amount:50,due_date:'2026-09-01'}),
+    payable({id:'stock',category:'fornecedor',amount:200,paid_amount:20,due_date:'2026-10-20'}),
+    payable({id:'future',category:'retirada',amount:300,paid_amount:0,status:'aberta',due_date:'2026-11-01'})],
+  receipts:[{id:'r',user_id:'company',branch_id:'A',invoice_id:'i',amount:20,occurred_at:'2026-10-01T12:00:00Z'}],
+  payments:[['p1','op',40],['p2','personal',50],['p3','stock',20]].map(([id,payable_id,amount])=>({id,payable_id,amount,user_id:'company',created_at:'2026-11-01T12:00:00Z',paid_at:'2026-10-11T12:00:00Z'}))
+}));
+
+test('visual financial cards separate current balances, due withdrawals and actual payments without hiding their basis', async () => {
+  const {load}=fixture(),cards=load('components/partner/BusinessIntelligenceFinancialCards.tsx'),model=financialCardsModel();
+  await act(async()=>{renderer=Renderer.create(React.createElement('div',null,React.createElement(cards.IntelligenceBalances,{model}),React.createElement(cards.IntelligenceWithdrawals,{model}),React.createElement(cards.IntelligenceCategoryPayments,{model})));});
+  const balances=renderer.root.findByProps({'aria-labelledby':'bi-account-balances'});
+  assert.match(text(balances),/Posição de hoje.*19\/10\/2026/); assert.match(text(balances),/Período selecionado.*01\/10\/2026 a 31\/10\/2026/);
+  assert.match(text(balances.findByProps({className:'bi-finance-metric bi-finance-receivable'})),/A receber.*60,00/);
+  assert.match(text(balances.findByProps({className:'bi-finance-metric bi-finance-payable'})),/A pagar.*690,00/);
+  const withdrawals=renderer.root.findByProps({'aria-labelledby':'bi-owner-withdrawals'});
+  const metrics=withdrawals.findAllByProps({className:'bi-finance-metric'});
+  assert.match(text(metrics[0]),/Por vencimento.*0,00/); assert.match(text(metrics[1]),/Pagas no período.*50,00/);
+  assert.match(text(withdrawals.findByProps({className:'bi-finance-recipients'})),/Maria.*50,00/);
+  assert.ok(!withdrawals.findByType('details').props.open);
+  const categories=renderer.root.findByProps({'aria-labelledby':'bi-category-payments'});
+  const rows=categories.findByType('ol').findAllByType('li');
+  assert.deepEqual(rows.map(row=>row.findByProps({className:'bi-category-bar-label'}).findByType('span').children.join('')),['Retiradas dos sócios','Outras despesas','Compras de estoque']);
+  assert.match(text(rows[0]),/50,00/); assert.match(text(rows[1]),/40,00/); assert.match(text(rows[2]),/20,00/);
+  assert.ok(!categories.findByType('details').props.open);
+});
+
+test('incomplete cash history never becomes a category chart or zero paid withdrawals', async () => {
+  const {load}=fixture(),cards=load('components/partner/BusinessIntelligenceFinancialCards.tsx');
+  const model={...financialCardsModel(),cashResult:null,paidWithdrawals:null,withdrawalRecipients:[]};
+  await act(async()=>{renderer=Renderer.create(React.createElement('div',null,React.createElement(cards.IntelligenceWithdrawals,{model}),React.createElement(cards.IntelligenceCategoryPayments,{model})));});
+  const withdrawals=renderer.root.findByProps({'aria-labelledby':'bi-owner-withdrawals'});
+  assert.match(text(withdrawals.findAllByProps({className:'bi-finance-metric'})[1]),/Dados insuficientes/);
+  assert.equal(withdrawals.findAllByProps({className:'bi-finance-recipients'}).length,0);
+  const categories=renderer.root.findByProps({'aria-labelledby':'bi-category-payments'});
+  assert.equal(categories.findAllByType('ol').length,0); assert.match(text(categories),/Dados insuficientes/);
+  assert.doesNotMatch(text(renderer.toJSON()),/Nenhuma retirada paga|Nenhum pagamento de conta/);
+});
+
+test('a completed empty category list is distinct from incomplete payment data', async () => {
+  const {load}=fixture(),cards=load('components/partner/BusinessIntelligenceFinancialCards.tsx');
+  const model={...financialCardsModel(),cashResult:0,paidWithdrawals:0,withdrawalRecipients:[],expenseCategories:[]};
+  await act(async()=>{renderer=Renderer.create(React.createElement('div',null,React.createElement(cards.IntelligenceWithdrawals,{model}),React.createElement(cards.IntelligenceCategoryPayments,{model})));});
+  assert.match(text(renderer.toJSON()),/Nenhuma retirada paga no período/); assert.match(text(renderer.toJSON()),/Nenhum pagamento de conta neste período/);
+  assert.equal(renderer.root.findAllByType('ol').length,0);
 });

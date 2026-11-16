@@ -1,5 +1,6 @@
 import type { buildBusinessIntelligence } from '../../lib/businessIntelligence';
 import { money } from '../../utils';
+import { IntelligenceMoney } from './BusinessIntelligenceFinancialCards';
 
 type Props = {
   model: ReturnType<typeof buildBusinessIntelligence>;
@@ -29,24 +30,24 @@ export function BusinessIntelligenceAttention({ model, branchName, onNavigate }:
       <p>{branchName} · Independente do período histórico selecionado.</p>
     </div></div>
     {noOverdue && <div className="bi-overdue-clear" role="status">
-      <strong>Nenhuma conta vencida</strong><span>Nos registros consultados · A receber: {amount(incoming)} · A pagar: {amount(outgoing)}</span>
-      <div className="bi-attention-actions">
-        <button type="button" className="rma-advance-btn" aria-label="Abrir vencidas a receber" onClick={() => onNavigate('financeiro', 'receber')}>A receber</button>
-        <button type="button" className="rma-advance-btn" aria-label="Abrir vencidas a pagar" onClick={() => onNavigate('financeiro', 'pagar')}>A pagar</button>
+      <strong>Nenhuma conta vencida</strong><span>Nos registros consultados</span>
+      <div className="bi-attention-actions bi-overdue-zero-actions">
+        <button type="button" className="rma-advance-btn bi-overdue-zero-button" aria-label="Abrir vencidas a receber" onClick={() => onNavigate('financeiro', 'receber')}><small>Vencido a receber</small><IntelligenceMoney value={incoming} maxSize={20} /></button>
+        <button type="button" className="rma-advance-btn bi-overdue-zero-button" aria-label="Abrir vencidas a pagar" onClick={() => onNavigate('financeiro', 'pagar')}><small>Vencido a pagar</small><IntelligenceMoney value={outgoing} maxSize={20} /></button>
       </div>
     </div>}
     <div className="bi-attention-grid">
       {!noOverdue && <article className={`module-card bi-attention-card ${hasOverdue ? 'bi-attention-danger' : 'bi-attention-incomplete'}`} aria-labelledby="bi-overdue-title">
         <h5 id="bi-overdue-title">Contas vencidas{hasOverdue ? ' com saldo em aberto' : ' — dados incompletos'}</h5>
         {model.forecast.undated > 0 && <p className="bi-attention-warning" role="note">Posição parcial: {model.forecast.undated} título(s) sem vencimento válido. Não é possível confirmar ausência de vencidos.</p>}
-        {(['incoming', 'outgoing'] as const).map(kind => <section className="bi-overdue-side" key={kind} aria-label={kind === 'incoming' ? 'Vencidos a receber' : 'Vencidos a pagar'}>
+        <div className="bi-overdue-metrics">{(['incoming', 'outgoing'] as const).map(kind => <section className={`bi-overdue-side${((kind === 'incoming' ? incoming : outgoing) ?? 0) > 0 ? ' bi-overdue-positive' : ''}`} key={kind} aria-label={kind === 'incoming' ? 'Vencidos a receber' : 'Vencidos a pagar'}>
           <h6>{kind === 'incoming' ? 'A receber' : 'A pagar'}</h6>
-          <strong className={model.overdue[kind].length ? 'bi-attention-amount' : ''}>{amount(kind === 'incoming' ? incoming : outgoing)}</strong>
-          <small>{model.overdue[kind].length} conta(s) · saldo após pagamentos parciais</small>
-          {model.overdue[kind].length > 0 && <ul>{model.overdue[kind].slice(0, 3).map(row => <li key={row.id}>{row.name} · {day(row.due)} · {amount(row.balance)}</li>)}</ul>}
+          <IntelligenceMoney value={kind === 'incoming' ? incoming : outgoing} />
+          <small>{model.overdue[kind].length} conta(s)</small>
+          {model.overdue[kind].length > 0 && <details className="bi-finance-details"><summary>Principais pendências</summary><ul>{model.overdue[kind].slice(0, 3).map(row => <li key={row.id}>{row.name} · {day(row.due)} · {amount(row.balance)}</li>)}</ul></details>}
           <button type="button" className="rma-advance-btn" onClick={() => onNavigate('financeiro', kind === 'incoming' ? 'receber' : 'pagar')}>Abrir vencidas {kind === 'incoming' ? 'a receber' : 'a pagar'}</button>
-        </section>)}
-        <small>Contas canceladas excluídas.</small>
+        </section>)}</div>
+        <small>Saldos após pagamentos parciais · canceladas excluídas.</small>
       </article>}
       <article className="module-card bi-attention-card bi-attention-stock" aria-labelledby="bi-stock-title">
         <h5 id="bi-stock-title">Estoque sem giro hoje</h5>
