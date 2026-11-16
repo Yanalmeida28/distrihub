@@ -3710,6 +3710,20 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 }
 /* Compact financial statement; scoped to preserve other financial screens. */
 .partner-panel .financial-flow { min-width: 0; padding: 16px; }
+/* Keep account totals side by side instead of inheriting the generic mobile stack. */
+.partner-panel .financial-accounts-module > .financial-accounts-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; margin-bottom: 12px; }
+.partner-panel .financial-accounts-totals > .report-card { display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; padding: 10px 12px; }
+.partner-panel .financial-accounts-totals > .report-card :is(small, strong) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.partner-panel .financial-accounts-totals > .report-card small { font-size: 11px; line-height: 1.35; }
+.partner-panel .financial-accounts-totals > .report-card strong { font-size: clamp(14px, 2vw, 21px); line-height: 1.35; }
+@media (max-width: 640px) {
+  .partner-panel .financial-accounts-module { padding: 12px; }
+  .partner-panel .financial-accounts-totals > .report-card { padding: 8px; }
+  .partner-panel .financial-accounts-totals > .report-card small { font-size: 10px; }
+  .partner-panel .financial-accounts-module > .financial-accounts-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .partner-panel .financial-accounts-totals > .report-card:last-child { grid-column: 1 / -1; }
+}
+
 .partner-panel .financial-flow-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }
 .partner-panel .financial-flow-heading h4 { margin: 0; }
 .partner-panel .financial-flow-heading > span { color: var(--dh-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
