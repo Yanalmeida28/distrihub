@@ -215,7 +215,13 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
       setRecipientFilter(recipient); setCategoryFilter('retirada'); setFilter('todas'); setQuery(''); setView('table');
     }} />}
     <div ref={listRef} className="orders-filter-row accounts-list-controls" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
-      {(kind === 'pagar' ? ['abertas', 'vencidas', 'pagas', 'todas', 'excluidas'] : ['abertas', 'vencidas', 'pagas', 'todas']).map(value => <button key={value} type="button" className={`rma-advance-btn ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{value === 'excluidas' ? 'Excluídas' : value[0].toUpperCase() + value.slice(1)}</button>)}
+      <details className="accounts-status-filter" onKeyDown={event => { if (event.key === 'Escape') { event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+        <summary className="rma-advance-btn">Filtrar: {filter === 'excluidas' ? 'Excluídas' : filter === 'abertas' ? 'Em aberto' : filter[0].toUpperCase() + filter.slice(1)}</summary>
+        <div className="accounts-status-options" role="group" aria-label="Filtrar situação das contas">
+          {(kind === 'pagar' ? ['todas', 'abertas', 'vencidas', 'pagas', 'excluidas'] : ['todas', 'abertas', 'vencidas', 'pagas']).map(value => <button key={value} type="button" className={`rma-advance-btn ${filter === value ? 'active' : ''}`} aria-pressed={filter === value} onClick={event => { setFilter(value); const details = event?.currentTarget?.closest('details'); if (details) { details.open = false; details.querySelector('summary')?.focus(); } }}>{value === 'excluidas' ? 'Excluídas' : value === 'abertas' ? 'Em aberto' : value[0].toUpperCase() + value.slice(1)}</button>)}
+        </div>
+      </details>
+      {filter === 'excluidas' && <span className="accounts-archive-notice" role="status">Exibindo contas excluídas</span>}
       <input type="search" aria-label="Buscar contas" placeholder="Buscar contas" value={query} onChange={e => setQuery(e.target.value)} />
       <div className="accounts-view-toggle" role="group" aria-label="Visualização das contas">
         <button type="button" className={`rma-advance-btn ${view === 'table' ? 'active' : ''}`} aria-pressed={view === 'table'} onClick={() => setView('table')}>Tabela</button>

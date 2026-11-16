@@ -273,3 +273,24 @@ test('flow loads every refund page, respects company/branch and reports missing 
  assert.match(JSON.stringify(r.toJSON()),/60,00/);assert.doesNotMatch(JSON.stringify(r.toJSON()),/90,00/);
  fail=true;await act(async()=>button(r,'Atualizar').props.onClick());assert.match(JSON.stringify(r.toJSON()),/Refund read failed/);assert.match(JSON.stringify(r.toJSON()),/Indisponível/);await act(async()=>r.unmount());
 });
+
+test('compact status filter separates archived accounts and keeps totals stable',async()=>{
+ const e=environment(),Component=e.load('components/partner/AccountsModule.tsx').AccountsModule;let r;
+ const props={kind:'pagar',invoices:[],payables:{accounts:[payable,{...payable,id:'paid',description:'Paid record',paid_amount:100,status:'paga'},{...payable,id:'deleted',description:'Archived record',status:'cancelada',deleted_at:'2026-11-14T15:00:00Z'}],loading:false,error:''},branches:[{id:'A',name:'Matriz'}],suppliers:[],branchId:'A'};
+ try {
+  await act(async()=>{r=Renderer.create(React.createElement(Component,props));});
+  const menu=r.root.findByProps({className:'accounts-status-filter'});assert.equal(menu.props.open,undefined);
+  assert.equal(r.root.findByProps({className:'report-cards financial-accounts-totals'}).findAllByType('strong').length,3);
+  await act(async()=>button(r,'Todas').props.onClick());
+  assert.match(JSON.stringify(r.root.findByType('summary').children),/Todas/);
+  assert.doesNotMatch(JSON.stringify(r.toJSON()),/Archived record/);
+  const totals=r.root.findByProps({className:'report-cards financial-accounts-totals'}).findAllByType('strong').map(node=>node.children.join(''));
+  await act(async()=>button(r,'Excluídas').props.onClick());
+  assert.match(JSON.stringify(r.toJSON()),/Archived record/);
+  assert.match(JSON.stringify(r.toJSON()),/Exibindo contas/);
+  assert.equal(button(r,'Excluídas').props['aria-pressed'],true);
+  assert.deepEqual(r.root.findByProps({className:'report-cards financial-accounts-totals'}).findAllByType('strong').map(node=>node.children.join('')),totals);
+  await act(async()=>r.update(React.createElement(Component,{...props,kind:'receber',invoices:[invoice]})));
+  assert.equal(button(r,'Excluídas'),undefined);
+ }finally{if(r)await act(async()=>r.unmount());}
+});

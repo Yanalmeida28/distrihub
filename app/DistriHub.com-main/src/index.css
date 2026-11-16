@@ -3923,3 +3923,12 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .financial-flow-mobile-detail details p { overflow-wrap: anywhere; margin: 0 0 8px; }
   .partner-panel .financial-flow-pagination button { min-height: 44px; }
 }
+
+.accounts-status-filter { position: relative; flex-shrink: 0; }
+.accounts-status-filter > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: 10px; list-style: none; }
+.accounts-status-filter > summary::-webkit-details-marker { display: none; }
+.accounts-status-filter > summary::after { content: "\25be"; }
+.accounts-status-filter > summary:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.accounts-status-options { position: absolute; inset: calc(100% + 6px) auto auto 0; z-index: 20; display: grid; min-width: 180px; padding: 6px; gap: 4px; background: #172033; border: 1px solid #475569; border-radius: 10px; box-shadow: 0 8px 24px #0006; }
+.accounts-status-options > button { min-height: 44px; text-align: left; }
+.accounts-archive-notice { font-size: 12px; color: #fbbf24; }
