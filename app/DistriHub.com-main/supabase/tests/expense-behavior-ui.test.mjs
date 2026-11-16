@@ -120,3 +120,42 @@ test('a paid expense can be reclassified as withdrawal without asking for anothe
   await act(async()=>renderer.root.findByType('form').props.onSubmit({preventDefault(){}}));
   assert.equal(updates[0][0].category,'retirada'); assert.equal(updates[0][0].expense_behavior,null); assert.equal(updates[0][0].amount,100); assert.equal(updates[0][1],3); assert.equal(account.paid_amount,100);
 });
+
+test('compact withdrawal summary keeps cents and due filters, opens exact recipient records and resets with the branch', async () => {
+  const {load}=environment(),Component=load('components/partner/AccountsModule.tsx').AccountsModule;
+  let mutations=0;
+  const account=(id,description,creditor_name,amount,paid_amount,status='parcial',patch={})=>({id,description,creditor_name,amount,paid_amount,status,category:'retirada',branch_id:'A',due_date:'2026-10-10',...patch});
+  const accounts=[account('m1','Maria parcial','Maria',100.03,40.01),account('m2','Maria quitada',' MARIA ',60.02,60.02,'paga'),
+    account('a','Ana ativa','Ana',200.03,20),account('mc','Maria Clara ativa','Maria Clara',80.01,0,'aberta'),
+    account('cancel','Cancelada Maria','Maria',999,0,'cancelada'),account('future','Retirada novembro','Maria',700,0,'aberta',{due_date:'2026-11-10'}),
+    account('branch','Outra filial','Maria',500,100,'parcial',{branch_id:'B'})];
+  const props={...base,contextKey:'same-owner',branches:[...base.branches,{id:'B',name:'Bairro'}],payables:{...base.payables,accounts,create:async()=>{mutations++;},pay:async()=>{mutations++;},update:async()=>{mutations++;}}};
+  await act(async()=>{renderer=Renderer.create(React.createElement(Component,props));});
+  await change('Vencimento de','2026-10-01'); await change('Vencimento até','2026-10-31');
+  const summary=()=>renderer.root.findByProps({'aria-labelledby':'withdrawal-summary-title'});
+  const totals=()=>text(summary().findByProps({'aria-label':'Totais das retiradas'}));
+  assert.match(totals(),/120,03/); assert.match(totals(),/320,06/);
+  assert.match(text(summary()),/De 01\/10\/2026 · Até 31\/10\/2026/);
+  assert.ok(!summary().findByType('details').props.open);
+  await act(async()=>button('Pagas').props.onClick()); await change('Buscar contas','sem resultado');
+  const before=totals();
+  const maria=()=>summary().findAllByType('button').find(node=>node.props['aria-label'].startsWith('Ver lançamentos de Maria.'));
+  await act(async()=>maria().props.onClick());
+  assert.equal(renderer.root.findByProps({'aria-label':'Filtrar categoria das contas'}).props.value,'retirada');
+  assert.equal(renderer.root.findByProps({'aria-label':'Vencimento de'}).props.value,'2026-10-01');
+  assert.equal(renderer.root.findByProps({'aria-label':'Buscar contas'}).props.value,'');
+  assert.match(button('Todas').props.className,/active/);
+  assert.match(text(renderer.root.findByType('table')),/Maria parcial/); assert.match(text(renderer.root.findByType('table')),/Maria quitada/);
+  assert.doesNotMatch(text(renderer.root.findByType('table')),/Ana ativa|Maria Clara ativa|Cancelada Maria|novembro|Outra filial/);
+  assert.equal(totals(),before); assert.equal(mutations,0);
+  await act(async()=>button('Mostrar todas as pessoas').props.onClick());
+  assert.match(text(renderer.root.findByType('table')),/Ana ativa/);
+  await act(async()=>maria().props.onClick());
+  await act(async()=>renderer.update(React.createElement(Component,{...props,branchId:'B'})));
+  assert.equal(renderer.root.findAllByProps({className:'withdrawal-selected'}).length,0);
+  assert.equal(renderer.root.findByProps({'aria-label':'Vencimento de'}).props.value,'');
+  assert.equal(renderer.root.findByProps({'aria-label':'Filtrar categoria das contas'}).props.value,'');
+  assert.match(text(renderer.root.findByType('table')),/Outra filial/); assert.doesNotMatch(text(renderer.root.findByType('table')),/Ana ativa|Maria parcial/);
+  await act(async()=>button('Nova conta a pagar').props.onClick());
+  assert.equal(summary().findByType('button').props.disabled,true); assert.equal(mutations,0);
+});

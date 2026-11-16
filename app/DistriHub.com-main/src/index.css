@@ -3792,6 +3792,43 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .financial-flow { min-width: 0; padding: 16px; }
 /* Keep account totals side by side instead of inheriting the generic mobile stack. */
 .partner-panel .financial-accounts-module { min-width: 0; container: financial-accounts / inline-size; }
+.partner-panel .financial-accounts-module .accounts-scope-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; align-items: end; gap: 10px; }
+.accounts-scope-filters > label { display: grid; gap: 6px; min-width: 0; font-size: 12px; }
+.accounts-scope-filters > label :is(input, select) { box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%; min-height: 44px; }
+.accounts-scope-filters > button { grid-column: 1 / -1; justify-self: end; min-height: 44px; white-space: normal; }
+.accounts-list-controls { scroll-margin-top: 90px; }
+.withdrawal-summary { min-width: 0; padding: 14px; border: 1px solid var(--dh-border, #29465f); border-radius: 10px; margin-block: 12px; }
+.withdrawal-summary h5 { margin: 0; font-size: 15px; }
+.withdrawal-summary .withdrawal-period { margin: 6px 0 10px; font-size: 11px; }
+.withdrawal-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 8px; }
+.withdrawal-totals > div { min-width: 0; padding: 10px; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; container-type: inline-size; }
+.withdrawal-summary small { display: block; font-size: 11px; line-height: 1.4; color: var(--dh-text-secondary, #adc2d6); }
+.withdrawal-summary .withdrawal-amount { display: block; min-width: 0; white-space: nowrap; line-height: 1.35; margin-top: 3px; }
+.withdrawal-people { margin: 0; padding: 0; list-style: none; }
+.withdrawal-person { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)); align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid var(--dh-border, #29465f); background: transparent; color: var(--dh-text, #eaf1f6); text-align: left; cursor: pointer; }
+.withdrawal-person > span { display: grid; min-width: 0; }
+.withdrawal-person-name > strong { overflow-wrap: anywhere; font-size: 13px; }
+.withdrawal-person-name > small { margin-top: 3px; }
+.withdrawal-person :is(.withdrawal-person-paid, .withdrawal-person-open) { container-type: inline-size; }
+.withdrawal-person:hover:not(:disabled), .withdrawal-person[aria-pressed='true'] { background: var(--dh-blue-soft, #78cbb110); }
+.withdrawal-person:focus-visible { outline: 2px solid #78cbb1; outline-offset: 2px; }
+.withdrawal-person:disabled { cursor: default; opacity: .65; }
+.withdrawal-explanation { margin-top: 8px; font-size: 12px; line-height: 1.5; }
+.withdrawal-explanation > summary { width: fit-content; min-height: 44px; padding-block: 12px; cursor: pointer; }
+.withdrawal-explanation > p { font-size: 12px; }
+.withdrawal-selected { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 8px 10px; border-left: 3px solid var(--dh-blue, #7bc8ff); font-size: 13px; }
+@container financial-accounts (min-width: 860px) {
+  .partner-panel .financial-accounts-module .accounts-scope-filters { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto !important; }
+  .accounts-scope-filters > button { grid-column: auto; }
+}
+@container financial-accounts (max-width: 520px) {
+  .partner-panel .financial-accounts-module .accounts-scope-filters { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .accounts-scope-filters > label:first-child { grid-column: 1 / -1; }
+  .accounts-scope-filters > button { grid-column: 1 / -1; justify-self: stretch; }
+  .withdrawal-summary { padding: 10px; }
+  .withdrawal-person { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin-block: 8px; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; }
+  .withdrawal-person-name { grid-column: 1 / -1; }
+}
 .partner-panel .financial-accounts-module > .financial-accounts-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; margin-bottom: 12px; }
 .partner-panel .financial-accounts-totals > .report-card { display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; padding: 10px 12px; }
 .partner-panel .financial-accounts-totals > .report-card :is(small, strong) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {readFileSync} from 'node:fs';
+import {readFileSync,existsSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {randomUUID} from 'node:crypto';
 import vm from 'node:vm';
@@ -21,7 +21,7 @@ function environment(client={}){
    if(dep.endsWith('/supabase'))return {supabase:client};
    if(dep.endsWith('/utils'))return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};
    if(dep==='./InvoiceReceipts')return {InvoiceReceipts:()=>null};
-   const target=new URL(dep,url),ext=dep.includes('Module')||dep.includes('Panel')?'.tsx':'.ts';
+   const target=new URL(dep,url),ext=existsSync(new URL(target.href+'.ts'))?'.ts':'.tsx';
    const path=target.pathname.split('/src/')[1]+ext;return load(path);
   }});return exports;
  };

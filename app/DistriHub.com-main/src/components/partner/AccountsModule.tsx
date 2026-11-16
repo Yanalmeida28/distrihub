@@ -8,6 +8,7 @@ import type { usePayables } from '../../hooks/usePayables';
 import { localDate } from '../../lib/financialFlow';
 import { payablePaymentMethods, payableMethodLabel, payableSchedule, validPayableDay, type PayablePaymentMethod } from '../../lib/payableDetails';
 import { PayableManagementPanel } from './PayableManagementPanel';
+import { WithdrawalSummary } from './WithdrawalSummary';
 
 type Props = {
   contextKey?: string;
@@ -29,7 +30,7 @@ const categories = payableCategories;
 const parseAmount = (text: string) => /^\d+(?:[.,]\d{1,2})?$/.test(text.trim()) ? Number(text.replace(',', '.')) : NaN;
 
 export function AccountsModule(props: Props) {
-  return <AccountsScreen key={props.contextKey ?? [props.kind, props.branchId].join(':')} {...props} />;
+  return <AccountsScreen key={[props.contextKey ?? '', props.kind, props.branchId].join(':')} {...props} />;
 }
 function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, payables, branches, suppliers, branchId, onReceive, recoveries = [], recoveryError, isActive = true }: Props) {
   const mounted = useRef(true);
@@ -43,6 +44,9 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dueFrom, setDueFrom] = useState('');
   const [dueTo, setDueTo] = useState('');
+  const [recipientFilter, setRecipientFilter] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { if (recipientFilter) listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [recipientFilter]);
   const [creating, setCreating] = useState(false);
   const [management, setManagement] = useState<{ account: PayableAccount; mode: 'edit' | 'delete' } | null>(null);
   const emptyForm = () => ({ description: '', creditor: '', category: 'outros', behavior: '' as PayableExpenseBehavior | '', supplierId: '', branchId, amount: '', dueDate: '',
@@ -64,6 +68,8 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     && (!dueFrom || account.due_date >= dueFrom) && (!dueTo || account.due_date <= dueTo));
   const withdrawals = kind === 'pagar' ? withdrawalSummary(accounts as PayableAccount[]) : [];
   const visible = accounts.filter(account => {
+    if (recipientFilter && (!('description' in account) || account.category !== 'retirada' || account.creditor_name.trim().toLocaleLowerCase('pt-BR') !== recipientFilter.toLocaleLowerCase('pt-BR'))) return false;
+    if (recipientFilter && filter !== 'excluidas' && account.status === 'cancelada') return false;
     if ('description' in account && Boolean(account.deleted_at) !== (filter === 'excluidas')) return false;
     if (filter === 'excluidas' && !('description' in account)) return false;
     const name = 'description' in account ? `${account.description} ${account.creditor_name} ${payableMethodLabel(account.payment_method, account.payment_method_detail)} ${account.purchased_on ?? ''}` : `${account.customer_name} ${account.number}`;
@@ -190,11 +196,11 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     {kind === 'receber' && !onReceive && <p>O proprietário da loja pode registrar os recebimentos.</p>}
     {kind === 'pagar' && payables.loading && <p role="status">Carregando contas…</p>}
     {kind === 'pagar' && payables.error && <p role="alert">{payables.error} <button type="button" className="rma-advance-btn" onClick={() => void payables.reload()}>Tentar novamente</button></p>}
-    {kind === 'pagar' && <div className="orders-filter-row" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
-      <label>Categoria<select aria-label="Filtrar categoria das contas" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}><option value="">Todas as categorias</option>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
+    {kind === 'pagar' && <div className="orders-filter-row accounts-scope-filters" style={{ margin: '16px 0' }}>
+      <label>Categoria<select aria-label="Filtrar categoria das contas" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setRecipientFilter(null); }}><option value="">Todas as categorias</option>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <label>Vencimento de<input aria-label="Vencimento de" type="date" value={dueFrom} onChange={event => setDueFrom(event.target.value)} /></label>
       <label>Vencimento até<input aria-label="Vencimento até" type="date" value={dueTo} onChange={event => setDueTo(event.target.value)} /></label>
-      <button type="button" className="rma-advance-btn" onClick={() => { setCategoryFilter(''); setDueFrom(''); setDueTo(''); }}>Limpar filtros de categoria e período</button>
+      <button type="button" className="rma-advance-btn" onClick={() => { setCategoryFilter(''); setDueFrom(''); setDueTo(''); setRecipientFilter(null); }}>Limpar filtros de categoria e período</button>
     </div>}
     {invalidPeriod && <p role="alert">Confira o período: a data inicial deve ser anterior ou igual à final.</p>}
     <div className="report-cards financial-accounts-totals">
@@ -202,12 +208,13 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
       <div className="report-card"><small>Vencido</small><strong>{money.format(overdue)}</strong></div>
       <div className="report-card"><small>{kind === 'pagar' ? 'Pago' : 'Liquidado (dinheiro + créditos)'}</small><strong>{money.format(paid)}</strong></div>
     </div>
-    {kind === 'pagar' && withdrawals.length > 0 && <details className="module-card" open>
-      <summary>Retiradas por pessoa — contas do período de vencimento</summary>
-      <p>Considera as contas ativas da categoria e filial filtradas acima, em todos os estados de pagamento. O valor pago é o total liquidado dessas contas; para saídas por data de pagamento, consulte o Fluxo Financeiro. Buscas e abas de status abaixo filtram apenas a lista.</p>
-      {withdrawals.map(row => <p key={row.recipient}><strong>{row.recipient}</strong> · Registrado: {money.format(row.registered)} · Pago: {money.format(row.paid)} · Em aberto: {money.format(row.open)}</p>)}
-    </details>}
-    <div className="orders-filter-row" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
+    {kind === 'pagar' && withdrawals.length > 0 && <WithdrawalSummary rows={withdrawals} selectedRecipient={recipientFilter}
+      periodLabel={[dueFrom ? `De ${dueFrom.split('-').reverse().join('/')}` : '', dueTo ? `Até ${dueTo.split('-').reverse().join('/')}` : ''].filter(Boolean).join(' · ') || 'Todos os vencimentos'}
+      disabled={busy || pending || !isActive || Boolean(management) || creating} onSelectRecipient={recipient => {
+      if (recipientFilter === recipient) listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setRecipientFilter(recipient); setCategoryFilter('retirada'); setFilter('todas'); setQuery(''); setView('table');
+    }} />}
+    <div ref={listRef} className="orders-filter-row accounts-list-controls" style={{ margin: '16px 0', flexWrap: 'wrap' }}>
       {(kind === 'pagar' ? ['abertas', 'vencidas', 'pagas', 'todas', 'excluidas'] : ['abertas', 'vencidas', 'pagas', 'todas']).map(value => <button key={value} type="button" className={`rma-advance-btn ${filter === value ? 'active' : ''}`} onClick={() => setFilter(value)}>{value === 'excluidas' ? 'Excluídas' : value[0].toUpperCase() + value.slice(1)}</button>)}
       <input type="search" aria-label="Buscar contas" placeholder="Buscar contas" value={query} onChange={e => setQuery(e.target.value)} />
       <div className="accounts-view-toggle" role="group" aria-label="Visualização das contas">
@@ -216,6 +223,7 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
       </div>
       {kind === 'pagar' && <button type="button" className="module-submit-btn" disabled={busy || pending || !isActive || Boolean(management) || payables.loading || Boolean(payables.error)} onClick={() => { creationId.current = null; installmentIds.current = []; setInstallmentDates({}); setForm(emptyForm()); setCreating(true); setError(''); }}>Nova conta a pagar</button>}
     </div>
+    {recipientFilter && <div className="withdrawal-selected" role="status"><strong>Lançamentos de {recipientFilter}</strong><button type="button" className="rma-advance-btn" onClick={() => setRecipientFilter(null)}>Mostrar todas as pessoas</button></div>}
     {success && <p role="status">{success}</p>}
     {error && <p className="otp-error-msg" role="alert">{error}</p>}
     {management && <PayableManagementPanel key={management.account.id + ':' + management.mode} account={management.account} mode={management.mode}
