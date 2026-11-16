@@ -3476,6 +3476,67 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 }
 @media (max-width: 380px) { .bi-module .bi-kpi-grid { grid-template-columns: minmax(0, 1fr); } }
 
+/* Intelligence: historical result first, current attention in natural-height cards. */
+.partner-panel .bi-module { align-items: start; align-content: start; gap: 18px; }
+.partner-panel .bi-module .bi-hero { padding: 18px; }
+.partner-panel .bi-module .bi-hero h4 { margin: 8px 0; font-size: clamp(22px, 3vw, 28px); }
+.partner-panel .bi-module .bi-section { gap: 12px; }
+.partner-panel .bi-module :is(.module-card, .report-card) { min-height: 0; height: auto; align-self: start; }
+.partner-panel .bi-module :is(.bi-kpi-grid, .bi-forecast-grid, .bi-alert-grid) { align-items: start; grid-auto-rows: auto; }
+.bi-context-tag { display: inline-block; margin-bottom: 8px; padding: 4px 8px; border: 1px solid #708ba460; border-radius: 6px; color: #cedceb; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.bi-context-today { color: #9ce8ed; border-color: #58c6d060; background: #58c6d00a; }
+.partner-panel .bi-module .bi-result-status { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 18px; padding: 16px; }
+.bi-result-status > .bi-result-value { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+.bi-result-status > p { margin: 0; font-size: 12px; line-height: 1.5; }
+.partner-panel .bi-module .bi-result-profit { border-left: 4px solid #86efac !important; }
+.partner-panel .bi-module .bi-result-loss { border-left: 4px solid #fda4af !important; }
+.partner-panel .bi-module :is(.bi-result-balanced, .bi-result-incomplete) { border-left: 4px solid #94a3b8 !important; }
+.bi-module .bi-result-profit > .bi-result-value { color: #86efac; }
+.bi-module .bi-result-loss > .bi-result-value { color: #fda4af; }
+.bi-module :is(.bi-result-balanced, .bi-result-incomplete) > .bi-result-value { color: #d5deea; }
+.bi-expense-warning { display: flex; align-items: start; gap: 8px; margin: 0; padding: 10px 12px; border-left: 3px solid #fbbf24; border-radius: 6px; background: #fbbf2410; color: #ffdc9e; font-size: 12px; line-height: 1.5; }
+.bi-expense-warning > svg { flex: 0 0 auto; margin-top: 1px; }
+.partner-panel .bi-module .bi-expense-warning strong { color: #ffdc9e !important; }
+.partner-panel .bi-module :is(.bi-expense-warning, .bi-attention-warning) { color: #ffdc9e !important; }
+.bi-attention-today { padding-block: 10px; border-top: 1px solid #708ba440; }
+.bi-attention-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); align-items: start; gap: 12px; min-width: 0; }
+.partner-panel .bi-module .bi-attention-card { display: grid; align-content: start; gap: 10px; min-width: 0; padding: 14px; }
+.bi-attention-card :is(h5, h6, p) { margin: 0; }
+.bi-attention-card h5 { font-size: 15px; line-height: 1.4; }
+.bi-attention-card h6 { font-size: 13px; line-height: 1.4; }
+.bi-attention-card :is(p, li, small) { font-size: 12px; line-height: 1.5; color: #c2d1df; }
+.bi-attention-card ul { margin: 0; padding-left: 18px; }
+.bi-attention-card li + li { margin-top: 5px; }
+.partner-panel .bi-module .bi-attention-danger { border-left: 4px solid #fda4af !important; }
+.partner-panel .bi-module :is(.bi-attention-stock, .bi-attention-incomplete) { border-left: 4px solid #fbbf24 !important; }
+.partner-panel .bi-module .bi-attention-amount { font-size: clamp(20px, 2vw, 27px); line-height: 1.25; overflow-wrap: anywhere; }
+.partner-panel .bi-module .bi-attention-danger .bi-attention-amount { color: #fda4af !important; }
+.partner-panel .bi-module .bi-attention-stock > .bi-attention-amount { color: #ffdc9e !important; }
+.bi-overdue-side { display: grid; gap: 6px; min-width: 0; }
+.bi-overdue-side + .bi-overdue-side, .bi-attention-crm > section + section { border-top: 1px solid #708ba440; padding-top: 12px; }
+.bi-attention-card .bi-attention-warning { padding: 8px; border-radius: 6px; background: #fbbf240c; color: #ffdc9e; }
+.bi-overdue-clear { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; padding: 10px 12px; border: 1px solid #708ba440; border-radius: 8px; font-size: 12px; color: #cedceb; }
+.bi-attention-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.bi-attention-card .rma-advance-btn, .bi-attention-actions .rma-advance-btn { min-height: 44px; white-space: normal; font-size: 12px; }
+.bi-attention-crm > section { display: grid; gap: 6px; }
+.partner-panel .bi-module .bi-crm-count { font-size: 24px; line-height: 1.25; }
+.bi-stock-chart { min-width: 0; margin: 0; }
+.bi-stock-chart figcaption { margin-bottom: 10px; font-size: 11px; line-height: 1.4; color: #cedceb; }
+.bi-stock-bars { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.bi-stock-bars > li { display: grid; gap: 4px; min-width: 0; }
+.bi-stock-bar-label { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 8px; font-size: 12px; }
+.bi-stock-bar-label > strong { white-space: nowrap; font-size: 12px; }
+.bi-stock-bar-track { height: 8px; overflow: hidden; border-radius: 4px; background: #fbbf241c; }
+.bi-stock-bar-track > span { display: block; height: 100%; border-radius: inherit; background: #fbbf24; }
+.bi-stock-unknown > summary, .bi-calculation > summary { cursor: pointer; min-height: 44px; padding-block: 12px; font-size: 13px; line-height: 1.5; }
+.bi-stock-unknown > ul { margin-top: 8px; }
+.bi-calculation[open] > summary { margin-bottom: 12px; }
+.bi-module summary:focus-visible { outline: 2px solid #78cbb1; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .partner-panel .bi-module .bi-result-status { grid-template-columns: minmax(0, 1fr); }
+  .bi-result-status > .bi-result-value { grid-column: 1; grid-row: auto; }
+}
+
 /* Compact sales history cards on phones; desktop table stays unchanged. */
 @media screen and (max-width: 768px) {
   .partner-panel .sales-history-list-table tbody { gap: 8px; }

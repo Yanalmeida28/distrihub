@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import React from 'react';
 import Renderer, { act } from 'react-test-renderer';
-import { intelligenceHarness, fixedNow, sale, product, payable } from './fixtures/business_intelligence_helpers.mjs';
+import { intelligenceHarness, fixedNow, sale, product, payable, invoice } from './fixtures/business_intelligence_helpers.mjs';
 
 let renderer;
 afterEach(async () => { if (renderer) await act(async () => renderer.unmount()); renderer = null; });
@@ -225,14 +225,14 @@ test('branch context remount clears all scenario inputs and late old-branch ledg
 test('attention opens the exact existing financial, stock and CRM destinations in the selected branch', async () => {
   for (const [label, target, filter] of [
     ['Abrir vencidas a receber', 'receber', 'vencidas'], ['Abrir vencidas a pagar', 'pagar', 'vencidas'],
-    ['Abrir relat\u00f3rio Sem giro', 'sem-giro'], ['Abrir clientes inativos no CRM', 'crm', 'inativos'], ['Abrir clientes sem compras', 'crm', 'sem-compras'],
+    ['Ver produtos', 'sem-giro'], ['Abrir clientes inativos no CRM', 'crm', 'inativos'], ['Abrir clientes sem compras', 'crm', 'sem-compras'],
   ]) {
     const { load } = fixture();
     const Component = load('components/partner/AdminModule.tsx').AdminModule;
     await act(async () => { renderer = Renderer.create(React.createElement(Component, { ...adminProps, selectedBranchId: 'A', branches: base.branches, timeZone: 'America/Manaus' })); });
     const sections = renderer.root.findAll(node => node.props.className?.startsWith?.('admin-sidebar-section-header'));
     await act(async () => sections.find(section => text(section).trim() === 'Intelig\u00eancia Empresarial').props.onClick());
-    await act(async () => renderer.root.findAllByType('button').find(button => text(button) === label).props.onClick());
+    await act(async () => renderer.root.findAllByType('button').find(button => (button.props['aria-label'] ?? text(button)) === label).props.onClick());
     const destination = renderer.root.findAll(node => typeof node.type === 'function').find(node => target === 'receber' || target === 'pagar' ? node.props.kind === target : node.props.initialTab === target);
     assert.ok(destination, label); assert.equal(destination.props.branchId, 'A'); assert.equal(destination.props.timeZone, 'America/Manaus');
     if (target === 'crm') assert.equal(destination.props.initialCrmSegment, filter);
@@ -251,4 +251,79 @@ test('CRM configured business day uses completion and keeps inactive buyers sepa
   assert.match(text(renderer.toJSON()), /Dormant buyer/); assert.doesNotMatch(text(renderer.toJSON()), /Never buyer|Recent buyer/);
   await act(async () => renderer.root.findByProps({ 'aria-label': 'Segmento de clientes' }).props.onChange({ target: { value: 'sem-compras' } }));
   assert.match(text(renderer.toJSON()), /Never buyer/); assert.doesNotMatch(text(renderer.toJSON()), /Dormant buyer|Recent buyer/);
+});
+
+test('selected-period result precedes current attention and missing-expense warning stays outside the closed calculation', async () => {
+  const {load}=fixture(),Component=load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;
+  // A prior-period expense proves the registered history exists, but October has
+  // no operational expenses. Keep the existing positive estimate and warn.
+  const props={...base,rmas:[],payables:[payable({amount:30,paid_amount:0,status:'aberta',due_date:'2026-09-10'})]};
+  await act(async()=>{renderer=Renderer.create(React.createElement(Component,props));});
+  const sections=renderer.root.findAll(node=>node.type==='section'&&node.props['aria-labelledby']);
+  assert.equal(sections[0].props['aria-labelledby'],'bi-result'); assert.equal(sections[1].props['aria-labelledby'],'bi-attention');
+  const result=renderer.root.findByProps({className:'module-card bi-result-status bi-result-profit'});
+  assert.match(text(result),/60,00/); assert.match(text(renderer.toJSON()),/O que precisa da sua atenção hoje/);
+  const memory=renderer.root.findByProps({className:'module-card bi-calculation'}); assert.ok(!memory.props.open);
+  assert.match(text(memory),/Despesas cadastradas por vencimento/);
+  const warning=renderer.root.findByProps({className:'bi-expense-warning'}); assert.match(text(warning),/Sem despesas operacionais registradas no período/);
+  for(let parent=warning.parent;parent;parent=parent.parent) assert.notEqual(parent.type,'details');
+  await act(async()=>renderer.update(React.createElement(Component,{...props,payables:[payable({amount:60,paid_amount:0,status:'aberta',due_date:'2026-10-10'})]})));
+  assert.match(text(renderer.root.findByProps({className:'module-card bi-result-status bi-result-balanced'})),/em equilíbrio/);
+  assert.equal(renderer.root.findAllByProps({className:'bi-expense-warning'}).length,0);
+  await act(async()=>renderer.update(React.createElement(Component,{...props,rmas:undefined,payables:[]})));
+  assert.match(text(renderer.root.findByProps({className:'module-card bi-result-status bi-result-incomplete'})),/Dados insuficientes/);
+});
+
+test('completed zero overdue is compact, partial balances remain identified and undated titles never look healthy', async () => {
+  const {load}=fixture(),Component=load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;
+  const render=patch=>React.createElement(Component,{...base,rmas:[],...patch});
+  await act(async()=>{renderer=Renderer.create(render());});
+  assert.match(text(renderer.root.findByProps({className:'bi-overdue-clear'})),/Nenhuma conta vencida/);
+  assert.equal(renderer.root.findAllByProps({'aria-labelledby':'bi-overdue-title'}).length,0);
+  const payables=[payable({amount:100,paid_amount:40,status:'parcial',due_date:'2026-10-01'}),payable({id:'cancel',amount:999,paid_amount:0,status:'cancelada',due_date:'2026-10-01'})];
+  const invoices=[invoice({amount:80,paid_amount:20,due_date:'2026-10-01'})];
+  await act(async()=>renderer.update(render({payables,invoices})));
+  const overdue=renderer.root.findByProps({'aria-labelledby':'bi-overdue-title'});
+  assert.match(overdue.props.className,/bi-attention-danger/);
+  assert.match(text(overdue.findByProps({'aria-label':'Vencidos a pagar'})),/A pagar.*60,00/);
+  assert.match(text(overdue.findByProps({'aria-label':'Vencidos a receber'})),/A receber.*60,00/);
+  assert.doesNotMatch(text(overdue),/999,00/); assert.equal(renderer.root.findAllByProps({className:'bi-overdue-clear'}).length,0);
+  await act(async()=>renderer.update(render({payables:[payable({amount:100,paid_amount:0,status:'aberta',due_date:''})]})));
+  assert.match(text(renderer.root.findByProps({'aria-labelledby':'bi-overdue-title'})),/Posição parcial.*sem vencimento válido/);
+  assert.equal(renderer.root.findAllByProps({className:'bi-overdue-clear'}).length,0);
+  await act(async()=>renderer.update(render({payablesError:'Falha na consulta'})));
+  assert.match(text(renderer.toJSON()),/Análise indisponível/); assert.equal(renderer.root.findAllByProps({className:'bi-overdue-clear'}).length,0);
+});
+
+test('stock chart ranks five known estimates, identifies unknown cost and discards the previous branch', async () => {
+  const {load}=fixture(),Component=load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule,navigated=[];
+  const products=[...Array.from({length:7},(_,index)=>product({id:'stock-'+index,name:'Produto '+index,stock:2,cost_price:(index+1)*10})),
+    product({id:'unknown',name:'Sem custo Centro',stock:3,cost_price:null}),
+    product({id:'foreign-stock',name:'Produto de outra empresa',user_id:'other',stock:20,cost_price:999}),
+    product({id:'branch-stock',name:'Sem custo Bairro',branch_id:'B',stock:5,cost_price:null})];
+  const props={...base,rmas:[],products,sales:[],onNavigate:(...args)=>navigated.push(args)};
+  await act(async()=>{renderer=Renderer.create(React.createElement(Component,props));});
+  const stock=()=>renderer.root.findByProps({'aria-labelledby':'bi-stock-title'});
+  const bars=stock().findByProps({className:'bi-stock-bars'}).findAllByType('li');
+  assert.equal(bars.length,5); assert.deepEqual(bars.map(row=>row.findByProps({className:'bi-stock-bar-label'}).findByType('span').children.join('')),['Produto 6','Produto 5','Produto 4','Produto 3','Produto 2']);
+  assert.match(text(bars[0]),/140,00/); assert.match(text(stock()),/560,00/); assert.match(text(stock()),/8 produto\(s\)/);
+  assert.match(text(stock()),/Total parcial.*7 produto\(s\).*1 com custo desconhecido/);
+  assert.match(text(stock()),/Sem custo Centro/); assert.doesNotMatch(text(stock()),/outra empresa|Sem custo Bairro/);
+  assert.equal(bars[0].findByProps({className:'bi-stock-bar-track'}).findByType('span').props.style.width,'100%');
+  await act(async()=>stock().findAllByType('button').find(node=>text(node)==='Ver produtos').props.onClick());
+  assert.deepEqual(navigated,[['relatorios','sem-giro']]);
+  await act(async()=>renderer.update(React.createElement(Component,{...props,branchId:'B'})));
+  assert.match(text(stock()),/Custo desconhecido/); assert.match(text(stock()),/Sem estimativas de custo disponíveis/);
+  assert.match(text(stock()),/Sem custo Bairro/); assert.doesNotMatch(text(stock()),/Sem custo Centro|Produto 6/);
+  assert.equal(stock().findAllByProps({className:'bi-stock-bars'}).length,0);
+  assert.match(text(renderer.root.findByProps({'aria-labelledby':'bi-attention'})),/Bairro/);
+});
+
+test('current CRM cards keep dormant buyers separate from customers without purchases', async () => {
+  const {load}=fixture(),Component=load('components/partner/BusinessIntelligenceModule.tsx').BusinessIntelligenceModule;
+  const customers=[{id:'old',user_id:'company',branch_id:'A',name:'Antigo'},{id:'never',user_id:'company',branch_id:'A',name:'Novo'}];
+  await act(async()=>{renderer=Renderer.create(React.createElement(Component,{...base,customers,sales:[sale({customer_id:'old',completed_at:'2026-01-10T12:00:00Z'})]}));});
+  const crm=renderer.root.findByProps({'aria-labelledby':'bi-crm-title'});
+  const rows=crm.findAll(node=>node.type==='section'); assert.equal(rows.length,2);
+  assert.match(text(rows[0]),/Sem comprar há 90 dias1/); assert.match(text(rows[1]),/Sem compras registradas1/);
 });

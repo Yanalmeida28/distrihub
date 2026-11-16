@@ -8,6 +8,7 @@ import { buildBusinessIntelligence, intelligenceScope, simulateBusinessGoal } fr
 import type { BusinessInput } from '../../lib/businessIntelligence';
 import { adminBusinessDay } from '../../lib/adminDashboard';
 import { BreakEvenPanel } from './BreakEvenPanel';
+import { BusinessIntelligenceAttention } from './BusinessIntelligenceAttention';
 
 type Props = {
   companyId: string; branchId: string; branches: PartnerBranch[]; isActive: boolean;
@@ -88,7 +89,6 @@ export function BusinessIntelligenceModule(props: Props) {
         <h4>Inteligência Empresarial</h4><p>Entenda os números, reconheça os sinais e planeje os próximos passos.</p>
         <span className="bi-scope"><ShieldCheck size={14} /> Visão do proprietário · {branchName}</span>
       </div>
-      <div className="bi-hero-note"><Lightbulb size={23} /><strong>Clareza antes da decisão</strong><span>Dados registrados, estimativas identificadas e nenhuma ação automática.</span></div>
     </header>
     <div className="admin-filter-bar bi-filters">
       <label>Período de análise<select value={period === 'closed' ? String(days) : period} onChange={event => {
@@ -109,24 +109,16 @@ export function BusinessIntelligenceModule(props: Props) {
       : error ? <div className="module-card bi-notice" role="alert"><AlertTriangle size={20} /><div><strong>Análise indisponível</strong><p>{error}</p><p>Os valores não serão tratados como zero. Atualize a base no painel para tentar novamente.</p>{ledger.error && <button type="button" className="rma-advance-btn" onClick={ledger.reload}>Tentar novamente os movimentos</button>}</div></div>
       : loading ? <p className="module-card" role="status">Conferindo dados e movimentos financeiros antes de apresentar o diagnóstico…</p>
       : <>
-        <section className="bi-section" aria-labelledby="bi-attention">
-          <div className="bi-section-heading"><AlertTriangle size={19} /><div><h4 id="bi-attention">O que precisa da sua atenção</h4><p>Situação de hoje, {dayLabel(model.today)} · {branchName}. Independente do período histórico selecionado.</p></div></div>
-          <div className="bi-forecast-grid">
-            {(['incoming', 'outgoing'] as const).map(kind => <article className="module-card" key={kind}><h5>Contas vencidas — {kind === 'incoming' ? 'a receber' : 'a pagar'}</h5>
-              <strong>{model.overdue[kind].length} conta(s) · {amount(kind === 'incoming' ? model.forecast.overdueIncoming : model.forecast.overdueOutgoing)}</strong>
-              <p>Saldo em aberto após pagamentos parciais; canceladas excluídas.</p>
-              <ul>{model.overdue[kind].slice(0,3).map(row => <li key={row.id}>{row.name} · {dayLabel(row.due)} · {amount(row.balance)}</li>)}</ul>
-              <button className="rma-advance-btn" onClick={() => onNavigate('financeiro', kind === 'incoming' ? 'receber' : 'pagar')}>Abrir vencidas {kind === 'incoming' ? 'a receber' : 'a pagar'}</button>
-            </article>)}
-            <article className="module-card"><h5>Estoque sem giro hoje</h5><strong>{model.stagnant.count} produto(s) · {amount(model.stagnant.totalValue)} em capital estimado conhecido</strong>
-              <ul>{[...model.stagnant.items].sort((a,b) => b.tiedUpCapital - a.tiedUpCapital).slice(0,5).map(row => <li key={row.product.id}>{row.product.name} · {row.product.stock} un. · {row.daysWithoutTurnover} dias · {row.costKnown ? amount(row.tiedUpCapital) : 'Custo desconhecido'}{row.costKnown && row.unitCost === 0 ? ' · custo zero: conferir cadastro' : ''}</li>)}</ul>
-              {model.stagnant.items.some(row => !row.costKnown) && <p>Valor parcial: há produtos com custo desconhecido.</p>}
-              <button className="rma-advance-btn" onClick={() => onNavigate('relatorios', 'sem-giro')}>Abrir relatório Sem giro</button></article>
-            <article className="module-card"><h5>Clientes inativos hoje</h5><p>{model.inactiveCount} sem comprar há 90 dias · {model.neverPurchased} sem compras registradas nesta seleção.</p>
-              <button className="rma-advance-btn" onClick={() => onNavigate('relatorios', 'inativos')}>Abrir clientes inativos no CRM</button>{' '}
-              <button className="rma-advance-btn" onClick={() => onNavigate('relatorios', 'sem-compras')}>Abrir clientes sem compras</button></article>
+        <section aria-labelledby="bi-result" className="bi-section bi-period-result">
+          <div className="bi-section-heading"><Activity size={19} /><div><span className="bi-context-tag">PERÍODO SELECIONADO · {dayLabel(model.first)} a {dayLabel(model.last)}</span><h4 id="bi-result">Resultado estimado do período selecionado</h4></div></div>
+          <div className={`module-card bi-result-status bi-result-${model.result.status}`} role="status">
+            <strong>{model.result.status === 'profit' ? 'Lucro estimado nos registros' : model.result.status === 'loss' ? 'Prejuízo estimado nos registros' : model.result.status === 'balanced' ? 'Resultado estimado em equilíbrio' : 'Resultado incompleto'}</strong>
+            <span className="bi-result-value">{amount(model.result.result)}</span>
+            <p>Após devoluções, custo vendido e despesas cadastradas por vencimento. Estimativa gerencial; não comprova que todos os gastos foram informados.</p>
           </div>
+          {model.result.expenseCount === 0 && <p className="bi-expense-warning" role="note"><AlertTriangle size={18} aria-hidden="true" /><span><strong>Sem despesas operacionais registradas no período.</strong> Isso não comprova despesa zero. Confira os lançamentos antes de interpretar o resultado.</span></p>}
         </section>
+        <BusinessIntelligenceAttention model={model} branchName={branchName} onNavigate={onNavigate} />
         <section className="bi-section" aria-labelledby="bi-comparison"><h4 id="bi-comparison">Comparação de faturamento</h4>
           <p>{dayLabel(model.comparison.first)} a {dayLabel(model.comparison.last)} versus {dayLabel(model.comparison.previousFirst)} a {dayLabel(model.comparison.previousLast)}{model.comparison.cutoff ? ' · mesmo horário de corte: ' + model.comparison.cutoff : ' · dias encerrados'}</p>
           {model.growth === null ? <p>Histórico insuficiente. A comparação exige cobertura desde o início da referência e pelo menos cinco vendas anteriores com valores utilizáveis.</p> : <><p>{amount(model.comparisonRevenue)} versus {amount(model.previousRevenue)} · {model.growth.toFixed(1)}%</p>
@@ -136,21 +128,16 @@ export function BusinessIntelligenceModule(props: Props) {
             {!branchId && <><h5>Filiais</h5><ul>{model.branchReductions.map(row => <li key={row.id}>{branches.find(b => b.user_id === companyId && b.id === row.id)?.name ?? 'Sem filial identificada'} · redução de {amount(row.reduction)}</li>)}</ul></>}
           </>}
         </section>
-        <section aria-labelledby="bi-result" className="bi-section">
-          <div className="bi-section-heading"><Activity size={19} /><div><h4 id="bi-result">Resultado após despesas</h4><p>Vendas, devoluções, custos e despesas cadastradas no período selecionado.</p></div></div>
-          <div className={`module-card bi-result-status bi-result-${model.result.status}`} role="status">
-            <strong>{model.result.status === 'profit' ? 'Lucro estimado nos registros' : model.result.status === 'loss' ? 'Prejuízo estimado nos registros' : model.result.status === 'balanced' ? 'Resultado estimado em equilíbrio' : 'Resultado incompleto'}</strong>
-            <span>{amount(model.result.result)}</span>
-            <p>Estimativa gerencial após as despesas cadastradas, usando o vencimento como referência. Não é uma DRE contábil por competência nem comprova que todos os gastos foram informados.</p>
-          </div>
+        <section aria-labelledby="bi-result-details" className="bi-section">
+          <h4 id="bi-result-details">Detalhes do resultado após despesas</h4>
+          <details className="module-card bi-calculation">
+            <summary>Como o resultado foi calculado</summary>
           <div className="report-cards bi-kpi-grid">
             <Kpi label="Receita após créditos e reembolsos" value={amount(model.result.netRevenue)} note="Deduzidos na data do registro da devolução financeira; uso posterior do crédito não deduz novamente" />
             <Kpi label="Despesas registradas do período" value={amount(model.result.expenses)} note={`${model.result.expenseCount} conta(s), pelo valor integral e vencimento, incluindo abertas e parcialmente pagas`} />
             <Kpi label="Margem após despesas cadastradas" value={model.result.margin === null ? 'Dados insuficientes' : `${model.result.margin.toFixed(1)}%`} note="Resultado estimado dividido pela receita após créditos e reembolsos" />
             <Kpi label="Movimento de caixa do período" value={amount(model.cashResult)} note="Entradas menos pagamentos e reembolsos registrados; inclui compras e frete, não é lucro nem saldo bancário" />
           </div>
-          <details className="module-card bi-calculation" open>
-            <summary>Como o resultado foi calculado</summary>
             <dl>
               <div><dt>Vendas concluídas, sem frete de repasse</dt><dd>{amount(model.currentRevenue)}</dd></div>
               <div><dt>(−) Créditos e reembolsos de devoluções</dt><dd>{amount(model.result.returns)}</dd></div>
@@ -161,8 +148,8 @@ export function BusinessIntelligenceModule(props: Props) {
             </dl>
             <p>Pagamento parcial ou quitação não desconta a despesa novamente. Compras de estoque entram no resultado pelo custo das mercadorias vendidas.</p>
             <p>Compras / fornecedores no período: <strong>{amount(model.result.purchases)}</strong> ({model.result.purchaseCount} conta(s)), separadas da dedução de despesas para evitar duplicidade com o custo das vendas. A categoria Fornecedor é tratada como compra de mercadorias; serviços e outros gastos devem ser cadastrados na categoria de despesa correspondente.</p>
-          </details>
           {model.result.categories.length > 0 && <div className="module-card bi-quality"><strong>Despesas consideradas no resultado</strong><div className="bi-inline-stats">{model.result.categories.map(row => <span key={row.category}>{expenseLabels[row.category] ?? row.category}: <strong>{amount(row.amount)}</strong> · {row.count} conta(s)</span>)}</div><p>Valores integrais das contas com vencimento no período, independentemente da data em que foram pagas.</p></div>}
+          </details>
           <div className="module-card bi-quality"><strong>Retiradas de sócios / uso pessoal</strong>
             <p>Contas com vencimento no período: <strong>{amount(model.result.withdrawals)}</strong> ({model.result.withdrawalCount} conta(s)). Retiradas efetivamente pagas no período: <strong>{amount(model.paidWithdrawals)}</strong>.</p>
             <p>Separadas das despesas operacionais, do resultado estimado e do ponto de equilíbrio. Os pagamentos continuam nas saídas do caixa. Vencimento e pagamento podem pertencer a períodos diferentes.</p>
