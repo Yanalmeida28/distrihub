@@ -3720,8 +3720,8 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .financial-accounts-module { padding: 12px; }
   .partner-panel .financial-accounts-totals > .report-card { padding: 8px; }
   .partner-panel .financial-accounts-totals > .report-card small { font-size: 10px; }
-  .partner-panel .financial-accounts-module > .financial-accounts-totals-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .partner-panel .financial-accounts-totals-wide > .report-card:last-child { grid-column: 1 / -1; }
+  .partner-panel .financial-accounts-module > .financial-accounts-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .partner-panel .financial-accounts-totals > .report-card:last-child { grid-column: 1 / -1; }
 }
 
 .partner-panel .financial-flow-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 10px; }

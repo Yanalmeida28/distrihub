@@ -197,7 +197,7 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
       <button type="button" className="rma-advance-btn" onClick={() => { setCategoryFilter(''); setDueFrom(''); setDueTo(''); }}>Limpar filtros de categoria e período</button>
     </div>}
     {invalidPeriod && <p role="alert">Confira o período: a data inicial deve ser anterior ou igual à final.</p>}
-    <div className={`report-cards financial-accounts-totals${[open, overdue, paid].some(value => Math.abs(value) >= 100000) ? ' financial-accounts-totals-wide' : ''}`}>
+    <div className="report-cards financial-accounts-totals">
       <div className="report-card"><small>Saldo em aberto</small><strong>{money.format(open)}</strong></div>
       <div className="report-card"><small>Vencido</small><strong>{money.format(overdue)}</strong></div>
       <div className="report-card"><small>{kind === 'pagar' ? 'Pago' : 'Liquidado (dinheiro + créditos)'}</small><strong>{money.format(paid)}</strong></div>
