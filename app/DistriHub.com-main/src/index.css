@@ -3535,6 +3535,42 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .bi-stock-unknown > ul { margin-top: 8px; }
 .bi-calculation[open] > summary { margin-bottom: 12px; }
 .bi-module summary:focus-visible { outline: 2px solid #78cbb1; outline-offset: 3px; }
+.partner-panel .bi-module .bi-finance-panel { display: grid; align-content: start; gap: 12px; min-width: 0; padding: 14px; }
+.bi-finance-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; gap: 12px; }
+.bi-withdrawal-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); align-items: start; gap: 12px; }
+.bi-finance-panel > header { display: grid; gap: 5px; }
+.bi-finance-panel h5 { margin: 0; font-size: 15px; }
+.bi-finance-panel small, .bi-finance-period-label { font-size: 11px; line-height: 1.4; color: #c2d1df; }
+.bi-finance-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 10px; }
+.bi-finance-metric { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 12px; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; container-type: inline-size; }
+.bi-finance-metric > span { font-size: 12px; line-height: 1.4; }
+.bi-finance-value { display: block; min-width: 0; white-space: nowrap; line-height: 1.35; }
+.bi-finance-value.bi-finance-unavailable { white-space: normal; overflow-wrap: anywhere; font-size: 15px; }
+.bi-finance-money-cell { min-width: 0; container-type: inline-size; text-align: right; }
+.partner-panel .bi-module .bi-finance-receivable .bi-finance-value { color: #9bd4ff !important; }
+.partner-panel .bi-module .bi-finance-payable .bi-finance-value { color: #ffdc9e !important; }
+.bi-finance-subtitle { margin: 0 0 6px; font-size: 12px; }
+.bi-finance-recipients { display: grid; gap: 0; padding: 0; margin: 0; list-style: none; }
+.bi-finance-recipients > li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--dh-border, #29465f); font-size: 13px; }
+.bi-finance-recipients > li > span { overflow-wrap: anywhere; }
+.bi-finance-details { min-width: 0; font-size: 12px; line-height: 1.5; }
+.bi-finance-details > summary { min-height: 44px; padding-block: 12px; cursor: pointer; font-size: 12px; }
+.bi-finance-details > p { font-size: 12px; line-height: 1.5; }
+.partner-panel .bi-module .bi-finance-warning { margin: 0; padding: 8px 10px; border-left: 3px solid #fbbf24; background: #fbbf240c; color: #ffdc9e !important; font-size: 12px; line-height: 1.5; }
+.bi-category-bars { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.bi-category-bar-label { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: baseline; gap: 12px; margin-bottom: 5px; font-size: 12px; }
+.bi-category-bar-track { height: 6px; border-radius: 3px; overflow: hidden; background: #7bc8ff1c; }
+.bi-category-bar-track > span { display: block; height: 100%; border-radius: inherit; background: #7bc8ff; }
+.bi-category-retirada > span { background: #fbbf24; }
+.bi-category-fornecedor > span { background: #94a3b8; }
+.bi-overdue-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 10px; }
+.bi-overdue-metrics > .bi-overdue-side { min-width: 0; padding: 10px; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; container-type: inline-size; }
+.bi-overdue-metrics > .bi-overdue-side + .bi-overdue-side { padding-top: 10px; }
+.partner-panel .bi-module .bi-attention-danger .bi-overdue-positive .bi-finance-value { color: #fda4af !important; }
+.bi-overdue-metrics .rma-advance-btn { padding-inline: 6px; font-size: 11px; }
+.bi-overdue-zero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 260px; max-width: 340px; min-width: 0; }
+.bi-overdue-zero-actions .bi-overdue-zero-button { display: grid; gap: 4px; min-width: 0; width: 100%; padding: 8px 10px; text-align: left; container-type: inline-size; }
+.bi-overdue-zero-button > small { font-size: 11px; line-height: 1.4; }
 @media (max-width: 600px) {
   .partner-panel .bi-module .bi-result-status { grid-template-columns: minmax(0, 1fr); }
   .bi-result-status > .bi-result-value { grid-column: 1; grid-row: auto; }
@@ -3792,6 +3828,43 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .financial-flow { min-width: 0; padding: 16px; }
 /* Keep account totals side by side instead of inheriting the generic mobile stack. */
 .partner-panel .financial-accounts-module { min-width: 0; container: financial-accounts / inline-size; }
+.partner-panel .financial-accounts-module .accounts-scope-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; align-items: end; gap: 10px; }
+.accounts-scope-filters > label { display: grid; gap: 6px; min-width: 0; font-size: 12px; }
+.accounts-scope-filters > label :is(input, select) { box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%; min-height: 44px; }
+.accounts-scope-filters > button { grid-column: 1 / -1; justify-self: end; min-height: 44px; white-space: normal; }
+.accounts-list-controls { scroll-margin-top: 90px; }
+.withdrawal-summary { min-width: 0; padding: 14px; border: 1px solid var(--dh-border, #29465f); border-radius: 10px; margin-block: 12px; }
+.withdrawal-summary h5 { margin: 0; font-size: 15px; }
+.withdrawal-summary .withdrawal-period { margin: 6px 0 10px; font-size: 11px; }
+.withdrawal-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 8px; }
+.withdrawal-totals > div { min-width: 0; padding: 10px; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; container-type: inline-size; }
+.withdrawal-summary small { display: block; font-size: 11px; line-height: 1.4; color: var(--dh-text-secondary, #adc2d6); }
+.withdrawal-summary .withdrawal-amount { display: block; min-width: 0; white-space: nowrap; line-height: 1.35; margin-top: 3px; }
+.withdrawal-people { margin: 0; padding: 0; list-style: none; }
+.withdrawal-person { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(2, minmax(0, 1fr)); align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-bottom: 1px solid var(--dh-border, #29465f); background: transparent; color: var(--dh-text, #eaf1f6); text-align: left; cursor: pointer; }
+.withdrawal-person > span { display: grid; min-width: 0; }
+.withdrawal-person-name > strong { overflow-wrap: anywhere; font-size: 13px; }
+.withdrawal-person-name > small { margin-top: 3px; }
+.withdrawal-person :is(.withdrawal-person-paid, .withdrawal-person-open) { container-type: inline-size; }
+.withdrawal-person:hover:not(:disabled), .withdrawal-person[aria-pressed='true'] { background: var(--dh-blue-soft, #78cbb110); }
+.withdrawal-person:focus-visible { outline: 2px solid #78cbb1; outline-offset: 2px; }
+.withdrawal-person:disabled { cursor: default; opacity: .65; }
+.withdrawal-explanation { margin-top: 8px; font-size: 12px; line-height: 1.5; }
+.withdrawal-explanation > summary { width: fit-content; min-height: 44px; padding-block: 12px; cursor: pointer; }
+.withdrawal-explanation > p { font-size: 12px; }
+.withdrawal-selected { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding: 8px 10px; border-left: 3px solid var(--dh-blue, #7bc8ff); font-size: 13px; }
+@container financial-accounts (min-width: 860px) {
+  .partner-panel .financial-accounts-module .accounts-scope-filters { grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) auto !important; }
+  .accounts-scope-filters > button { grid-column: auto; }
+}
+@container financial-accounts (max-width: 520px) {
+  .partner-panel .financial-accounts-module .accounts-scope-filters { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .accounts-scope-filters > label:first-child { grid-column: 1 / -1; }
+  .accounts-scope-filters > button { grid-column: 1 / -1; justify-self: stretch; }
+  .withdrawal-summary { padding: 10px; }
+  .withdrawal-person { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin-block: 8px; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; }
+  .withdrawal-person-name { grid-column: 1 / -1; }
+}
 .partner-panel .financial-accounts-module > .financial-accounts-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; gap: 8px; margin-bottom: 12px; }
 .partner-panel .financial-accounts-totals > .report-card { display: flex; flex-direction: column; justify-content: flex-start; min-width: 0; padding: 10px 12px; }
 .partner-panel .financial-accounts-totals > .report-card :is(small, strong) { min-width: 0; white-space: normal; overflow-wrap: anywhere; }

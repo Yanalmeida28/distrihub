@@ -9,6 +9,7 @@ import type { BusinessInput } from '../../lib/businessIntelligence';
 import { adminBusinessDay } from '../../lib/adminDashboard';
 import { BreakEvenPanel } from './BreakEvenPanel';
 import { BusinessIntelligenceAttention } from './BusinessIntelligenceAttention';
+import { IntelligenceBalances, IntelligenceWithdrawals, IntelligenceCategoryPayments } from './BusinessIntelligenceFinancialCards';
 
 type Props = {
   companyId: string; branchId: string; branches: PartnerBranch[]; isActive: boolean;
@@ -150,12 +151,7 @@ export function BusinessIntelligenceModule(props: Props) {
             <p>Compras / fornecedores no período: <strong>{amount(model.result.purchases)}</strong> ({model.result.purchaseCount} conta(s)), separadas da dedução de despesas para evitar duplicidade com o custo das vendas. A categoria Fornecedor é tratada como compra de mercadorias; serviços e outros gastos devem ser cadastrados na categoria de despesa correspondente.</p>
           {model.result.categories.length > 0 && <div className="module-card bi-quality"><strong>Despesas consideradas no resultado</strong><div className="bi-inline-stats">{model.result.categories.map(row => <span key={row.category}>{expenseLabels[row.category] ?? row.category}: <strong>{amount(row.amount)}</strong> · {row.count} conta(s)</span>)}</div><p>Valores integrais das contas com vencimento no período, independentemente da data em que foram pagas.</p></div>}
           </details>
-          <div className="module-card bi-quality"><strong>Retiradas de sócios / uso pessoal</strong>
-            <p>Contas com vencimento no período: <strong>{amount(model.result.withdrawals)}</strong> ({model.result.withdrawalCount} conta(s)). Retiradas efetivamente pagas no período: <strong>{amount(model.paidWithdrawals)}</strong>.</p>
-            <p>Separadas das despesas operacionais, do resultado estimado e do ponto de equilíbrio. Os pagamentos continuam nas saídas do caixa. Vencimento e pagamento podem pertencer a períodos diferentes.</p>
-            {model.withdrawalRecipients.map(row => <p key={row.recipient}>{row.recipient}: <strong>{amount(row.amount)}</strong> pagos no período.</p>)}
-            <p>Para corrigir uma conta antiga, edite sua categoria em Contas a Pagar. Confira o beneficiário e preserve o pagamento existente, sem cadastrar uma segunda saída.</p>
-          </div>
+          <IntelligenceWithdrawals model={model} />
           <div className="module-card bi-quality"><strong>O que precisa ser conferido</strong><ul>
             {!model.result.hasExpenseRecords && <li>Nenhuma despesa operacional cadastrada nesta seleção. Compras de fornecedores, sozinhas, não comprovam despesa operacional zero.</li>}
             {model.result.hasExpenseRecords && model.result.expenseCount === 0 && <li>Não há despesas operacionais com vencimento no período. Confira se o cadastro deste período está completo antes de interpretar o resultado.</li>}
@@ -178,8 +174,7 @@ export function BusinessIntelligenceModule(props: Props) {
             <Kpi label="Margem bruta estimada" value={model.margin === null ? 'Dados insuficientes' : `${model.margin.toFixed(1)}%`} note="Não é margem líquida nem margem de contribuição" />
             <Kpi label="Pagamentos de contas registrados" value={amount(model.paid)} note={model.paid === null ? 'Despesas não cadastradas não significam despesa zero' : 'Saídas por data de pagamento; não somadas ao CMV'} />
           </div>
-          <div className="bi-inline-stats"><span>A receber: <strong>{amount(model.receivable)}</strong></span><span>A pagar: <strong>{amount(model.payable)}</strong></span><span>Entradas registradas no período: <strong>{amount(model.received)}</strong></span><span>Reembolsos: <strong>{amount(model.refunded)}</strong></span></div>
-          {model.expenseCategories.length > 0 && <div className="module-card bi-quality"><strong>Pagamentos de contas por categoria</strong><div className="bi-inline-stats">{model.expenseCategories.map(row => <span key={row.category}>{expenseLabels[row.category] ?? row.category}: <strong>{amount(row.amount)}</strong></span>)}</div><p>Compras a fornecedores são saídas de caixa; não são deduzidas novamente do lucro bruto que já considera o CMV.</p></div>}
+          <div className="bi-finance-overview"><IntelligenceBalances model={model} /><IntelligenceCategoryPayments model={model} /></div>
           <div className="module-card bi-quality"><strong>Qualidade e limites dos dados</strong><ul>
             <li>{model.quality.estimatedSales} venda(s) do período usam custo atual por falta de custo histórico completo. Ter custo hoje não comprova o custo na data da venda.</li>
             <li>{model.quality.unknown} ocorrência(s) sem custo ou itens utilizáveis. Se houver lacunas, lucro e margem ficam indisponíveis.</li>
