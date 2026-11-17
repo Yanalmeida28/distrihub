@@ -29,3 +29,7 @@ A publicação FTPS deve ser confirmada pelo workflow e pelos cabeçalhos da ver
 Proteção contra senhas vazadas: permanece dependente da configuração Auth do Supabase, não gerenciada pelos recursos de banco nem pelo subconjunto de configuração exposto pela CLI usada nesta sessão. No Dashboard do projeto, abrir Authentication / configurações de senha e ativar Leaked password protection se disponível no plano atual. Não foi contratado plano ou serviço. Confirmar o resultado no advisor. A proteção independente por senha/PIN do proprietário já existente foi preservada.
 
 Após publicar, validar na loja um envio/substituição de foto de OS, uma foto de cliente, impressão e câmera. Não foram emitidos documentos fiscais ou cobranças reais nos testes. Backup completo e restauração em ambiente separado continuam como verificação operacional recomendada; exportação JSON não substitui backup de banco e Storage.
+
+## Hostname TLS da hospedagem
+
+A configuração existente utilizava um IP, enquanto o certificado cobre *.hstgr.io. A implantação resolve o nome reverso Hostinger e exige que a resolução direta aponte para o mesmo IP. Um hostname explícito pode ser fornecido por FTP_TLS_SERVER. Certificado inválido, IP divergente ou falha de DNS interrompem o envio; não há retorno a FTP simples nem desativação de validação TLS. Quatro testes adicionais cobrem a resolução e as rejeições.
