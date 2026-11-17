@@ -248,7 +248,7 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
     return Array.from(groups, ([id, group]) => ({ id, ...group }));
   }, [sales, salespeople]);
 
-  const top5Products = useMemo(() => {
+  const top10Products = useMemo(() => {
     const map: Record<string, { qty: number; revenue: number }> = {};
     for (const sale of sales) {
       for (const item of Array.isArray(sale.items) ? sale.items : []) {
@@ -260,7 +260,7 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
         }
       }
     }
-    return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 5);
+    return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 10);
   }, [sales, productById]);
 
   const top10Services = useMemo(() => {
@@ -334,12 +334,12 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
 
       <div className="ranking-grid">
         <div>
-          <h4 className="report-section-title"><Trophy size={16} /> Top 5 Produtos</h4>
+          <h4 className="report-section-title"><Trophy size={16} /> Top 10 Produtos</h4>
           <div className="ranking-list">
-            {top5Products.length === 0 ? (
+            {top10Products.length === 0 ? (
               <div className="empty-row" style={{ border: 'none' }}>Sem dados de produtos.</div>
             ) : (
-              top5Products.map(([pid, data], i) => {
+              top10Products.map(([pid, data], i) => {
                 const p = products.find((x) => x.id === pid);
                 const icon = i === 0 ? <Crown size={16} /> : i === 1 ? <Medal size={16} /> : i === 2 ? <Medal size={16} /> : null;
                 return (
@@ -663,14 +663,14 @@ function StockReport({ canExport = false, products, sales }: { canExport?: boole
         map[item.product_id] = (map[item.product_id] ?? 0) + item.quantity;
       }
     }
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10);
   }, [sales, physicalProductIds]);
 
   const topByMargin = useMemo(() => {
     return physicalProducts
       .map((p) => ({ product: p, margin: p.sale_price > 0 ? ((p.sale_price - p.cost_price) / p.sale_price) * 100 : 0 }))
       .sort((a, b) => b.margin - a.margin)
-      .slice(0, 5);
+      .slice(0, 10);
   }, [physicalProducts]);
   const stockRows: CsvValue[][] = [
     ['Produto', 'SKU', 'Estoque atual', 'Estoque mínimo', 'Custo unitário', 'Valor investido', 'Preço de venda', 'Margem sobre venda (%)', 'Unidades vendidas no período'],
@@ -725,7 +725,7 @@ function StockReport({ canExport = false, products, sales }: { canExport?: boole
         </div>
       </div>
 
-      <h4 className="report-section-title"><Trophy size={16} /> Top 5 Produtos Mais Vendidos (Quantidade)</h4>
+      <h4 className="report-section-title"><Trophy size={16} /> Top 10 Produtos Mais Vendidos (Quantidade)</h4>
       <div className="ranking-list">
         {topByQty.length === 0 ? (
           <div className="empty-row" style={{ border: 'none' }}>Sem vendas registradas.</div>
@@ -746,7 +746,7 @@ function StockReport({ canExport = false, products, sales }: { canExport?: boole
         )}
       </div>
 
-      <h4 className="report-section-title">Top 5 Produtos por Margem %</h4>
+      <h4 className="report-section-title">Top 10 Produtos por Margem %</h4>
       <div className="stock-table-wrap">
         <table className="rma-table">
           <thead><tr><th>Produto</th><th>Margem</th><th>Custo</th><th>Venda</th></tr></thead>
