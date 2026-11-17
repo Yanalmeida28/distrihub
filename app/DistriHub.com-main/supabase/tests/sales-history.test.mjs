@@ -1,3 +1,4 @@
+import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import assert from 'node:assert/strict';
 import { pdvHelpers } from './fixtures/pdv_helpers.mjs';
 import { test } from 'node:test';
@@ -21,6 +22,7 @@ vm.runInNewContext(ts.transpileModule(source, { compilerOptions: {
 } }).outputText, {
   exports: module.exports,
   require(name) {
+    if(name==='../../lib/adminDashboard')return businessTimeHelpers;
     if (name === '../../lib/pdv') return pdvHelpers;
     if (name === 'react') return React;
     if (name === 'react/jsx-runtime') return jsx;

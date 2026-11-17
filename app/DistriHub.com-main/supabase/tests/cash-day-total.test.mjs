@@ -1,3 +1,4 @@
+import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -7,7 +8,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 const module={exports:{}};
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/lib/cashRegister.ts',import.meta.url),'utf8'),{
  compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020},
-}).outputText,{exports:module.exports,Date,Intl});
+}).outputText,{exports:module.exports,Date,Intl,require:()=>businessTimeHelpers});
 const {cashBusinessDay,cashDaySalesTotal}=module.exports;
 
 test('daily sales sum all payment methods across the operator sessions and exclude cash management',()=>{
@@ -32,4 +33,17 @@ test('daily sales use São Paulo midnight and exact cents without changing movem
  const before=JSON.stringify({sessions,movements});
  assert.equal(cashDaySalesTotal(movements,sessions,'branch','operator','2026-10-10'),0.3);
  assert.equal(JSON.stringify({sessions,movements}),before);
+});
+
+test('Manaus commercial day stays consistent with administration, cash and order filters',()=>{
+ const stamp='2026-11-17T03:30:00Z';
+ assert.equal(cashBusinessDay(stamp,'America/Manaus'),'2026-11-16');
+ assert.equal(cashBusinessDay(stamp),'2026-11-17');
+ assert.equal(cashBusinessDay(stamp,'invalid'),'2026-11-17');
+ assert.equal(cashBusinessDay('not a timestamp','America/Manaus'),'');
+ const sessions=[{id:'session',branch_id:'branch',actor_key:'owner'}];
+ const movements=[{session_id:'session',created_at:stamp,kind:'venda',payment_method:'pix',amount:12.34}];
+ assert.equal(cashDaySalesTotal(movements,sessions,'branch','owner','2026-11-16','America/Manaus'),12.34);
+ assert.equal(cashDaySalesTotal(movements,sessions,'other','owner','2026-11-16','America/Manaus'),0);
+ assert.equal(cashDaySalesTotal(movements,sessions,'branch','owner','2026-11-17','America/Manaus'),0);
 });

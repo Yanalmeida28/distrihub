@@ -15,6 +15,7 @@ import { saleShareUrl } from '../../lib/saleShare';
 import { shareOrderQuotePdf, downloadOrderQuotePdf, prepareOrderQuoteLogo } from '../../lib/orderQuotePdf';
 
 type Props = {
+  timeZone?: string;
   canEditPrice: boolean;
   products: PartnerProduct[];
   onUpdateItems: (id: string, items: PartnerSale['items']) => Promise<void>;
@@ -46,7 +47,7 @@ const payStatusLabels: Record<string, { label: string; color: string }> = {
   cancelado: { label: 'Cancelado', color: '#fda4af' },
 };
 
-export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
+export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
   useEffect(() => { void prepareOrderQuoteLogo(receiptDetails?.settings?.logo_url); }, [receiptDetails?.settings?.logo_url]);
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
@@ -206,7 +207,7 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
     if (!appliedFilters) return openOrders;
     const filters = appliedFilters;
     return openOrders.filter((sale) => {
-      if (!orderMatchesDate(sale.created_at, filters.dateStart, filters.dateEnd)) return false;
+      if (!orderMatchesDate(sale.created_at, filters.dateStart, filters.dateEnd, timeZone)) return false;
       if (filters.orderId) {
         const term = filters.orderId.toLowerCase();
         if (!sale.id.toLowerCase().includes(term) && !(sale.sale_number ? String(sale.sale_number).padStart(6, '0') : sale.id.slice(0, 8).toUpperCase()).includes(term)) return false;
@@ -221,7 +222,7 @@ export function OpenOrdersModule({ canEditPrice, products, onUpdateItems, onUpda
       if (filters.sourceFilter !== 'all' && sale.origin !== filters.sourceFilter) return false;
       return true;
     });
-  }, [appliedFilters, customerNames, openOrders]);
+  }, [timeZone, appliedFilters, customerNames, openOrders]);
 
   function handleSearch() {
     if (dateStart && dateEnd && dateStart > dateEnd) { setFilterError('A data inicial deve ser anterior ou igual à data final.'); return; }

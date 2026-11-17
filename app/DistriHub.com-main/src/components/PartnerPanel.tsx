@@ -1981,7 +1981,7 @@ export function PartnerPanel({
             {visitedTabs.has('caixa') && (
               <div hidden={activeTab !== 'caixa'}>
               {renderTab('caixa',
-              <CashRegisterModule
+              <CashRegisterModule timeZone={storeSettings.personalization?.business_time_zone}
                 isActive={activeTab === 'caixa'}
                 managedSessionId={managedCashSession?.id ?? null}
                 onManageSession={setManagedCashSession}
@@ -2001,7 +2001,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'pedidos'}>
               {renderTab('pedidos', <>
               <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} />
-              <OpenOrdersModule
+              <OpenOrdersModule timeZone={storeSettings.personalization?.business_time_zone}
                 key={`${identity?.authUserId}:${identity?.companyUserId}:${effectiveBranchId}`}
                 isActive={activeTab === 'pedidos'}
                 onPullToPdv={(sale) => {
@@ -2095,7 +2095,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'historico'}>
               {renderTab('historico',
               <OrderHistoryModule
-                salesHistory={!blockedTabs.includes('pdv') ? <SalesHistoryModule
+                salesHistory={!blockedTabs.includes('pdv') ? <SalesHistoryModule timeZone={storeSettings.personalization?.business_time_zone}
                   companyId={identity?.companyUserId}
                   branchId={effectiveBranchId}
                   currentRole={effectiveRole}

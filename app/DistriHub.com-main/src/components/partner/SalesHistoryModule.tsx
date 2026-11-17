@@ -1,3 +1,4 @@
+import { adminBusinessDay, businessTimeZone } from '../../lib/adminDashboard';
 import { salePaymentDescription } from '../../lib/pdv';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -11,6 +12,7 @@ import { printSale, type PrintableSale, type ReceiptDetails } from '../../lib/sa
 import { saleShareUrl } from '../../lib/saleShare';
 
 type Props = {
+  timeZone?: string;
   companyId?: string;
   branchId?: string | null;
   isActive?: boolean;
@@ -26,25 +28,25 @@ type Props = {
   onCancelSale: (id: string, operatorId?: string | null, operatorPin?: string | null) => Promise<void>;
 };
 
-function localDate(value: string | Date) {
+function localDate(value: string | Date, timeZone?: string) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return '';
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  return adminBusinessDay(date, timeZone);
 }
 
 export function SalesHistoryModule(props: Props) {
-  return <SalesHistoryContent key={JSON.stringify([props.companyId, props.branchId, props.operatorKey, props.currentRole])} {...props} />;
+  return <SalesHistoryContent key={JSON.stringify([props.companyId, props.branchId, props.operatorKey, props.currentRole, props.timeZone])} {...props} />;
 }
 
-function SalesHistoryContent({ companyId, branchId = null, isActive = true, currentRole, onPageLoaded, sales, rmaRequests = [], customers, salespeople, receiptDetails, onCancelSale }: Props) {
+function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = true, currentRole, onPageLoaded, sales, rmaRequests = [], customers, salespeople, receiptDetails, onCancelSale }: Props) {
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
   const actionInFlight = useRef(false);
   const actionVersion = useRef(0);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [search, setSearch] = useState('');
-  const [startDate, setStartDate] = useState(() => localDate(new Date()));
-  const [endDate, setEndDate] = useState(() => localDate(new Date()));
+  const [startDate, setStartDate] = useState(() => localDate(new Date(), timeZone));
+  const [endDate, setEndDate] = useState(() => localDate(new Date(), timeZone));
   const [status, setStatus] = useState('all');
   const serverMode = Boolean(companyId);
   const [page, setPage] = useState(0);
@@ -83,12 +85,12 @@ function SalesHistoryContent({ companyId, branchId = null, isActive = true, curr
     const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     const term = normalize(search.trim());
     return sales.filter(sale => {
-      const date = localDate(sale.completed_at ?? sale.created_at);
+      const date = localDate(sale.completed_at ?? sale.created_at, timeZone);
       return sale.status !== 'pre_venda' && (!startDate || date >= startDate) && (!endDate || date <= endDate)
         && (status === 'all' || (status === 'devolucao' ? !!saleReturnLabel(sale, rmaRequests) || sale.status === status : sale.status === status && !saleReturnLabel(sale, rmaRequests)))
         && (!term || normalize([sale.id, sale.sale_number ? String(sale.sale_number).padStart(6, '0') : '', sale.customer_name, sale.imei, sale.serial_number].join(' ')).includes(term));
     }).sort((a, b) => new Date(b.completed_at ?? b.created_at).getTime() - new Date(a.completed_at ?? a.created_at).getTime());
-  }, [serverMode, sales, rmaRequests, search, startDate, endDate, status]);
+  }, [serverMode, sales, rmaRequests, search, startDate, endDate, status, timeZone]);
   const displayedSales = serverMode ? currentHistory?.sales ?? [] : filteredSales;
   const [printError, setPrintError] = useState<string | null>(null);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
@@ -197,7 +199,7 @@ function SalesHistoryContent({ companyId, branchId = null, isActive = true, curr
         <label>Data final<input type="date" aria-label="Data final do histórico" value={endDate} onChange={e => setEndDate(e.target.value)} /></label>
       </div>
       <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option><option value="aberta">Aberta</option><option value="devolucao">Devolução</option></select></label>
-      <button className="rma-advance-btn" onClick={() => { const today = localDate(new Date()); setStartDate(today); setEndDate(today); }}>Hoje</button>
+      <button className="rma-advance-btn" onClick={() => { const today = localDate(new Date(), timeZone); setStartDate(today); setEndDate(today); }}>Hoje</button>
       <button type="button" className="rma-advance-btn" onClick={() => { setStartDate(''); setEndDate(''); }}>Limpar período</button>
     </div>
     {historyError && <p role="alert" className="otp-error-msg">{historyError}<button className="rma-advance-btn" onClick={() => setHistoryVersion(value => value + 1)}>Tentar novamente</button></p>}
@@ -236,7 +238,7 @@ function SalesHistoryContent({ companyId, branchId = null, isActive = true, curr
                         <span className={`rma-status-badge ${saleReturnLabel(s, historyRmas) || s.status === 'devolucao' ? 'history-status-returned' : s.status === 'concluida' ? 'history-status-completed' : 'history-status-open'}`}>{saleReturnLabel(s, historyRmas) || (s.status === 'concluida' ? 'Concluída' : s.status === 'aberta' ? 'Aberta' : 'Devolução')}</span>
                       )}
                     </td>
-                    <td data-label="Data">{new Date(s.completed_at ?? s.created_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
+                    <td data-label="Data">{new Date(s.completed_at ?? s.created_at).toLocaleString('pt-BR', { timeZone: businessTimeZone(timeZone) })}</td>
                     <td className="sales-history-actions" data-label="Ações">
                       {s.status !== 'cancelada' && (
                         <SaleActionsMenu

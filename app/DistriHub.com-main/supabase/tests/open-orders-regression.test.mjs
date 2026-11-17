@@ -1,3 +1,4 @@
+import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -11,7 +12,7 @@ const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.Modu
 const pdv={},filters={},editor={},mod={};
 let quoteCalls=[]; let quoteFailure=null; let quotePending=null;
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts',import.meta.url),'utf8')),{exports:pdv});
-vm.runInNewContext(compile(await readFile(new URL('../../src/lib/openOrderFilters.ts',import.meta.url),'utf8')),{exports:filters,Intl,Date});
+vm.runInNewContext(compile(await readFile(new URL('../../src/lib/openOrderFilters.ts',import.meta.url),'utf8')),{exports:filters,Intl,Date,require:()=>businessTimeHelpers});
 let directEmail=false, emailPending=null; const emailCalls=[];
 const load=name=>{
  if(name==='../../lib/orderEmail')return {get directOrderEmailEnabled(){return directEmail;},sendOrderQuoteEmail:async id=>{emailCalls.push(id);if(emailPending)await emailPending;return 'Aceito pelo serviço de e-mail';}};

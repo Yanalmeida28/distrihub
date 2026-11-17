@@ -1,3 +1,4 @@
+import { businessTimeZone } from '../../lib/adminDashboard';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Wallet, Printer, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -9,6 +10,7 @@ import { PartnerReadFlight } from '../../lib/partnerSync';
 import type { PartnerSale, PartnerSalesperson } from '../../types';
 
 type Props = {
+  timeZone?: string;
   branchId: string;
   branchName: string;
   scopeKey: string;
@@ -22,7 +24,7 @@ type Props = {
   onGoToPdv?: () => void;
 };
 
-export function CashRegisterModule({ branchId, branchName, scopeKey, sales, operatorId, operatorPin, salespeople, isActive = true, managedSessionId = null, onManageSession, onGoToPdv }: Props) {
+export function CashRegisterModule({ timeZone, branchId, branchName, scopeKey, sales, operatorId, operatorPin, salespeople, isActive = true, managedSessionId = null, onManageSession, onGoToPdv }: Props) {
   const [sessions, setSessions] = useState<CashSession[]>([]);
   const [movements, setMovements] = useState<CashMovement[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -123,8 +125,8 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
   const selected = sessions.find(s => s.id === selectedId) ?? current ?? sessions[0];
   const selectedMovements = movements.filter(m => m.session_id === selected?.id);
   const totals = selected?.closing_totals ?? cashTotals(selectedMovements);
-  const today = cashBusinessDay(new Date());
-  const dayTotal = cashDaySalesTotal(movements, sessions, branchId, selected?.actor_key ?? actorKey, today);
+  const today = cashBusinessDay(new Date(), timeZone);
+  const dayTotal = cashDaySalesTotal(movements, sessions, branchId, selected?.actor_key ?? actorKey, today, timeZone);
   const expected = selected ? Math.round((Number(selected.opening_amount) + (totals.dinheiro ?? 0)) * 100) / 100 : 0;
   const managers = salespeople.filter(p => p.is_active && ['administrador', 'gerente'].includes(p.role));
   const originalSaleMovements = movements.filter(movement => movement.kind === 'venda');
@@ -244,7 +246,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
     }}><RefreshCw size={14} /> Atualizar</button>
     {error && <p className="otp-error-msg" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
-    {canManage && canViewOverview && hasSnapshot.current && !error && <CashOverview key={branchId} branchId={branchId} branchName={branchName} sessions={sessions} movements={movements}
+    {canManage && canViewOverview && hasSnapshot.current && !error && <CashOverview timeZone={timeZone} key={branchId} branchId={branchId} branchName={branchName} sessions={sessions} movements={movements}
       onViewReport={id => { setSelectedId(id); reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} />}
     {canManage && onManageSession && <section className="cash-card">
       <label>Caixa para operar<select aria-label="Caixa para operar" value={managedSessionId ?? ''} disabled={busy || loading || Boolean(pending)} onChange={e => {
@@ -271,7 +273,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
           <button className="module-submit-btn" disabled={busy || loading || Boolean(pending)}>{busy ? 'Aguarde...' : 'Abrir caixa'}</button>
         </form>
       </section>}
-      {current && <section className="cash-card"><h4>Caixa aberto · {current.operator_name}</h4><p>Aberto em {new Date(current.opened_at).toLocaleString('pt-BR')}</p>
+      {current && <section className="cash-card"><h4>Caixa aberto · {current.operator_name}</h4><p>Aberto em {new Date(current.opened_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined)}</p>
         <fieldset disabled={busy || loading || Boolean(pending)} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <form onSubmit={e => { e.preventDefault(); void mutate('movimentar'); }}>
           <h4>Registrar movimentação</h4><div className="cash-fields">
@@ -314,7 +316,7 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
       </section>}
       <section className="cash-card" ref={reportRef}><h4>Histórico e relatório</h4><label>Caixa<select value={selected?.id ?? ''} onChange={e => setSelectedId(e.target.value)}>
         {!sessions.length && <option value="">Nenhum caixa registrado</option>}
-        {sessions.map(s => <option key={s.id} value={s.id}>{new Date(s.opened_at).toLocaleString('pt-BR')} · {s.operator_name} · {s.closed_at ? 'Fechado' : 'Aberto'}</option>)}
+        {sessions.map(s => <option key={s.id} value={s.id}>{new Date(s.opened_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined)} · {s.operator_name} · {s.closed_at ? 'Fechado' : 'Aberto'}</option>)}
       </select></label>
       {selected && <>
         {selected.actor_key !== actorKey && <p>Caixa aberto por {selected.operator_name}. {selected.history_complete === false ? 'Aqui são exibidas as vendas finalizadas por você neste caixa compartilhado.' : 'Cada venda identifica o colaborador que a finalizou.'}</p>}
@@ -332,10 +334,10 @@ export function CashRegisterModule({ branchId, branchName, scopeKey, sales, oper
         </div>
         <p>O líquido em dinheiro inclui sangrias e suprimentos. Faturado é valor a receber e não compõe o dinheiro do caixa.</p>
         <p>O total do dia soma as vendas de hoje do operador nesta filial, incluindo faturado e descontando estornos e devoluções do dia. Não inclui troco inicial, sangrias ou suprimentos.</p>
-        <button className="rma-advance-btn" onClick={() => { try { printCashReport(selected, selectedMovements, branchName); } catch (e) { setError(pdvErrorMessage(e)); } }}><Printer size={14} /> Imprimir relatório</button>
+        <button className="rma-advance-btn" onClick={() => { try { printCashReport(selected, selectedMovements, branchName, timeZone); } catch (e) { setError(pdvErrorMessage(e)); } }}><Printer size={14} /> Imprimir relatório</button>
         </>}
         <div className="stock-table-wrap"><table className="rma-table"><thead><tr><th>Data</th><th>Tipo</th><th>Colaborador</th><th>Pagamento</th><th>Valor</th><th>Motivo / pedido</th></tr></thead><tbody>
-          {selectedMovements.length ? selectedMovements.map(m => <tr key={m.id}><td>{new Date(m.created_at).toLocaleString('pt-BR')}</td><td>{m.kind}</td><td>{m.performed_by_name || 'Não registrado'}</td><td>{cashPaymentLabels[m.payment_method] ?? m.payment_method}</td><td>{money.format(m.amount)}</td><td>{m.reason}{m.sale_id && ` · #${m.sale_id.slice(0, 8).toUpperCase()}`}</td></tr>) : <tr><td colSpan={6}>Nenhuma movimentação.</td></tr>}
+          {selectedMovements.length ? selectedMovements.map(m => <tr key={m.id}><td>{new Date(m.created_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined)}</td><td>{m.kind}</td><td>{m.performed_by_name || 'Não registrado'}</td><td>{cashPaymentLabels[m.payment_method] ?? m.payment_method}</td><td>{money.format(m.amount)}</td><td>{m.reason}{m.sale_id && ` · #${m.sale_id.slice(0, 8).toUpperCase()}`}</td></tr>) : <tr><td colSpan={6}>Nenhuma movimentação.</td></tr>}
         </tbody></table></div>
       </>}
       </section>

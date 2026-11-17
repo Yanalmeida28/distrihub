@@ -1,3 +1,4 @@
+import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -9,10 +10,10 @@ import TestRenderer, { act } from 'react-test-renderer';
 import ts from '../../node_modules/typescript/lib/typescript.js';
 const require=createRequire(import.meta.url);
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText;
-const cash={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/cashRegister.ts',import.meta.url),'utf8')),{exports:cash,Intl,Date});
+const cash={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/cashRegister.ts',import.meta.url),'utf8')),{exports:cash,Intl,Date,require:()=>businessTimeHelpers});
 const overview = {};
 vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/CashOverview.tsx', import.meta.url), 'utf8')), {
- exports: overview, Date, require: name => name === '../../lib/cashRegister' ? cash
+ exports: overview, Date, require: name => name === '../../lib/adminDashboard' ? businessTimeHelpers : name === '../../lib/cashRegister' ? cash
   : name === '../../utils' ? { money: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }) } : require(name),
 });
 const pdv={};vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts',import.meta.url),'utf8')),{exports:pdv,Error});
@@ -29,6 +30,7 @@ async function harness({snapshot={actor_key:'owner',sessions:[],movements:[],sal
  const events={addEventListener(name,fn){if(!listeners.has(name))listeners.set(name,new Set());listeners.get(name).add(fn);},removeEventListener(name,fn){listeners.get(name)?.delete(fn);},dispatchEvent(event){listeners.get(event.type)?.forEach(fn=>fn());}};
  const exports={};
  vm.runInNewContext(source,{exports,Error,Event,Date,crypto:{randomUUID},sessionStorage:storage,window:events,document:{...events,visibilityState:'visible'},require(name){
+  if(name==='../../lib/adminDashboard')return businessTimeHelpers;
   if(name==='../../lib/supabase')return {supabase:{rpc:async(name,args)=>{calls.push({name,args});return rpc?.(name,args)??{data:snapshot,error:null};}}};
   if(name==='../../lib/cashRegister')return cash;
   if(name==='./CashOverview')return overview;

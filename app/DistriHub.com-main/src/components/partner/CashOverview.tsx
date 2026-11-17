@@ -1,8 +1,10 @@
+import { businessTimeZone } from '../../lib/adminDashboard';
 import { useMemo, useState } from 'react';
 import { cashTotals, type CashMovement, type CashSession } from '../../lib/cashRegister';
 import { money } from '../../utils';
 
 type Props = {
+  timeZone?: string;
   branchId: string;
   branchName: string;
   sessions: CashSession[];
@@ -10,7 +12,7 @@ type Props = {
   onViewReport: (sessionId: string) => void;
 };
 
-export function CashOverview({ branchId, branchName, sessions, movements, onViewReport }: Props) {
+export function CashOverview({ timeZone, branchId, branchName, sessions, movements, onViewReport }: Props) {
   const [status, setStatus] = useState('abertos');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -48,7 +50,7 @@ export function CashOverview({ branchId, branchName, sessions, movements, onView
     </div>
     <div className="stock-table-wrap cash-overview-wrap"><table className="rma-table cash-overview-table"><thead><tr><th>Operador</th><th>Abertura</th><th>Situação</th><th>Dinheiro esperado</th><th>PIX líquido</th><th>Cartão líquido</th><th>Faturado a receber</th><th>Diferença no fechamento</th><th>Relatório</th></tr></thead><tbody>
       {filtered.slice(currentPage * 25, (currentPage + 1) * 25).map(({ session, totals, expected }) => <tr key={session.id}>
-        <td data-label="Operador" className="cash-overview-operator">{session.operator_name}</td><td data-label="Abertura">{new Date(session.opened_at).toLocaleString('pt-BR')}</td><td data-label="Situação">{session.closed_at ? 'Fechado' : 'Aberto'}</td>
+        <td data-label="Operador" className="cash-overview-operator">{session.operator_name}</td><td data-label="Abertura">{new Date(session.opened_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined)}</td><td data-label="Situação">{session.closed_at ? 'Fechado' : 'Aberto'}</td>
         <td data-label="Dinheiro esperado">{money.format(expected)}</td><td data-label="PIX líquido">{money.format(totals.pix ?? 0)}</td><td data-label="Cartão líquido">{money.format(totals.cartao ?? 0)}</td><td data-label="Faturado a receber">{money.format(totals.faturado ?? 0)}</td>
         <td data-label="Diferença no fechamento">{session.closed_at && session.difference != null ? money.format(Number(session.difference)) : '—'}</td>
         <td data-label="Relatório" className="cash-overview-actions"><button type="button" className="rma-advance-btn" onClick={() => onViewReport(session.id)}>Ver relatório</button></td>
