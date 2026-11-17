@@ -263,7 +263,7 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
     return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 5);
   }, [sales, productById]);
 
-  const top5Services = useMemo(() => {
+  const top10Services = useMemo(() => {
     const map: Record<string, { qty: number; revenue: number }> = {};
     for (const sale of sales) {
       for (const item of Array.isArray(sale.items) ? sale.items : []) {
@@ -275,7 +275,7 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
         }
       }
     }
-    return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 5);
+    return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 10);
   }, [sales, productById]);
 
   return (
@@ -357,12 +357,12 @@ function SalesReport({ sales, products, salespeople }: { sales: PartnerSale[]; p
         </div>
 
         <div>
-          <h4 className="report-section-title"><Trophy size={16} /> Top 5 Serviços</h4>
+          <h4 className="report-section-title"><Trophy size={16} /> Top 10 Serviços</h4>
           <div className="ranking-list">
-            {top5Services.length === 0 ? (
+            {top10Services.length === 0 ? (
               <div className="empty-row" style={{ border: 'none' }}>Sem dados de serviços.</div>
             ) : (
-              top5Services.map(([sid, data], i) => {
+              top10Services.map(([sid, data], i) => {
                 const p = products.find((x) => x.id === sid);
                 const icon = i === 0 ? <Crown size={16} /> : i === 1 ? <Medal size={16} /> : i === 2 ? <Medal size={16} /> : null;
                 return (
@@ -777,7 +777,7 @@ function CrmReport({ canExport = false, customers, sales }: { canExport?: boolea
         map[sale.customer_id] = (map[sale.customer_id] ?? 0) + sale.total;
       }
     }
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 10);
   }, [sales]);
 
   const birthdays = customers.filter((customer) => birthdayMonth(customer.birthday) === currentMonth);
@@ -808,7 +808,7 @@ function CrmReport({ canExport = false, customers, sales }: { canExport?: boolea
         </button>}
       </div>
       <p>Ranking pelo período selecionado. Aniversariantes do mês atual.</p>
-      <h4 className="report-section-title"><Trophy size={16} /> Top 5 Clientes</h4>
+      <h4 className="report-section-title"><Trophy size={16} /> Top 10 Clientes</h4>
       <div className="ranking-list">
         {topCustomers.length === 0 ? (
           <div className="empty-row" style={{ border: 'none' }}>Sem dados de clientes.</div>

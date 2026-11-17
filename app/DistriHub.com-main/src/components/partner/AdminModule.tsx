@@ -665,7 +665,7 @@ function ExecutiveDashboard({
     }
 
     const sorted = Object.values(customerRevenue).sort((a, b) => b.total - a.total);
-    const topCustomers = sorted.slice(0, 5);
+    const topCustomers = sorted.slice(0, 10);
     const avgLtv = sorted.length > 0 ? sorted.reduce((s, c) => s + c.total, 0) / sorted.length : 0;
 
     const now = new Date();
