@@ -198,8 +198,10 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     {kind === 'pagar' && payables.error && <p role="alert">{payables.error} <button type="button" className="rma-advance-btn" onClick={() => void payables.reload()}>Tentar novamente</button></p>}
     {kind === 'pagar' && <div className="orders-filter-row accounts-scope-filters" style={{ margin: '16px 0' }}>
       <label>Categoria<select aria-label="Filtrar categoria das contas" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setRecipientFilter(null); }}><option value="">Todas as categorias</option>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
-      <label>Vencimento de<input aria-label="Vencimento de" type="date" value={dueFrom} onChange={event => setDueFrom(event.target.value)} /></label>
-      <label>Vencimento até<input aria-label="Vencimento até" type="date" value={dueTo} onChange={event => setDueTo(event.target.value)} /></label>
+      <div className="date-range-fields accounts-due-period" role="group" aria-label="Período de vencimento">
+        <label>Vencimento de<input aria-label="Vencimento de" type="date" value={dueFrom} onChange={event => setDueFrom(event.target.value)} /></label>
+        <label>Vencimento até<input aria-label="Vencimento até" type="date" value={dueTo} onChange={event => setDueTo(event.target.value)} /></label>
+      </div>
       <button type="button" className="rma-advance-btn" onClick={() => { setCategoryFilter(''); setDueFrom(''); setDueTo(''); setRecipientFilter(null); }}>Limpar filtros de categoria e período</button>
     </div>}
     {invalidPeriod && <p role="alert">Confira o período: a data inicial deve ser anterior ou igual à final.</p>}

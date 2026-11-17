@@ -3932,3 +3932,12 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .accounts-status-options { position: absolute; inset: calc(100% + 6px) auto auto 0; z-index: 20; display: grid; min-width: 180px; padding: 6px; gap: 4px; background: #172033; border: 1px solid #475569; border-radius: 10px; box-shadow: 0 8px 24px #0006; }
 .accounts-status-options > button { min-height: 44px; text-align: left; }
 .accounts-archive-notice { font-size: 12px; color: #fbbf24; }
+
+/* Keep the payable date pair together, including browsers without container queries. */
+.partner-panel .financial-accounts-module .accounts-scope-filters > .accounts-due-period { grid-column: span 2; width: 100%; min-width: 0; }
+.partner-panel .financial-accounts-module .accounts-due-period > label { font-size: 12px; }
+@media (max-width: 640px) {
+  .partner-panel .financial-accounts-module .accounts-scope-filters { grid-template-columns: minmax(0, 1fr) !important; }
+  .partner-panel .financial-accounts-module .accounts-scope-filters > :is(label, .accounts-due-period, button) { grid-column: 1 / -1; }
+  .partner-panel .financial-accounts-module .accounts-due-period input[type="date"] { padding-inline: 6px; }
+}
