@@ -9,7 +9,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 const require=createRequire(import.meta.url),NativeDate=Date;
 class FixedDate extends NativeDate{constructor(...args){super(...(args.length?args:['2026-10-15T15:00:00Z']));}static now(){return new NativeDate('2026-10-15T15:00:00Z').getTime();}}
 const compile=s=>ts.transpileModule(s,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText;
-function harness(client={}){
+function harness(client={},ReportProbe){
  const cache=new Map(),timers=new Set();
  const load=name=>{
   if(cache.has(name))return cache.get(name);const exports={};cache.set(name,exports);
@@ -21,6 +21,7 @@ function harness(client={}){
    if(dep.endsWith('/utils'))return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};
    if(dep.endsWith('/reportMetrics'))return {legacyCostSalesCount:()=>0};if(dep.endsWith('/useStagnantStock'))return {useStagnantStock:()=>({count:0})};
    if(dep.endsWith('/usePayables'))return {usePayables:()=>({accounts:[],loading:false,error:'',recoveries:[]})};
+   if(dep==='./ReportsModule'&&ReportProbe)return {ReportsModule:ReportProbe};
    if(name.endsWith('/AdminModule.tsx')&&dep.startsWith('./'))return new Proxy({},{get:()=>()=>null});
    const path=new URL(dep,url).pathname.split('/src/')[1];return load(path+(/(?:Module|Panel|Tools)$/.test(dep)?'.tsx':'.ts'));
   }});return exports;
@@ -138,4 +139,25 @@ test('terminal list discards old branch replies, distinguishes load errors and s
  const props={userId:'owner',branchId:'A',branches:[]};await act(async()=>{r=Renderer.create(React.createElement(AdminDeviceRegistry,props));});await act(async()=>r.update(React.createElement(AdminDeviceRegistry,{...props,branchId:'B'})));
  await act(async()=>pending[1]({data:[{id:'B',name:'Terminal B',last_seen:'2026-10-15T15:00:00Z'}],error:null}));await act(async()=>pending[0]({data:[{id:'A',name:'Terminal A',last_seen:'2026-10-15T15:00:00Z'}],error:null}));assert.match(JSON.stringify(r.toJSON()),/Terminal B/);assert.doesNotMatch(JSON.stringify(r.toJSON()),/Terminal A/);
  await act(async()=>r.update(React.createElement(AdminDeviceRegistry,{...props,branchId:'B',isActive:false})));assert.equal(e.timers.size,0);await act(async()=>r.update(React.createElement(AdminDeviceRegistry,{...props,branchId:'B'})));await act(async()=>pending[2]({data:null,error:{message:'Read failed'}}));assert.match(JSON.stringify(r.toJSON()),/Read failed/);assert.doesNotMatch(JSON.stringify(r.toJSON()),/Nenhum terminal registrado/);await act(async()=>r.unmount());
+});
+
+test('Admin uses its single report selector for all sections and keeps shortcuts and permissions aligned',async()=>{
+ function ReportProbe(){return React.createElement('div',{'data-report-probe':true});}
+ const {AdminModule,ExecutiveDashboard}=harness({},ReportProbe).load('components/partner/AdminModule.tsx');let r;const scopes=[];
+ const props={...base,userId:'owner',ownerView:true,allowedModules:['relatorios'],onReportScopeChange:scope=>scopes.push(scope)};
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(AdminModule,props));});
+  await act(async()=>r.root.findByType(ExecutiveDashboard).props.onOpenStagnantStock());
+  assert.equal(r.root.findByType(ReportProbe).props.initialTab,'sem-giro');
+  const items=()=>r.root.findByProps({className:'admin-top-items'}).findAllByType('button');
+  assert.equal(items().find(button=>button.children.join('')==='Produtos sem giro').props['aria-current'],'page');
+  const options=[['Vendas e serviços','vendas'],['Financeiro e pagamentos','financeiro'],['Estoque e produtos cadastrados','estoque'],['Produtos sem giro','sem-giro'],['Clientes e relacionamento (CRM)','crm']];
+  for(const [label,id] of options){
+   await act(async()=>items().find(button=>button.children.join('')===label).props.onClick());
+   const report=r.root.findByType(ReportProbe);assert.equal(report.props.showNavigation,false);assert.equal(report.props.initialTab,id);assert.equal(scopes.at(-1),id);
+   assert.equal(items().filter(button=>button.props['aria-current']==='page').length,1);
+   assert.equal(items().find(button=>button.children.join('')===label).props['aria-current'],'page');
+  }
+  await act(async()=>r.update(React.createElement(AdminModule,{...props,allowedModules:[]})));assert.equal(r.root.findAllByType(ReportProbe).length,0);assert.equal(r.root.findAllByProps({role:'alert'}).length,1);
+ }finally{if(r)await act(async()=>r.unmount());}
 });

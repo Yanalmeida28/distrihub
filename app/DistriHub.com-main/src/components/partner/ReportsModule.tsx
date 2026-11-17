@@ -26,6 +26,7 @@ import { useStagnantStock } from '../../hooks/useStagnantStock';
 import { CrmWorkspace } from './CrmWorkspace';
 
 type Props = {
+  showNavigation?: boolean;
   timeZone?: string;
   initialCrmSegment?: string;
   canExport?: boolean;
@@ -86,7 +87,7 @@ const roleLabels: Record<SalespersonRole, string> = {
   logistica: 'Logística / Entregador',
 };
 
-export function ReportsModule({ timeZone, initialCrmSegment = 'todos', canExport = false, isActive = true, onDataScopeChange, sales, products, customers, salespeople, movements = [], companyUserId = null, branchId = null, invoices = [], initialTab = 'vendas' }: Props) {
+export function ReportsModule({ showNavigation = true, timeZone, initialCrmSegment = 'todos', canExport = false, isActive = true, onDataScopeChange, sales, products, customers, salespeople, movements = [], companyUserId = null, branchId = null, invoices = [], initialTab = 'vendas' }: Props) {
   const [tab, setTab] = useState<ReportTab>(initialTab);
   const [range, setRange] = useState<SalesRange>('30d');
   const [startDate, setStartDate] = useState(() => localDateInput(new Date(Date.now() - 30 * 86_400_000)));
@@ -142,13 +143,13 @@ export function ReportsModule({ timeZone, initialCrmSegment = 'todos', canExport
         </div>
       </div>
 
-      <div className="subtab-bar" style={{ marginBottom: '12px' }}>
+      {showNavigation && <div className="subtab-bar" style={{ marginBottom: '12px' }}>
         {tabs.map(({ id, label, icon: Icon }) => (
           <button key={id} className={`subtab ${tab === id ? 'active' : ''}`} onClick={() => { onDataScopeChange?.(id); setTab(id); setRangeError(null); }}>
             <Icon size={15} /> {label}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className="orders-filter-row" style={{ marginBottom: '18px', display: tab === 'sem-giro' ? 'none' : undefined }}>
         {(['30d', '90d', 'all', 'custom'] as const).map((option) => (

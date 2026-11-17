@@ -79,3 +79,15 @@ test('paging the report breakdown does not change totals and scope or filter cha
   await act(async()=>r.update(React.createElement(exports.ReportsModule,{...config,branchId:'B',sales:[{...breakdownSales[0],id:'branch-B',branch_id:'B'}]})));assert.equal(r.root.findAllByProps({'aria-label':'Vendas da página'}).length,0);await open();assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/1–1 de 1/);
  }finally{if(r)await act(async()=>r.unmount());}
 });
+
+test('embedded reports omit duplicate navigation while standalone reports retain all five options',async()=>{
+ let r;try{
+  await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,{...props,initialTab:'financeiro',showNavigation:false}));});
+  assert.equal(r.root.findAllByProps({className:'subtab-bar'}).length,0);
+  assert.ok(r.root.findAllByType('h4').some(heading=>heading.children.join('').includes('Visão Anual')));
+  await act(async()=>r.update(React.createElement(exports.ReportsModule,{...props,initialTab:'financeiro'})));
+  const navigation=r.root.findByProps({className:'subtab-bar'});assert.equal(navigation.findAllByType('button').length,5);
+  await act(async()=>navigation.findAllByType('button').find(button=>button.children.includes('CRM')).props.onClick());
+  assert.match(JSON.stringify(r.toJSON()),/Top 10 Clientes/);
+ }finally{if(r)await act(async()=>r.unmount());}
+});

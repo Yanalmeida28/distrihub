@@ -363,14 +363,14 @@ function AdminModuleInner({
               onBranchChange={handleBranchChange}
               onOpenStagnantStock={() => {
                 setExpandedSection('relatorios');
-                setActiveItemId('vendas');
+                setActiveItemId('sem-giro');
                 setActiveAdminTab('relatorios');
                 setReportsInitialTab('sem-giro');
               }}
             />
           )}
           {activeAdminTab === 'relatorios' && (
-            <ReportsModule timeZone={timeZone} initialCrmSegment={crmSegment}
+            <ReportsModule showNavigation={false} timeZone={timeZone} initialCrmSegment={crmSegment}
               canExport={canImportExport}
               isActive={isActive}
               onDataScopeChange={onReportScopeChange}
