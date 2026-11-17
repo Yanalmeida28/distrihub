@@ -3941,3 +3941,25 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .financial-accounts-module .accounts-scope-filters > :is(label, .accounts-due-period, button) { grid-column: 1 / -1; }
   .partner-panel .financial-accounts-module .accounts-due-period input[type="date"] { padding-inline: 6px; }
 }
+
+/* Bounded drill-down; report indicators continue using the complete filtered sales. */
+.partner-panel .report-sales-breakdown { min-width: 0; margin-top: 16px; }
+.partner-panel .report-sales-breakdown > summary { min-height: 44px; padding-block: 12px; cursor: pointer; }
+.partner-panel .report-sales-breakdown > summary:focus-visible, .partner-panel .report-sales-scroll:focus-visible { outline: 2px solid var(--dh-blue, #7bc8ff); outline-offset: 2px; }
+.partner-panel .report-sales-note { margin: 0 0 8px; font-size: 12px; }
+.partner-panel .report-sales-scroll { max-height: 360px; overflow: auto; overscroll-behavior: contain; min-width: 0; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; }
+.partner-panel .report-sales-table { width: 100%; min-width: 0; table-layout: fixed; margin: 0; }
+.partner-panel .report-sales-table :is(th, td) { padding: 8px; white-space: normal; overflow-wrap: anywhere; }
+.partner-panel .report-sales-table th { position: sticky; top: 0; z-index: 1; background: var(--dh-surface, #102638); }
+.partner-panel .report-sales-table th:nth-child(3) { width: 30%; }
+.partner-panel .report-sales-mobile { display: none; }
+@media (max-width: 640px) {
+  .partner-panel .report-sales-table { display: none; }
+  .partner-panel .report-sales-mobile { display: block; margin: 0; padding: 0; list-style: none; }
+  .partner-panel .report-sales-mobile > li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); align-items: start; gap: 4px 10px; padding: 10px; border-bottom: 1px solid var(--dh-border, #29465f); }
+  .partner-panel .report-sales-mobile > li:last-child { border-bottom: 0; }
+  .partner-panel .report-sale-customer { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+  .partner-panel .report-sale-total { grid-column: 2; grid-row: 1 / span 2; align-self: center; text-align: right; overflow-wrap: anywhere; font-size: 14px; }
+  .partner-panel .report-sales-mobile time { grid-column: 1; font-size: 11px; }
+  .partner-panel .report-sales-mobile small { grid-column: 1 / -1; color: var(--dh-text-secondary, #adc2d6); font-size: 11px; overflow-wrap: anywhere; }
+}

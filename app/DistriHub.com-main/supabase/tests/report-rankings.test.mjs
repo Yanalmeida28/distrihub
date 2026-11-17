@@ -12,6 +12,7 @@ const exports={};
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../src/components/partner/ReportsModule.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText,{exports,Date,Intl,require(name){
  if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};
  if(name==='../../hooks/useStagnantStock')return {useStagnantStock:()=>({items:[],count:0})};
+ if(name==='./ReportSalesBreakdown')return h.load('components/partner/ReportSalesBreakdown.tsx');
  if(name==='./CrmWorkspace')return {CrmWorkspace:()=>null};
  if(name.startsWith('../../lib/'))return h.load('lib/'+name.split('/').at(-1)+'.ts');
  return require(name);
@@ -63,5 +64,18 @@ test('stock lists ten physical products by quantity and ten by margin using thei
   const rows=marginTable.findByType('tbody').findAllByType('tr');assert.equal(rows.length,10);
   assert.deepEqual(rows.map(row=>row.findByType('strong').children.join('')),Array.from({length:10},(_,i)=>'Product '+i));
   await act(async()=>r.update(React.createElement(exports.ReportsModule,{...productProps,initialTab:'estoque',products:[physical[0]],sales:[physicalSales[0]]})));assert.deepEqual(names(r),['Product 0']);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('paging the report breakdown does not change totals and scope or filter changes reset the drill-down',async()=>{
+ const breakdownSales=Array.from({length:25},(_,i)=>sale({id:'row-'+String(i).padStart(5,'0'),created_at:now,completed_at:now,customer_id:'customer-'+(i%2),total:100,items:[{product_id:'p',quantity:1,unit_price:100}]}));
+ const config={...props,companyUserId:'company',branchId:'A',sales:breakdownSales,products:[product()],customers:customers.slice(0,2)};let r;
+ const open=()=>act(async()=>r.root.findByProps({className:'report-sales-breakdown'}).props.onToggle({currentTarget:{open:true}}));
+ const values=()=>r.root.findAllByProps({className:'report-card'}).map(card=>card.findAllByType('strong').map(node=>node.children.filter(v=>typeof v==='string').join('')).join('|'));
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,config));});const totals=values();await open();
+  const next=r.root.findAllByType('button').find(b=>b.children.join('')==='Próxima');await act(async()=>next.props.onClick());assert.deepEqual(values(),totals);assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/11–20 de 25/);
+  await act(async()=>r.root.findByProps({'aria-label':'Filtrar cliente no relat\u00f3rio'}).props.onChange({target:{value:'customer-0'}}));assert.equal(r.root.findAllByProps({'aria-label':'Vendas da página'}).length,0);await open();assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/1–10 de 13/);
+  await act(async()=>r.update(React.createElement(exports.ReportsModule,{...config,branchId:'B',sales:[{...breakdownSales[0],id:'branch-B',branch_id:'B'}]})));assert.equal(r.root.findAllByProps({'aria-label':'Vendas da página'}).length,0);await open();assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/1–1 de 1/);
  }finally{if(r)await act(async()=>r.unmount());}
 });

@@ -1,3 +1,4 @@
+import { intelligenceHarness } from './fixtures/business_intelligence_helpers.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -90,6 +91,7 @@ test('every report export respects the same permission without removing the repo
     '../../lib/stagnantStock': { stagnantLevelLabels: {} },
     '../../hooks/useStagnantStock': { useStagnantStock: () => ({ items: [], count: 0, capital: 0 }) },
     './CrmWorkspace': { CrmWorkspace: () => null },
+    './ReportSalesBreakdown': intelligenceHarness().load('components/partner/ReportSalesBreakdown.tsx'),
   });
   for (const initialTab of ['vendas', 'financeiro', 'estoque', 'sem-giro', 'crm']) {
     let renderer;
