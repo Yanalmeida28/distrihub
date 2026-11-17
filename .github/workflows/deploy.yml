@@ -34,6 +34,23 @@ jobs:
             app/DistriHub.com-main/package-lock.json
             app/DistriHub.com-main/supabase/tests/package-lock.json
 
+      - name: Resolver hostname do certificado FTPS
+        id: ftps
+        run: node tools/resolveFtpsHost.mjs
+        env:
+          FTP_SERVER: srv801.hstgr.io
+          FTP_TLS_SERVER: ${{ secrets.FTP_TLS_SERVER || 'srv801.hstgr.io' }}
+
+      - name: Validar destino antes de publicar
+        run: |
+          python3 -m unittest discover -s tools/tests -p 'test_ftps_target.py'
+          python3 tools/verify_ftps_target.py
+        env:
+          FTP_SERVER: ${{ steps.ftps.outputs.server }}
+          FTP_PORT: ${{ secrets.FTP_PORT }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+
       - name: Instalar dependências
         run: npm ci
 
@@ -71,13 +88,6 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
-      - name: Resolver hostname do certificado FTPS
-        id: ftps
-        run: node tools/resolveFtpsHost.mjs
-        env:
-          FTP_SERVER: ${{ secrets.FTP_SERVER }}
-          FTP_TLS_SERVER: ${{ secrets.FTP_TLS_SERVER || 'srv801.hstgr.io' }}
 
       - name: Publicar na Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
