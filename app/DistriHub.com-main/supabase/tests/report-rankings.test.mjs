@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import vm from 'node:vm';
+import React from 'react';
+import Renderer, { act } from 'react-test-renderer';
+import ts from '../../node_modules/typescript/lib/typescript.js';
+import { intelligenceHarness, sale, product } from './fixtures/business_intelligence_helpers.mjs';
+const require=createRequire(import.meta.url),h=intelligenceHarness();
+const exports={};
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../../src/components/partner/ReportsModule.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText,{exports,Date,Intl,require(name){
+ if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};
+ if(name==='../../hooks/useStagnantStock')return {useStagnantStock:()=>({items:[],count:0})};
+ if(name==='./CrmWorkspace')return {CrmWorkspace:()=>null};
+ if(name.startsWith('../../lib/'))return h.load('lib/'+name.split('/').at(-1)+'.ts');
+ return require(name);
+}});
+const now=new Date().toISOString();
+const products=Array.from({length:12},(_,i)=>product({id:'service-'+i,name:'Service '+i,is_service:true}));
+const customers=Array.from({length:12},(_,i)=>({id:'customer-'+i,name:'Customer '+i}));
+const sales=products.map((p,i)=>sale({id:'sale-'+i,created_at:now,completed_at:now,customer_id:customers[i].id,customer_name:customers[i].name,total:(i+1)*100,items:[{product_id:p.id,quantity:1,unit_price:(i+1)*100}]}));
+const invalid=[sale({id:'cancelled',customer_id:'bad',status:'cancelada',created_at:now,completed_at:now,total:99999,items:[{product_id:'bad',quantity:1,unit_price:99999}]}),sale({id:'old',customer_id:'old',created_at:'2000-01-01T12:00:00Z',completed_at:'2000-01-01T12:00:00Z',total:99999,items:[{product_id:'old',quantity:1,unit_price:99999}]})];
+const props={sales:[...sales,...invalid],products:[...products,product({id:'bad',name:'Cancelled service',is_service:true}),product({id:'old',name:'Old service',is_service:true})],customers:[...customers,{id:'bad',name:'Cancelled customer'},{id:'old',name:'Old customer'}],salespeople:[]};
+const names=(r,index=0)=>r.root.findAllByProps({className:'ranking-list'})[index].findAllByProps({className:'ranking-item'}).map(item=>item.findByType('strong').children.join(''));
+test('customer report lists the ten largest customers and respects its existing period and customer filters',async()=>{
+ let r;try{
+  await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,{...props,initialTab:'crm'}));});
+  assert.deepEqual(names(r),Array.from({length:10},(_,i)=>'Customer '+(11-i)));
+  assert.match(JSON.stringify(r.toJSON()),/Top 10 Clientes/);
+  await act(async()=>r.root.findByProps({'aria-label':'Filtrar cliente no relat\u00f3rio'}).props.onChange({target:{value:'customer-4'}}));
+  assert.deepEqual(names(r),['Customer 4']);
+  await act(async()=>r.update(React.createElement(exports.ReportsModule,{...props,initialTab:'crm',sales:[]})));assert.deepEqual(names(r),[]);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+test('service report lists ten services by revenue without mixing products or cancelled and old sales',async()=>{
+ let r;try{
+  await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,{...props,products:[...props.products,product({id:'physical',name:'Physical product',is_service:false})],sales:[...props.sales,sale({id:'physical-sale',created_at:now,completed_at:now,total:50000,items:[{product_id:'physical',quantity:1,unit_price:50000}]})]}));});
+  assert.deepEqual(names(r,1),Array.from({length:10},(_,i)=>'Service '+(11-i)));
+  assert.match(JSON.stringify(r.toJSON()),/Top 10 Servi/);
+  await act(async()=>r.root.findByProps({'aria-label':'Filtrar produto no relat\u00f3rio'}).props.onChange({target:{value:'service-4'}}));assert.deepEqual(names(r,1),['Service 4']);
+  await act(async()=>r.update(React.createElement(exports.ReportsModule,{...props,sales:[]})));assert.deepEqual(names(r,1),[]);
+ }finally{if(r)await act(async()=>r.unmount());}
+});

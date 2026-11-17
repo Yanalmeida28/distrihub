@@ -31,7 +31,7 @@ function FinancialScreen({ invoices, creditLimit, creditUsed, onPayInvoice, rmaR
   const mounted = useRef(true);
   const activeRef = useRef(isActive); activeRef.current = isActive;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  useEffect(() => { if (!isActive) { setPayingId(null); setCreditInvoice(null); } }, [isActive]);
+  useEffect(() => { if (!isActive) { setPayingId(null); setCreditInvoice(null); setFilter('aberta'); } }, [isActive]);
   const pending = recoveries.length > 0 || Boolean(recoveryError);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [paymentMode, setPaymentMode] = useState<'full' | 'partial'>('full');
@@ -42,7 +42,7 @@ function FinancialScreen({ invoices, creditLimit, creditUsed, onPayInvoice, rmaR
   const [success, setSuccess] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [receiptInvoiceId, setReceiptInvoiceId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | 'aberta' | 'paga'>('all');
+  const [filter, setFilter] = useState<'all' | 'aberta' | 'paga'>('aberta');
   const [creditInvoice, setCreditInvoice] = useState<PartnerInvoice | null>(null);
   useEffect(() => {
     setCreditInvoice(current => current ? invoices.find(invoice => invoice.id === current.id && isOpen(invoice)) ?? null : null);

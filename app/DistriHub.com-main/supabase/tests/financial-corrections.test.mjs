@@ -208,6 +208,7 @@ test('Financeiro uses civil due date, excludes cancelled balances and resets ano
   await act(async()=>button(r,'Amortizar').props.onClick());assert.equal(r.root.findAllByType('form').length,1);
   await act(async()=>r.update(React.createElement(Component,{...props,invoices:[{...invoice,id:'B',branch_id:'B'}]})));assert.equal(r.root.findAllByType('form').length,0);
   await act(async()=>r.update(React.createElement(Component,{...props,invoices:[{...invoice,status:'cancelada'}]})));
+  await act(async()=>button(r,'Todas').props.onClick());
   const cells=r.root.findAllByType('tr')[1].findAllByType('td');assert.match(cells[4].children.join(''),/0,00/);assert.doesNotMatch(cells[4].children.join(''),/100,00/);
  }finally{if(r)await act(async()=>r.unmount());if(oldTZ===undefined)delete process.env.TZ;else process.env.TZ=oldTZ;}
 });
@@ -292,5 +293,23 @@ test('compact status filter separates archived accounts and keeps totals stable'
   assert.deepEqual(r.root.findByProps({className:'report-cards financial-accounts-totals'}).findAllByType('strong').map(node=>node.children.join('')),totals);
   await act(async()=>r.update(React.createElement(Component,{...props,kind:'receber',invoices:[invoice]})));
   assert.equal(button(r,'Excluídas'),undefined);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+
+test('Financeiro opens in Abertas, includes partial balances and resets only on reentry or context change',async()=>{
+ const Component=environment().load('components/partner/FinancialModule.tsx').FinancialModule;let r,calls=0;
+ const records=[{...invoice,number:'OPEN'},{...invoice,id:'partial',number:'PARTIAL',status:'parcial',paid_amount:25},{...invoice,id:'paid',number:'PAID',status:'paga',paid_amount:100},{...invoice,id:'cancelled',number:'CANCELLED',status:'cancelada'}];
+ const props={contextKey:'owner:A',isActive:true,invoices:records,creditLimit:1000,creditUsed:100,onPayInvoice:async()=>{calls++;}};
+ const listed=()=>r.root.findByProps({'aria-label':'Faturas'}).findByType('tbody').findAllByType('tr').map(row=>row.findAllByType('td').map(cell=>cell.children.filter(value=>typeof value==='string').join('')).join('|')).join('\n');
+ try{
+  await act(async()=>{r=Renderer.create(React.createElement(Component,props));});
+  assert.match(button(r,'Abertas').props.className,/active/);assert.match(listed(),/OPEN/);assert.match(listed(),/PARTIAL/);assert.doesNotMatch(listed(),/PAID|CANCELLED/);
+  await act(async()=>button(r,'Pagas').props.onClick());assert.match(listed(),/PAID/);assert.doesNotMatch(listed(),/OPEN|PARTIAL/);
+  await act(async()=>r.update(React.createElement(Component,{...props,invoices:[...records]})));assert.match(button(r,'Pagas').props.className,/active/);
+  await act(async()=>button(r,'Todas').props.onClick());assert.match(listed(),/CANCELLED/);
+  await act(async()=>r.update(React.createElement(Component,{...props,isActive:false})));
+  await act(async()=>r.update(React.createElement(Component,props)));assert.match(button(r,'Abertas').props.className,/active/);assert.doesNotMatch(listed(),/PAID|CANCELLED/);
+  await act(async()=>button(r,'Todas').props.onClick());await act(async()=>r.update(React.createElement(Component,{...props,contextKey:'owner:B',invoices:[{...invoice,branch_id:'B',number:'BRANCH-B'}]})));
+  assert.match(button(r,'Abertas').props.className,/active/);assert.match(listed(),/BRANCH-B/);assert.doesNotMatch(listed(),/PARTIAL|PAID|CANCELLED/);assert.equal(calls,0);
  }finally{if(r)await act(async()=>r.unmount());}
 });
