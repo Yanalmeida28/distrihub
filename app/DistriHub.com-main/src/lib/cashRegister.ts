@@ -1,3 +1,4 @@
+import { adminBusinessDay, businessTimeZone } from './adminDashboard';
 export interface CashSession {
   history_complete?: boolean;
   id: string;
@@ -82,23 +83,19 @@ export function cashAmount(value: string): number {
   return amount;
 }
 
-const businessDayFormat = new Intl.DateTimeFormat('sv-SE', {
-  timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
-});
-
-export function cashBusinessDay(value: string | Date): string {
+export function cashBusinessDay(value: string | Date, timeZone?: string): string {
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : businessDayFormat.format(date);
+  return Number.isNaN(date.getTime()) ? '' : adminBusinessDay(date, timeZone);
 }
 
-export function cashDaySalesTotal(movements: CashMovement[], sessions: CashSession[], branchId: string, actorKey: string, day: string): number {
+export function cashDaySalesTotal(movements: CashMovement[], sessions: CashSession[], branchId: string, actorKey: string, day: string, timeZone?: string): number {
   const sessionIds = new Set(sessions.filter(session => session.branch_id === branchId && session.actor_key === actorKey).map(session => session.id));
-  return movements.filter(movement => sessionIds.has(movement.session_id) && cashBusinessDay(movement.created_at) === day &&
+  return movements.filter(movement => sessionIds.has(movement.session_id) && cashBusinessDay(movement.created_at, timeZone) === day &&
     ['venda', 'estorno', 'devolucao'].includes(movement.kind) && ['dinheiro', 'pix', 'cartao', 'faturado', 'credito_rma'].includes(movement.payment_method))
     .reduce((sum, movement) => sum + (movement.kind === 'venda' ? 1 : -1) * Math.round(Number(movement.amount) * 100), 0) / 100;
 }
 
-export function printCashReport(session: CashSession, movements: CashMovement[], branchName: string) {
+export function printCashReport(session: CashSession, movements: CashMovement[], branchName: string, timeZone?: string) {
   const popup = window.open('', '_blank', 'width=600,height=750');
   if (!popup) throw new Error('Permita pop-ups para imprimir o relatório.');
   const doc = popup.document;
@@ -111,15 +108,15 @@ export function printCashReport(session: CashSession, movements: CashMovement[],
   const totals = session.closing_totals ?? cashTotals(movements);
   const lines = [
     'RELATÓRIO DE CAIXA', `Filial: ${branchName}`, `Operador: ${session.operator_name}`,
-    `Abertura: ${new Date(session.opened_at).toLocaleString('pt-BR')}`,
-    `Fechamento: ${session.closed_at ? new Date(session.closed_at).toLocaleString('pt-BR') : 'Em aberto'}`,
+    `Abertura: ${new Date(session.opened_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined)}`,
+    `Fechamento: ${session.closed_at ? new Date(session.closed_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined) : 'Em aberto'}`,
     `Troco inicial: ${currency.format(session.opening_amount)}`,
     ...Object.entries(totals).map(([key, value]) => `${cashPaymentLabels[key] ?? key} (movimento líquido): ${currency.format(value)}`),
     `Dinheiro esperado: ${currency.format(session.expected_amount ?? (Number(session.opening_amount) + (totals.dinheiro ?? 0)))}`,
     ...(session.closed_at ? [`Dinheiro contado: ${currency.format(session.counted_amount ?? 0)}`, `Diferença: ${currency.format(session.difference ?? 0)}`] : []),
     ...(session.notes ? [`Observações: ${session.notes}`] : []),
     '', 'MOVIMENTAÇÕES',
-    ...movements.map(m => `${new Date(m.created_at).toLocaleString('pt-BR')} | ${m.kind} | ${cashPaymentLabels[m.payment_method] ?? m.payment_method} | ${currency.format(m.amount)} | ${m.reason} | Finalizado por: ${m.performed_by_name || 'Não registrado'}`),
+    ...movements.map(m => `${new Date(m.created_at).toLocaleString('pt-BR', timeZone ? { timeZone: businessTimeZone(timeZone) } : undefined)} | ${m.kind} | ${cashPaymentLabels[m.payment_method] ?? m.payment_method} | ${currency.format(m.amount)} | ${m.reason} | Finalizado por: ${m.performed_by_name || 'Não registrado'}`),
   ];
   for (const text of lines) { const p = doc.createElement('p'); p.textContent = text; doc.body.append(p); }
   const button = doc.createElement('button');

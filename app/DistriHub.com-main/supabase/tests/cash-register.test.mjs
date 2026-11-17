@@ -1,3 +1,5 @@
+import vm from 'node:vm';
+import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import assert from 'node:assert/strict';
 import { before, beforeEach, after, test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -855,8 +857,9 @@ test('manager reads branch history across operators while cashier sees only own 
 });
 
 test('cash movements use exact cents and pending requests survive remount without credentials', async () => {
-  const code=ts.transpileModule(await read('../../src/lib/cashRegister.ts'),{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
-  const { CashRequestStore, cashAmount, cashTotals }=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+  const code=ts.transpileModule(await read('../../src/lib/cashRegister.ts'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+  const exports={};vm.runInNewContext(code,{exports,Date,Intl,JSON,require:()=>businessTimeHelpers});
+  const { CashRequestStore, cashAmount, cashTotals }=exports;
   const data=new Map(); const storage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v),removeItem:k=>data.delete(k)};
   const store=new CashRequestStore(storage,'owner:branch');
   const request={id:randomUUID(),action:'movimentar',sessionId:randomUUID(),amount:0.1,kind:'sangria',reason:'Troco'};

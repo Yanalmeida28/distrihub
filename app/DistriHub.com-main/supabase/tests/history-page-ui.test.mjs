@@ -1,3 +1,4 @@
+import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -9,7 +10,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 const source=await readFile(new URL('../../src/components/partner/SalesHistoryModule.tsx',import.meta.url),'utf8');
 async function harness(rpc,extra={},clock=Date) {
  const timers=new Map();let timerId=0;const calls=[];const merged=[];
- const deps={react:React,'react/jsx-runtime':jsx,'lucide-react':new Proxy({},{get:()=>()=>null}),
+ const deps={'../../lib/adminDashboard':businessTimeHelpers,react:React,'react/jsx-runtime':jsx,'lucide-react':new Proxy({},{get:()=>()=>null}),
   '../../lib/pdv':{saleChargeTotal:s=>s.total,salePaymentDescription:()=> 'PIX'},
   '../../lib/saleReturns':{saleReturnLabel:()=>'',saleItemDescription:()=>''},
   './SaleActionsMenu':{SaleActionsMenu:props=>React.createElement('sale-actions',props)},'../../utils':{money:{format:v=>String(v)}},
@@ -101,4 +102,12 @@ test('initial date and Today use Sao Paulo even when the browser is in UTC',asyn
  try{await h.flush();assert.equal(h.calls[0].args.p_start,'2026-10-14');
   await act(async()=>button(h,'Limpar período').props.onClick());await h.flush();await act(async()=>button(h,'Hoje').props.onClick());await h.flush();assert.equal(h.calls.at(-1).args.p_end,'2026-10-14');
  }finally{await h.close();if(previous===undefined)delete process.env.TZ;else process.env.TZ=previous;}
+});
+
+test('history defaults use the configured commercial date and reset when the company timezone changes',async()=>{
+ class Clock extends Date {constructor(...args){super(...(args.length?args:['2026-11-17T03:30:00Z']));}}
+ const h=await harness(()=>response([],0,0),{timeZone:'America/Manaus'},Clock);
+ try{await h.flush();assert.equal(h.calls.at(-1).args.p_start,'2026-11-16');assert.equal(h.calls.at(-1).args.p_end,'2026-11-16');
+  await h.update({timeZone:undefined});await h.flush();assert.equal(h.calls.at(-1).args.p_start,'2026-11-17');
+ }finally{await h.close();}
 });
