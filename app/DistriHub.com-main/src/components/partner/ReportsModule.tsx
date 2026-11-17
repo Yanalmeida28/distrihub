@@ -1,3 +1,4 @@
+import { ReportSalesBreakdown } from './ReportSalesBreakdown';
 import { adminBusinessDay, adminSaleDate } from '../../lib/adminDashboard';
 import { saleRevenuePayments } from '../../lib/pdv';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -190,7 +191,9 @@ export function ReportsModule({ timeZone, initialCrmSegment = 'todos', canExport
         {tab === 'estoque' && <StockReport canExport={canExport} products={products} sales={visibleSales} />}
         {tab === 'sem-giro' && <StagnantStockReport canExport={canExport} isActive={isActive} products={products} sales={sales} movements={movements} />}
         {tab === 'crm' && <><CrmReport canExport={canExport} customers={customers} sales={visibleSales} /><CrmWorkspace timeZone={timeZone} initialSegment={initialCrmSegment} customers={customers} sales={completedSales} invoices={invoices} salespeople={salespeople} companyUserId={companyUserId} branchId={branchId} /></>}
-        {(tab === 'vendas' || tab === 'financeiro') && <details><summary>Vendas que compõem os totais ({visibleSales.length})</summary><div className="stock-table-wrap"><table className="rma-table"><thead><tr><th>Venda</th><th>Data</th><th>Cliente</th><th>Pagamento</th><th>Total</th></tr></thead><tbody>{visibleSales.map(s=><tr key={s.id}><td>#{s.id.slice(0,8)}</td><td>{new Date(timeZone ? adminSaleDate(s) : s.created_at).toLocaleString('pt-BR', timeZone ? { timeZone } : undefined)}</td><td>{s.customer_name}</td><td>{s.payment_method}</td><td>{money.format(s.total)}</td></tr>)}</tbody></table></div></details>}
+        {(tab === 'vendas' || tab === 'financeiro') && <ReportSalesBreakdown
+          key={JSON.stringify([companyUserId, branchId, tab, range, startDate, endDate, customerFilter, sellerFilter, paymentFilter, productFilter, timeZone])}
+          sales={visibleSales} timeZone={timeZone} />}
       </div>
     </div>
   );
