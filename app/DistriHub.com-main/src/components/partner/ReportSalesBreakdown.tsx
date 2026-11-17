@@ -5,7 +5,7 @@ import { salePaymentDescription } from '../../lib/pdv';
 import { money } from '../../utils';
 
 type Props = { sales: PartnerSale[]; timeZone?: string };
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 export function ReportSalesBreakdown({ sales, timeZone }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -27,7 +27,7 @@ export function ReportSalesBreakdown({ sales, timeZone }: Props) {
   }
 
   return <details className="report-sales-breakdown" onToggle={event => setExpanded(event.currentTarget.open)}>
-    <summary>Vendas que compõem os totais ({sales.length})</summary>
+    <summary><span>Conferir vendas <span className="report-sales-count">{sales.length}</span></span><span className="report-sales-action">{expanded ? 'Recolher' : 'Ver lista'}</span></summary>
     {expanded && <>
       <p className="report-sales-note">Os totais consideram todas as vendas filtradas.</p>
       {sales.length === 0 ? <p role="status">Nenhuma venda no período selecionado.</p> : <>

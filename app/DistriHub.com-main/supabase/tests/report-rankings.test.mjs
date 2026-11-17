@@ -74,8 +74,8 @@ test('paging the report breakdown does not change totals and scope or filter cha
  const values=()=>r.root.findAllByProps({className:'report-card'}).map(card=>card.findAllByType('strong').map(node=>node.children.filter(v=>typeof v==='string').join('')).join('|'));
  try{
   await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,config));});const totals=values();await open();
-  const next=r.root.findAllByType('button').find(b=>b.children.join('')==='Próxima');await act(async()=>next.props.onClick());assert.deepEqual(values(),totals);assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/11–20 de 25/);
-  await act(async()=>r.root.findByProps({'aria-label':'Filtrar cliente no relat\u00f3rio'}).props.onChange({target:{value:'customer-0'}}));assert.equal(r.root.findAllByProps({'aria-label':'Vendas da página'}).length,0);await open();assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/1–10 de 13/);
+  const next=r.root.findAllByType('button').find(b=>b.children.join('')==='Próxima');await act(async()=>next.props.onClick());assert.deepEqual(values(),totals);assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/6–10 de 25/);
+  await act(async()=>r.root.findByProps({'aria-label':'Filtrar cliente no relat\u00f3rio'}).props.onChange({target:{value:'customer-0'}}));assert.equal(r.root.findAllByProps({'aria-label':'Vendas da página'}).length,0);await open();assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/1–5 de 13/);
   await act(async()=>r.update(React.createElement(exports.ReportsModule,{...config,branchId:'B',sales:[{...breakdownSales[0],id:'branch-B',branch_id:'B'}]})));assert.equal(r.root.findAllByProps({'aria-label':'Vendas da página'}).length,0);await open();assert.match(r.root.findByProps({'aria-live':'polite'}).children.join(''),/1–1 de 1/);
  }finally{if(r)await act(async()=>r.unmount());}
 });
