@@ -34,4 +34,6 @@ Após publicar, validar na loja um envio/substituição de foto de OS, uma foto 
 
 A configuração existente utilizava um IP, enquanto o certificado cobre *.hstgr.io. A implantação resolve o nome reverso Hostinger e exige que a resolução direta aponte para o mesmo IP. Um hostname explícito pode ser fornecido por FTP_TLS_SERVER. Certificado inválido, IP divergente ou falha de DNS interrompem o envio; não há retorno a FTP simples nem desativação de validação TLS. Quatro testes adicionais cobrem a resolução e as rejeições.
 
-Hostname confirmado pelo nome do servidor informado pelo proprietario: srv801.hstgr.io. DNS e certificado FTPS (*.hstgr.io) foram validados sem enviar credenciais. O workflow exige que o hostname resolva para o mesmo IP de FTP_SERVER e conserva validacao TLS estrita.
+Hostname confirmado pelo nome do servidor informado pelo proprietario: srv801.hstgr.io. DNS e certificado FTPS (*.hstgr.io) foram validados sem enviar credenciais. O hostname confirmado substitui o IP antigo. O workflow valida o certificado e confere a versao do app na pasta FTP antes de enviar arquivos.
+
+O IP antigo de FTP_SERVER diverge do servidor confirmado pelo proprietario. O destino passa a ser explicitamente srv801.hstgr.io, com TLS estrito. Antes de escrever arquivos, a implantacao autentica via FTPS, le app-version.json da pasta FTP e exige que a versao coincida com a servida pelo site HTTPS. Pasta diferente, versao ausente ou erro de TLS interrompem o envio. O preflight usa apenas a biblioteca padrao do Python do runner, sem dependencias adicionadas ao app.
