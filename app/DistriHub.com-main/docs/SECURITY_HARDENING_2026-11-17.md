@@ -33,3 +33,5 @@ Após publicar, validar na loja um envio/substituição de foto de OS, uma foto 
 ## Hostname TLS da hospedagem
 
 A configuração existente utilizava um IP, enquanto o certificado cobre *.hstgr.io. A implantação resolve o nome reverso Hostinger e exige que a resolução direta aponte para o mesmo IP. Um hostname explícito pode ser fornecido por FTP_TLS_SERVER. Certificado inválido, IP divergente ou falha de DNS interrompem o envio; não há retorno a FTP simples nem desativação de validação TLS. Quatro testes adicionais cobrem a resolução e as rejeições.
+
+Hostname confirmado pelo nome do servidor informado pelo proprietario: srv801.hstgr.io. DNS e certificado FTPS (*.hstgr.io) foram validados sem enviar credenciais. O workflow exige que o hostname resolva para o mesmo IP de FTP_SERVER e conserva validacao TLS estrita.
