@@ -42,3 +42,26 @@ test('service report lists ten services by revenue without mixing products or ca
   await act(async()=>r.update(React.createElement(exports.ReportsModule,{...props,sales:[]})));assert.deepEqual(names(r,1),[]);
  }finally{if(r)await act(async()=>r.unmount());}
 });
+
+const physical=Array.from({length:12},(_,i)=>product({id:'physical-'+i,name:'Product '+i,is_service:false,cost_price:(i+1)*5,sale_price:100}));
+const physicalSales=physical.map((p,i)=>sale({id:'physical-sale-'+i,created_at:now,completed_at:now,total:(i+1)*100,items:[{product_id:p.id,quantity:i+1,unit_price:100}]}));
+const productProps={...props,customers:[],products:[...physical,product({id:'service-extra',name:'Distractor service',is_service:true,sale_price:100000,cost_price:0})],sales:[...physicalSales,sale({id:'service-extra',created_at:now,completed_at:now,total:100000,items:[{product_id:'service-extra',quantity:100000,unit_price:100}]}),sale({id:'cancelled-physical',created_at:now,completed_at:now,status:'cancelada',total:99999,items:[{product_id:'physical-0',quantity:99999,unit_price:100}]}),sale({id:'old-physical',created_at:'2000-01-01T12:00:00Z',completed_at:'2000-01-01T12:00:00Z',total:99999,items:[{product_id:'physical-0',quantity:99999,unit_price:100}]})]};
+test('products show the top ten by revenue and retain the product and period filters',async()=>{
+ let r;try{
+  await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,productProps));});
+  assert.deepEqual(names(r),Array.from({length:10},(_,i)=>'Product '+(11-i)));
+  assert.match(JSON.stringify(r.toJSON()),/Top 10 Produtos/);
+  await act(async()=>r.root.findByProps({'aria-label':'Filtrar produto no relat\u00f3rio'}).props.onChange({target:{value:'physical-4'}}));assert.deepEqual(names(r),['Product 4']);
+  await act(async()=>r.update(React.createElement(exports.ReportsModule,{...productProps,sales:[]})));assert.deepEqual(names(r),[]);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
+test('stock lists ten physical products by quantity and ten by margin using their existing distinct orderings',async()=>{
+ let r;try{
+  await act(async()=>{r=Renderer.create(React.createElement(exports.ReportsModule,{...productProps,initialTab:'estoque'}));});
+  assert.deepEqual(names(r),Array.from({length:10},(_,i)=>'Product '+(11-i)));
+  const marginTable=r.root.findAllByType('table').find(table=>table.findAllByType('th').some(th=>th.children.join('')==='Margem'));
+  const rows=marginTable.findByType('tbody').findAllByType('tr');assert.equal(rows.length,10);
+  assert.deepEqual(rows.map(row=>row.findByType('strong').children.join('')),Array.from({length:10},(_,i)=>'Product '+i));
+  await act(async()=>r.update(React.createElement(exports.ReportsModule,{...productProps,initialTab:'estoque',products:[physical[0]],sales:[physicalSales[0]]})));assert.deepEqual(names(r),['Product 0']);
+ }finally{if(r)await act(async()=>r.unmount());}
+});
