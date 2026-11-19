@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ const clipboard={read:async()=>[]};
 const source=await readFile(new URL('../../src/components/partner/CadastrosModule.tsx',import.meta.url),'utf8');
 vm.runInNewContext(ts.transpileModule(source+'\nexports.CustomerProfile=CustomerProfileModal; exports.Customers=CustomersSubTab;',{
   compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020},
-}).outputText,{exports,Error,File,navigator:{clipboard},document:{body:{}},window:{alert(){},innerWidth:1024,innerHeight:768},require(name){
+}).outputText,{exports,Error,crypto:{randomUUID},File,navigator:{clipboard},document:{body:{}},window:{alert(){},innerWidth:1024,innerHeight:768},require(name){
   if(name==='react-dom')return {createPortal:children=>children};
   if(name==='./CustomerCnpjLookup')return {CustomerCnpjLookup:lookupView};
   if(name==='../../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}),formatCpf:v=>v??'',formatCnpj:v=>v??'',normalizeDocument:v=>v??''};
@@ -198,4 +199,34 @@ test('edição restaurada de cliente compartilhado salva sem filial e não cria 
   await saveCustomer();
   assert.equal(saved.id,'customer');assert.equal(saved.branch_id,null);assert.equal(saved.name,'Cliente atualizado');
   assert.equal(renderer.root.findAllByType('form').length,0);
+});
+
+async function customerForm(onAdd, overrides={}) {
+ draftInitialValues.set('customers:show-form',true);draftInitialValues.set('customers:name','Cliente fictício');
+ const props={key:'a',branches:[{id:'a',name:'Centro'},{id:'b',name:'Norte'}],selectedBranchId:'a',customers:[],sales:[],salespeople:[],rmaRequests:[],onAdd,onUpdate:async()=>{},onDelete:async()=>{},onLoadCustomer:async()=>customer,...overrides};
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Customers,props));});return props;
+}
+test('customer saves block synchronous duplicate submits and closing until confirmation',async()=>{
+ let finish,calls=0,first;await customerForm(async()=>{calls++;await new Promise(resolve=>{finish=resolve;});});
+ await act(async()=>{first=renderer.root.findByType('form').props.onSubmit({preventDefault(){}});renderer.root.findByType('form').props.onSubmit({preventDefault(){}});});
+ assert.equal(calls,1);assert.equal(renderer.root.findByType('fieldset').props.disabled,true);
+ const close=renderer.root.findByProps({className:'rma-advance-btn mobile-form-close'});assert.equal(close.props.disabled,true);
+ await act(async()=>close.props.onClick());assert.equal(renderer.root.findAllByType('form').length,1);
+ await act(async()=>{finish();await first;});assert.equal(renderer.root.findAllByType('form').length,0);
+});
+test('customer retry preserves its draft request identity and cannot discard uncertain data',async()=>{
+ const ids=[];await customerForm(async(_payload,id)=>{ids.push(id);if(ids.length===1)throw Error('Resposta perdida');});
+ const save=()=>renderer.root.findByType('form').props.onSubmit({preventDefault(){}});
+ await act(async()=>save());assert.equal(renderer.root.findByType('fieldset').props.disabled,true);
+ assert.ok(renderer.root.findAllByType('button').some(n=>n.children.includes('Tentar confirmar')));
+ await act(async()=>renderer.root.findByProps({className:'module-action-btn'}).props.onClick());assert.equal(renderer.root.findAllByType('form').length,1);
+ await act(async()=>save());assert.equal(ids.length,2);assert.equal(ids[0],ids[1]);assert.match(ids[0],/^[0-9a-f-]{36}$/);assert.equal(renderer.root.findAllByType('form').length,0);
+});
+test('a late customer confirmation cannot clear another branch draft',async()=>{
+ let finish,pending;const props=await customerForm(async()=>new Promise(resolve=>{finish=resolve;}));
+ await act(async()=>{pending=renderer.root.findByType('form').props.onSubmit({preventDefault(){}});});
+ draftInitialValues.set('customers:name','Novo rascunho da filial B');
+ await act(async()=>renderer.update(React.createElement(exports.Customers,{...props,key:'b',selectedBranchId:'b'})));
+ await act(async()=>{finish();await pending;});
+ assert.equal(renderer.root.findAllByType('form').length,1);assert.ok(renderer.root.findAllByType('input').some(n=>n.props.value==='Novo rascunho da filial B'));
 });

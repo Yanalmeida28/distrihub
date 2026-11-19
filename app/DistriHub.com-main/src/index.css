@@ -4014,3 +4014,4 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
 }
 .partner-panel .financial-accounts-module .accounts-due-period > label { white-space: normal; overflow-wrap: anywhere; }
+.partner-panel .customer-save-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; grid-column: 1 / -1; }

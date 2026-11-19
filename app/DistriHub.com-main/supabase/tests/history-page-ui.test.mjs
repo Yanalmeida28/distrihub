@@ -1,3 +1,4 @@
+import { realtimeTransport } from './fixtures/realtime_transport.mjs';
 import { businessTimeHelpers } from './fixtures/business-time.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
@@ -10,7 +11,7 @@ import ts from '../../node_modules/typescript/lib/typescript.js';
 const source=await readFile(new URL('../../src/components/partner/SalesHistoryModule.tsx',import.meta.url),'utf8');
 async function harness(rpc,extra={},clock=Date) {
  const timers=new Map();let timerId=0;const calls=[];const merged=[];
- const deps={'../../lib/adminDashboard':businessTimeHelpers,react:React,'react/jsx-runtime':jsx,'lucide-react':new Proxy({},{get:()=>()=>null}),
+ const deps={'../../lib/authenticatedRealtime':realtimeTransport,'../../lib/adminDashboard':businessTimeHelpers,react:React,'react/jsx-runtime':jsx,'lucide-react':new Proxy({},{get:()=>()=>null}),
   '../../lib/pdv':{saleChargeTotal:s=>s.total,salePaymentDescription:()=> 'PIX'},
   '../../lib/saleReturns':{saleReturnLabel:()=>'',saleItemDescription:()=>''},
   './SaleActionsMenu':{SaleActionsMenu:props=>React.createElement('sale-actions',props)},'../../utils':{money:{format:v=>String(v)}},

@@ -847,6 +847,7 @@ export function PartnerPanel({
       PartnerCustomer,
       'id' | 'user_id' | 'created_at'
     >,
+    requestId?: string,
   ) {
     const targetBranch = isEmployeeRestricted
       ? effectiveBranchId
@@ -876,6 +877,7 @@ export function PartnerPanel({
       },
       operatorId,
       operatorPin,
+      requestId,
     );
   }
 

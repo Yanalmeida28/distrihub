@@ -1,3 +1,4 @@
+import { authenticatedRealtime } from '../../lib/authenticatedRealtime';
 import { adminBusinessDay, businessTimeZone } from '../../lib/adminDashboard';
 import { salePaymentDescription } from '../../lib/pdv';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -74,10 +75,12 @@ function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = 
   useEffect(() => {
     if (!companyId || !isActive || !supabase || typeof supabase.channel !== 'function') return;
     const client = supabase;
+    const stopRealtime = authenticatedRealtime(client, () => {
     const channel = client.channel('history-' + companyId + '-' + (branchId ?? 'all'));
     for (const table of ['partner_sales', 'rma_requests_v2']) channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: 'user_id=eq.' + companyId }, () => setHistoryVersion(value => value + 1));
-    channel.subscribe();
-    return () => { void client.removeChannel(channel); };
+    return channel;
+    }, { label: 'sales-history', onStatus: status => { if (status === 'SUBSCRIBED') setHistoryVersion(value => value + 1); } });
+    return () => { stopRealtime(); };
   }, [companyId, branchId, isActive]);
   const traceabilityLabel = 'Série / IMEI / Selo';
   const filteredSales = useMemo(() => {

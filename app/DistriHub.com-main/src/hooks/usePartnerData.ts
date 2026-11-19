@@ -1,3 +1,4 @@
+import { authenticatedRealtime } from '../lib/authenticatedRealtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -836,7 +837,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         setData((previous) => ({ ...previous, profile: profile as PartnerProfile }));
       }
     };
-    const channel = client
+    const stopProfile = authenticatedRealtime(client, () => client
       .channel(`partner-profile-${profileId}`)
       .on(
         'postgres_changes',
@@ -849,7 +850,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
           }
         },
       )
-      .subscribe();
+      , { label: 'partner-profile', expectedUserId: identity?.authUserId });
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') void refreshProfile();
     };
@@ -860,85 +861,43 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       active = false;
       window.removeEventListener('focus', refreshWhenVisible);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
-      void client.removeChannel(channel);
+      stopProfile();
     };
-  }, [identity?.companyUserId]);
+  }, [identity?.companyUserId, identity?.authUserId]);
 
-  const addCustomer = useCallback(
-    async (
-      customer: CustomerPayload,
-      operatorId?: string | null,
-      operatorPin?: string | null,
-    ) => {
-      const { identity: currentIdentity, client } =
-        await requireAuthenticatedSession();
-
-      ensureEmployeeBranch(
-        currentIdentity,
-        customer.branch_id,
-      );
-
-      // Operador que autoriza a operação (fluxo A: id + PIN do modal).
-      // Quando não informado, envia null para que a RPC resolva o
-      // operador pelo auth.uid() da sessão (fluxo B). Nunca enviar o id
-      // da sessão com PIN nulo: a RPC exige PIN válido nesse caso.
-      const effectiveOperatorId = operatorId ?? null;
-      const effectiveOperatorPin = operatorPin ?? null;
-
-      const { data: created, error: rpcError } =
-        await client.rpc(
-          'execute_partner_customer_mutation',
-          {
-            p_salesperson_id: effectiveOperatorId,
-            p_pin: effectiveOperatorPin,
-            p_customer_id: null,
-            p_branch_id: customer.branch_id ?? null,
-            p_name: customer.name,
-            p_document: customer.document ?? null,
-            p_phone: customer.phone ?? null,
-            p_email: customer.email ?? null,
-            p_birthday: customer.birthday ?? null,
-            p_address: customer.address ?? null,
-            p_neighborhood: customer.neighborhood ?? null,
-            p_city: customer.city ?? null,
-            p_device_model: customer.device_model ?? null,
-            p_notes: customer.notes ?? null,
-            p_customer_type: customer.customer_type ?? 'varejo',
-            p_credit_limit: customer.credit_limit ?? 0,
-            p_allow_credit: customer.allow_credit ?? false,
-          },
-        );
-
-      if (rpcError) {
-        throw rpcError;
+  const customerCreationLocks = useRef(new Set<string>());
+  const addCustomer = useCallback(async (customer: CustomerPayload, operatorId?: string | null, operatorPin?: string | null, requestId?: string) => {
+    const { identity: currentIdentity, client } = await requireAuthenticatedSession();
+    ensureEmployeeBranch(currentIdentity, customer.branch_id);
+    if (!customer.branch_id) throw new Error('Selecione a filial antes de cadastrar o cliente.');
+    const scope = currentIdentity.authUserId + ':' + currentIdentity.companyUserId + ':' + customer.branch_id;
+    if (customerCreationLocks.current.has(scope)) throw new Error('Cadastro em confirmação. Aguarde.');
+    const attempts = new OperationAttempts(window.localStorage);
+    const prior = attempts.pending(scope, 'customer-create');
+    const payload = { customer, operatorId: operatorId ?? null };
+    const attempt = attempts.get(scope, 'customer-create', payload, requestId);
+    customerCreationLocks.current.add(scope);
+    try {
+      const { data: id, error } = await client.rpc('create_partner_customer_once', {
+        p_request_id: attempt.id, p_customer: customer, p_operator_id: operatorId ?? null, p_operator_pin: operatorPin ?? null,
+      });
+      if (error) {
+        const uncertain = Boolean(prior) || !isDefinitiveSaleRejection(error.code ?? '');
+        if (!uncertain) attempts.confirm(scope, 'customer-create', attempt.id);
+        throw Object.assign(new Error(error.message), { code: error.code, customerUncertain: uncertain });
       }
-
-      // A RPC retorna o id (uuid) do cliente, não a linha completa.
-      const createdCustomer: PartnerCustomer = {
-        ...customer,
-        id:
-          (created as string | null) ??
-          crypto.randomUUID(),
-        user_id: currentIdentity.companyUserId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      dataRevisionRef.current.invalidate(["customers"]);
-      setData((prev) => ({
-        ...prev,
-        customers: [
-          createdCustomer,
-          ...prev.customers.filter(
-            (item) => item.id !== createdCustomer.id,
-          ),
-        ],
-      }));
-
-      return createdCustomer;
-    },
-    [requireAuthenticatedSession],
-  );
+      if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        throw new Error('O banco não confirmou o cadastro. Mantenha os dados e tente novamente para recuperar a mesma tentativa.');
+      }
+      attempts.confirm(scope, 'customer-create', attempt.id);
+      const created: PartnerCustomer = { ...customer, id, user_id: currentIdentity.companyUserId, created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      if (mountedRef.current && identityScopeRef.current === currentIdentity.authUserId + ':' + currentIdentity.companyUserId) {
+        dataRevisionRef.current.invalidate(['customers']);
+        setData(previous => ({ ...previous, customers: [created, ...previous.customers.filter(item => item.id !== id)] }));
+      }
+      return created;
+    } finally { customerCreationLocks.current.delete(scope); }
+  }, [requireAuthenticatedSession]);
 
   const customerPhotoPaths = useRef(new WeakMap<File, string>());
   const updateCustomer = useCallback(
@@ -1555,36 +1514,47 @@ read('sales', (signal) => fetchAllPages((from, to) => client
     const scope = currentIdentity.authUserId + ':' + currentIdentity.companyUserId;
     const request = ++pdvRequestId.current;
     setPdvReturnCredits([]);
+    const knownSales = dataSnapshotRef.current.sales.filter(sale => sale.branch_id === branchId && ['aberta', 'pre_venda'].includes(sale.status)).map(sale => sale.id);
+    const knownInvoices = dataSnapshotRef.current.invoices.filter(invoice => invoice.branch_id === branchId && ['aberta', 'vencida', 'parcial', 'pending'].includes(invoice.status)).map(invoice => invoice.id);
     const readRevision = dataRevisionRef.current.begin(['products', 'sales', 'invoices', 'movements']);
     setPdvCredits([]);
     if (!isSupabaseConfigured || !supabase) throw new Error('Sincronização do PDV requer Supabase.');
     const { data: snapshot, error: syncError } = await pdvReadFlight.current.run(
-      JSON.stringify([scope, currentIdentity.salespersonId, branchId]), signal => {
-        const query = supabase!.rpc('get_partner_pdv_snapshot', { p_branch_id: branchId });
-        return typeof query.abortSignal === 'function' ? query.abortSignal(signal) : query;
+      JSON.stringify([scope, currentIdentity.salespersonId, branchId, knownSales, knownInvoices]), async signal => {
+        const run = (args: Record<string, unknown>) => {
+          const query = supabase!.rpc('get_partner_pdv_snapshot', args);
+          return typeof query.abortSignal === 'function' ? query.abortSignal(signal) : query;
+        };
+        const result = await run({ p_branch_id: branchId, p_operational: true, p_known_sales: knownSales, p_known_invoices: knownInvoices });
+        // Support a staged deployment; never retry permission or network errors as a different operation.
+        return result.error?.code === 'PGRST202' ? run({ p_branch_id: branchId }) : result;
       }, reusePending);
     if (syncError) throw syncError;
     if (!snapshot || !Array.isArray(snapshot.credits) || !Array.isArray(snapshot.products)
       || !Array.isArray(snapshot.sales) || !Array.isArray(snapshot.invoices) || !Array.isArray(snapshot.movements)) {
       throw new Error('Resposta de sincronização do PDV inválida.');
     }
-    const result = snapshot as { credits: CustomerCredit[]; return_credits?: RmaRequest[]; products: PartnerProduct[]; sales: PartnerSale[]; invoices: PartnerInvoice[]; movements: StockMovement[] };
+    const result = snapshot as { operational?: boolean; credits: CustomerCredit[]; return_credits?: RmaRequest[]; products: PartnerProduct[]; sales: PartnerSale[]; invoices: PartnerInvoice[]; movements: StockMovement[] };
     if (mountedRef.current && identityScopeRef.current === scope && request === pdvRequestId.current) {
       const mergeBranch = <T extends { branch_id?: string | null }>(old: T[], rows: T[]) =>
         [...rows, ...old.filter(row => row.branch_id !== branchId)];
+      const mergeOperational = <T extends { id: string; branch_id?: string | null }>(old: T[], rows: T[], known: string[]) => {
+        const received = new Map(rows.map(row => [row.id, row]));
+        return [...rows, ...old.filter(row => !received.has(row.id) && !(row.branch_id === branchId && known.includes(row.id)))];
+      };
       setData(prev => ({ ...prev,
         products: dataRevisionRef.current.isCurrent(readRevision, 'products') ? mergeBranch(prev.products, result.products) : prev.products,
-        sales: dataRevisionRef.current.isCurrent(readRevision, 'sales') ? mergeBranch(prev.sales, result.sales) : prev.sales,
-        invoices: dataRevisionRef.current.isCurrent(readRevision, 'invoices') ? mergeBranch(prev.invoices, result.invoices) : prev.invoices,
-        movements: dataRevisionRef.current.isCurrent(readRevision, 'movements') ? mergeBranch(prev.movements, result.movements) : prev.movements,
+        sales: dataRevisionRef.current.isCurrent(readRevision, 'sales') ? result.operational ? mergeOperational(prev.sales, result.sales, knownSales) : mergeBranch(prev.sales, result.sales) : prev.sales,
+        invoices: dataRevisionRef.current.isCurrent(readRevision, 'invoices') ? result.operational ? mergeOperational(prev.invoices, result.invoices, knownInvoices) : mergeBranch(prev.invoices, result.invoices) : prev.invoices,
+        movements: dataRevisionRef.current.isCurrent(readRevision, 'movements') && !result.operational ? mergeBranch(prev.movements, result.movements) : prev.movements,
       }));
       if (dataRevisionRef.current.isCurrent(readRevision, 'invoices') && dataRevisionRef.current.isCurrent(readRevision, 'sales')) {
         setPdvCredits(result.credits);
         setPdvReturnCredits(result.return_credits ?? []);
       }
       if (currentIdentity.salespersonId && resourceScopeRef.current !== null) {
-        for (const key of ['products', 'sales', 'invoices', 'movements']) if (dataRevisionRef.current.isCurrent(readRevision, key)) loadCacheRef.current.mark(key);
-        if (dataRevisionRef.current.isCurrent(readRevision, 'invoices')) authorizedPdvScopeRef.current = scope;
+        for (const key of (result.operational ? ['products'] : ['products', 'sales', 'invoices', 'movements'])) if (dataRevisionRef.current.isCurrent(readRevision, key)) loadCacheRef.current.mark(key);
+        if (!result.operational && dataRevisionRef.current.isCurrent(readRevision, 'invoices')) authorizedPdvScopeRef.current = scope;
       }
       setPdvSyncWarning(null);
     }
@@ -1653,6 +1623,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       window.clearTimeout(debounce);
       debounce = window.setTimeout(() => { void refreshOperationalData(); }, 500);
     };
+    const stopSync = authenticatedRealtime(client, () => {
     const channel = client.channel(`partner-sync-${scope}-${branchId ?? 'all'}`);
     for (const table of ['partner_sales', 'partner_products', 'partner_invoices', 'stock_movements', 'b2b_orders', 'rma_requests_v2']) {
       const applyChange = (payload: { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> }) => {
@@ -1686,10 +1657,11 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table, filter: `user_id=eq.${companyId}` }, applyChange);
       channel.on('postgres_changes', { event: 'DELETE', schema: 'public', table }, applyChange);
     }
-    channel.subscribe(status => {
+    return channel;
+    }, { label: 'partner-sync', expectedUserId: identity.authUserId, onStatus: status => {
       subscribed = status === 'SUBSCRIBED';
       if (subscribed) { const reconnecting = connectedOnce; connectedOnce = true; if (reconnecting || resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current)) reconcile(); }
-    });
+    } });
     // Employee RLS is narrower than the authorized PDV RPC (especially invoices).
     // Keep branch reconciliation for employees without broadening table access.
     const timer = window.setInterval(() => { if (!subscribed || (identity.salespersonId && (resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current)))) reconcile(); }, 30_000);
@@ -1703,7 +1675,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       window.removeEventListener('focus', reconcile);
       window.removeEventListener('online', reconcile);
       document.removeEventListener('visibilitychange', reconcile);
-      void client.removeChannel(channel);
+      stopSync();
     };
   }, [identity, syncBranchId, loading, hasLoaded, refreshOperationalData, loadData]);
 

@@ -1,3 +1,4 @@
+import { realtimeTransport } from './fixtures/realtime_transport.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFile} from 'node:fs/promises';
@@ -14,7 +15,7 @@ test('support badge refreshes without opening chat, preserves confirmed counts o
  const client={rpc:async()=>{count++;return hold?new Promise(r=>{release=r;}):response;},channel(){const q={on(){return q;},subscribe(){return q;}};return q;},removeChannel(){removed++;}};
  const window={setInterval:f=>{intervals.set(++timer,f);return timer;},clearInterval:id=>intervals.delete(id),addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:(n,f)=>{if(listeners.get(n)===f)listeners.delete(n);}};
  const document={addEventListener(){},removeEventListener(){}};
- const exports={};vm.runInNewContext(source,{exports,window,document,require:n=>n==='../lib/supabase'?{supabase:client}:require(n)});
+ const exports={};vm.runInNewContext(source,{exports,window,document,require:n=>n==='../lib/authenticatedRealtime'?realtimeTransport:n==='../lib/supabase'?{supabase:client}:require(n)});
  let snapshot;function Harness({actor}){snapshot=exports.useSupportUnread(actor);return null;}
  let view;await act(async()=>{view=create(React.createElement(Harness,{actor:'owner'}));});
  try{

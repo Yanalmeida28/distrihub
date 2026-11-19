@@ -1,3 +1,4 @@
+import { authenticatedRealtime } from '../../lib/authenticatedRealtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Headphones, Send, Sparkles, MessageSquareText } from 'lucide-react';
 import type { User } from '@supabase/supabase-js';
@@ -102,10 +103,10 @@ function SupportChat({ user, conversationUserId, admin = false, isActive = true 
       }
     };
     reload.current = () => { void loadMessages(); };
-    const channel = client.channel('support-' + scope).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: 'user_id=eq.' + userId }, () => { void loadMessages(); }).subscribe(status => { if (status === 'SUBSCRIBED') void loadMessages(); });
+    const stopRealtime = authenticatedRealtime(client, () => client.channel('support-' + scope).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages', filter: 'user_id=eq.' + userId }, () => { void loadMessages(); }), { label: 'support-chat', expectedUserId: actorId, onStatus: status => { if (status === 'SUBSCRIBED') void loadMessages(); } });
     void loadMessages();
     const interval = window.setInterval(() => { void loadMessages(); }, 10000);
-    return () => { live = false; reload.current = null; window.clearInterval(interval); void client.removeChannel(channel); };
+    return () => { live = false; reload.current = null; window.clearInterval(interval); stopRealtime(); };
   }, [actorId, userId, admin, isActive, scope]);
 
   useEffect(() => {
