@@ -8,12 +8,17 @@ import React from 'react';
 import * as jsx from 'react/jsx-runtime';
 import TestRenderer, { act } from 'react-test-renderer';
 import ts from '../../node_modules/typescript/lib/typescript.js';
+const mobileFilters = {};
+vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/components/partner/MobileFilters.tsx', import.meta.url),'utf8'), {
+  compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020},
+}).outputText,{exports:mobileFilters,require:name=>name==='react'?React:jsx});
 const module = { exports: {} };
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/components/partner/OpenOrdersModule.tsx', import.meta.url),'utf8'), {
   compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020},
 }).outputText,{
   exports:module.exports,
   require(name) {
+    if(name==='./MobileFilters')return mobileFilters;
     if(name==='../../lib/orderQuotePdf') return {prepareOrderQuoteLogo:async()=>{}};
     if(name==='./SplitPaymentFields') return splitPaymentComponent;
     if(name==='react')return React;
