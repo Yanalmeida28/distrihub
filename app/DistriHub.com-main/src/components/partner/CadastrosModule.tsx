@@ -77,7 +77,7 @@ type Props = {
   onDeleteCombo: (id: string) => Promise<void>;
   onAddModifier: (m: Omit<PartnerModifier, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
   onDeleteModifier: (id: string) => Promise<void>;
-  onAddCustomer: (c: Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  onAddCustomer: (c: Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at'>, requestId?: string) => Promise<void>;
   onUpdateCustomer: (id: string, updates: PartnerCustomerUpdate) => Promise<void>;
   onLoadCustomer: (id: string) => Promise<PartnerCustomer>;
   onDeleteCustomer: (id: string) => Promise<void>;
@@ -328,6 +328,8 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [showForm, setShowForm] = useSessionDraftState('products:show-form', false);
   const [productSearch, setProductSearch] = useState('');
+  const [productPage, setProductPage] = useState(1);
+  useEffect(() => { setProductPage(1); }, [selectedBranchId, defaultIsService]);
   const matchingProducts = useMemo(() => {
     const term = normalizeProductName(productSearch);
     return products.filter((product) =>
@@ -336,6 +338,11 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
       normalizeProductName(product.barcode).includes(term),
     );
   }, [products, productSearch]);
+  const productPages = Math.max(1, Math.ceil(matchingProducts.length / 20));
+  const currentProductPage = Math.min(productPage, productPages);
+  const productOffset = (currentProductPage - 1) * 20;
+  const visibleProducts = matchingProducts.slice(productOffset, productOffset + 20);
+  useEffect(() => { setProductPage(page => Math.min(page, productPages)); }, [productPages]);
   const [name, setName] = useSessionDraftState('products:name', '');
   const [sku, setSku] = useSessionDraftState('products:sku', '');
   const [barcode, setBarcode] = useSessionDraftState('products:barcode', '');
@@ -616,7 +623,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
         <input
           type="search"
           value={productSearch}
-          onChange={(event) => setProductSearch(event.target.value)}
+          onChange={(event) => { setProductSearch(event.target.value); setProductPage(1); }}
           placeholder="Pesquisar produto, modelo, SKU ou código de barras..."
           enterKeyHint="search" aria-label="Pesquisar produto, modelo, SKU ou código de barras"
         />
@@ -632,7 +639,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
             {matchingProducts.length === 0 ? (
               <tr><td colSpan={7} className="empty-row">Nenhum produto encontrado.</td></tr>
             ) : (
-              matchingProducts.map((p) => (
+              visibleProducts.map((p) => (
                 <tr key={p.id} className={p.image_url ? 'product-with-photo' : undefined}>
                   <td className="directory-card-title"><div className="product-identity">{p.image_url && <img className="product-list-photo" src={p.image_url} alt={p.name} loading="lazy" />}<div className="product-identity-text"><strong>{p.name}</strong><small>SKU: {p.sku ?? '—'}</small>{p.barcode && <small>Código de barras: {p.barcode}</small>}{p.is_service && <small className="tag-service">Serviço</small>}</div></div></td>
                   <td data-label="Custo">{money.format(p.cost_price)}</td>
@@ -674,6 +681,11 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
         </table>
       </div>
 
+      {matchingProducts.length > 0 && <nav className="financial-flow-pagination" aria-label="Paginação do cadastro de produtos">
+        <span role="status" aria-live="polite">{productOffset + 1}–{productOffset + visibleProducts.length} de {matchingProducts.length} {defaultIsService ? 'serviços' : 'produtos'}</span>
+        <div><button type="button" className="rma-advance-btn" disabled={currentProductPage === 1} onClick={() => { setProductPage(currentProductPage - 1); setOpenActionId(null); }}>Anterior</button>
+          <button type="button" className="rma-advance-btn" disabled={currentProductPage === productPages} onClick={() => { setProductPage(currentProductPage + 1); setOpenActionId(null); }}>Próxima</button></div>
+      </nav>}
       {photoProduct && <CustomerPhotoViewer name={photoProduct.name} imageUrl={photoProduct.image_url ?? null} entityLabel="produto" onClose={() => setPhotoProduct(null)} />}
 
       {labelProductId && (
@@ -1247,10 +1259,19 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
   salespeople: PartnerSalesperson[];
   onLoadCustomer: (id: string) => Promise<PartnerCustomer>;
   selectedBranchId: string | null;
-  onAdd: (c: Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
+  onAdd: (c: Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at'>, requestId?: string) => Promise<void>;
   onUpdate: (id: string, updates: Partial<PartnerCustomer>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
+  const [customerRequestId, setCustomerRequestId] = useSessionDraftState<string | null>('customers:create-request', null);
+  const [customerUncertain, setCustomerUncertain] = useSessionDraftState('customers:unconfirmed', false);
+  const [savingCustomer, setSavingCustomer] = useState(false);
+  const customerSave = useRef({ version: 0, pending: false });
+  useEffect(() => {
+    customerSave.current.version++; customerSave.current.pending = false; setSavingCustomer(false);
+    const operation = customerSave.current;
+    return () => { operation.version++; operation.pending = false; };
+  }, [selectedBranchId, isActive]);
   const [showForm, setShowForm] = useSessionDraftState('customers:show-form', false);
   const [editingCustomerId, setEditingCustomerId] = useSessionDraftState<string | null>('customers:editing-id', null, undefined, value => value === null || typeof value === 'string');
   const [name, setName] = useSessionDraftState('customers:name', '');
@@ -1285,7 +1306,10 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
     setPhotoCustomer(null);
   }, [isActive]);
 
-  function resetForm() {
+  function resetForm(confirmed = false) {
+    if (customerSave.current.pending || (customerUncertain && !confirmed)) return;
+    customerSave.current.version++;
+    setCustomerRequestId(null); setCustomerUncertain(false);
     setCustomerBranchId(''); setBranchError(null);
     setName(''); setDocument(''); setPersonType('PF'); setPhone(''); setEmail(''); setBirthday(''); setAddress('');
     setNeighborhood(''); setCity(''); setDevice(''); setNotes(''); setCustomerType('varejo');
@@ -1293,6 +1317,8 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
   }
 
   function openEditForm(customer: PartnerCustomer) {
+    if (customerSave.current.pending || customerUncertain || !isActive) return;
+    customerSave.current.version++;
     setCustomerBranchId(''); setBranchError(null);
     setEditingCustomerId(customer.id);
     setName(customer.name ?? '');
@@ -1314,6 +1340,7 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (customerSave.current.pending || !isActive) return;
     if (!name.trim()) return;
     if (!targetBranchId && !isSharedCustomer) {
       setBranchError(branches.length ? 'Selecione a filial do cliente no campo abaixo para salvar.' : 'Cadastre uma filial em Configurações antes de salvar o cliente.');
@@ -1370,13 +1397,21 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
       return;
     }
 
+    customerSave.current.pending = true; setSavingCustomer(true);
+    const version = customerSave.current.version;
+    const current = () => customerSave.current.version === version;
     try {
       if (editingCustomerId) {
         await onUpdate(editingCustomerId, payload);
       } else {
-        await onAdd(payload as Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at'>);
+        const requestId = customerRequestId ?? crypto.randomUUID();
+        setCustomerRequestId(requestId); setCustomerUncertain(true);
+        await onAdd(payload as Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at'>, requestId);
+        if (current()) { setCustomerUncertain(false); setCustomerRequestId(null); }
       }
-        } catch (error) {
+    } catch (error) {
+      if (!current()) return;
+      if (error && typeof error === 'object' && 'customerUncertain' in error && error.customerUncertain === false) { setCustomerUncertain(false); setCustomerRequestId(null); }
       if (error && typeof error === 'object') {
         const err = error as {
           message?: unknown;
@@ -1404,9 +1439,11 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
           : 'Não foi possível salvar o cliente.'
       );
       return;
+    } finally {
+      if (current()) { customerSave.current.pending = false; setSavingCustomer(false); }
     }
 
-    resetForm();
+    if (current()) resetForm(true);
   }
 
   const historyCustomer = customers.find((c) => c.id === historyCustomerId);
@@ -1431,7 +1468,8 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
   return (
     <div>
       <div className="action-row">
-        <button className="module-action-btn" onClick={() => {
+        <button className="module-action-btn" disabled={savingCustomer || customerUncertain || !isActive} onClick={() => {
+          if (customerSave.current.pending || customerUncertain || !isActive) return;
           if (showForm && editingCustomerId) {
             resetForm();
             return;
@@ -1457,8 +1495,9 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
         enterKeyHint="search" aria-label="Buscar clientes"
         style={{ width: '100%', marginBottom: '12px' }}
       />
+      {customerUncertain && <p role="status" className="branch-action-error">Cadastro aguardando confirmação. Use Tentar confirmar para recuperar a mesma tentativa, sem criar outro cliente.</p>}
       {showForm && (
-        <form className="rma-form" onSubmit={handleSubmit}>
+        <form className="rma-form" onSubmit={handleSubmit}><fieldset className="customer-save-fields" aria-label="Dados do cliente" disabled={savingCustomer || customerUncertain || !isActive}>
           {isSharedCustomer ? <p>Cliente compartilhado entre filiais. O vínculo será preservado ao salvar.</p> : <label>Filial do cliente
             <select aria-label="Filial do cliente" value={targetBranchId} disabled={Boolean(existingBranchId || selectedBranchId)}
               onChange={event => { setCustomerBranchId(event.target.value); setBranchError(null); }}>
@@ -1559,7 +1598,7 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
             Observações Adicionais
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas sobre o cliente..." rows={2} />
           </label>
-          <div className="mobile-form-actions"><button type="submit" className="module-submit-btn">{editingCustomerId ? 'Salvar alterações' : 'Cadastrar cliente'}</button><button type="button" className="rma-advance-btn mobile-form-close" onClick={resetForm}>Fechar cadastro</button></div>
+          </fieldset><div className="mobile-form-actions"><button type="submit" className="module-submit-btn" disabled={savingCustomer || !isActive}>{savingCustomer ? 'Salvando…' : customerUncertain ? 'Tentar confirmar' : editingCustomerId ? 'Salvar alterações' : 'Cadastrar cliente'}</button><button type="button" className="rma-advance-btn mobile-form-close" disabled={savingCustomer || customerUncertain || !isActive} onClick={() => resetForm()}>Fechar cadastro</button></div>
         </form>
       )}
 

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -15,7 +16,7 @@ vm.runInNewContext(compile(await readFile(new URL('../../src/lib/productNames.ts
 const invoice={invoiceKey:'1'.repeat(44),supplier:{name:'Fornecedor',document:'12345678000199'},items:[{name:'Produto',sku:'P1',qty:2,cost:12.5}]};
 const exports={};
 vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/CadastrosModule.tsx',import.meta.url),'utf8')+'\nexports.Suppliers=SuppliersSubTab;exports.Xml=XmlSubTab;exports.Categories=CategoriesSubTab;exports.Combos=CombosSubTab;exports.Profile=CustomerProfileModal;exports.Products=ProductsSubTab;exports.Replenishment=ReplenishmentSubTab;'),{
- exports,Error,document:{body:{}},window:{confirm:()=>true,innerWidth:1024,innerHeight:768},require(name){
+ exports,Error,crypto:{randomUUID},document:{body:{}},window:{confirm:()=>true,innerWidth:1024,innerHeight:768},require(name){
   if(name==='react-dom')return {createPortal:children=>children};
   if(name==='./CustomerCnpjLookup')return {CustomerCnpjLookup:()=>null};
   if(name==='./ImportExportModule')return {ExportButtons:()=>null};
@@ -163,9 +164,9 @@ test('product deletion runs only once while a request is pending and clears busy
  const remove=await productDeleteAction(async()=>{calls++;await pending;});
  await act(async()=>{remove();remove();});
  assert.equal(calls,1);
- assert.match(renderer.root.findByProps({role:'status'}).children.join(''),/Excluindo/);
+ assert.match(renderer.root.findAllByProps({role:'status'}).map(n=>n.children.join('')).join(' '),/Excluindo/);
  await act(async()=>finish());
- assert.equal(renderer.root.findAllByProps({role:'status'}).length,0);
+ assert.equal(renderer.root.findAllByProps({role:'status'}).some(n=>n.children.join('').includes('Excluindo')),false);
  assert.equal(renderer.root.findAllByProps({role:'alert'}).length,0);
 });
 
@@ -225,4 +226,20 @@ test('customer total excludes pending and cancelled sales and subtracts issued r
  const sale=(id,status,total)=>({id,status,total,customer_id:'customer',user_id:'owner',items:[]});
  await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Profile,{customer,sales:[sale('done','concluida',100),sale('cancelled','cancelada',200),sale('pending','aberta',300)],rmaRequests:[{sale_id:'done',user_id:'owner',credit_amount:20,refund_amount:20}],salespeople:[],onUpdate:async()=>{},onClose(){}}));});
  assert.match(rendered(),/80,00/);assert.match(rendered(),/compras concluídas/);assert.doesNotMatch(rendered(),/600,00/);
+});
+
+test('product pages render only 20 rows, search all products and clamp after refresh or branch change',async()=>{
+ const products=Array.from({length:45},(_,i)=>({id:'page-'+i,name:'Produto '+i,sku:'SKU-'+String(i).padStart(3,'0'),branch_id:'a',stock:1,cost_price:1,sale_price:2}));
+ const props={products,allProducts:products,branches:[],selectedBranchId:'a',categories:[],suppliers:[],segment:'assistencia',onAddSupplier:async()=>{},onAddProduct:async()=>{},findProductDuplicates:async()=>[],onUpdateProduct:async()=>{},onDeleteProduct:async()=>{}};
+ await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Products,props));});
+ const rows=()=>renderer.root.findByType('tbody').findAllByType('tr');const status=()=>renderer.root.findByProps({'aria-live':'polite'}).children.join('');const next=()=>renderer.root.findAllByType('button').find(n=>n.children.includes('Próxima'));
+ assert.equal(rows().length,20);assert.match(status(),/1–20 de 45/);
+ await act(async()=>next().props.onClick());assert.match(status(),/21–40 de 45/);
+ await act(async()=>next().props.onClick());assert.equal(rows().length,5);assert.equal(next().props.disabled,true);
+ await act(async()=>renderer.update(React.createElement(exports.Products,{...props,products:products.slice(0,3)})));assert.match(status(),/1–3 de 3/);
+ await act(async()=>renderer.update(React.createElement(exports.Products,props)));assert.match(status(),/1–20 de 45/);
+ const search=()=>renderer.root.findByProps({'aria-label':'Pesquisar produto, modelo, SKU ou código de barras'});
+ await act(async()=>search().props.onChange({target:{value:'SKU-044'}}));assert.equal(rows().length,1);assert.match(status(),/1–1 de 1/);assert.match(rows()[0].findByType('strong').children.join(''),/Produto 44/);
+ await act(async()=>search().props.onChange({target:{value:''}}));await act(async()=>next().props.onClick());
+ await act(async()=>renderer.update(React.createElement(exports.Products,{...props,selectedBranchId:'b'})));assert.match(status(),/1–20 de 45/);
 });

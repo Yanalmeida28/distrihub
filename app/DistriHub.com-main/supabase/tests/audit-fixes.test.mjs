@@ -1,3 +1,4 @@
+import { realtimeTransport } from './fixtures/realtime_transport.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ async function load(path, dependencies = {}, globals = {}, extra = '') {
   vm.runInNewContext(ts.transpileModule(source + extra, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, Error, JSON, Number, crypto: { randomUUID: () => 'request-id' },
-    require: name => dependencies[name] ?? require(name), ...globals });
+    require: name => name.endsWith('/authenticatedRealtime') ? realtimeTransport : dependencies[name] ?? require(name), ...globals });
   return exports;
 }
 const documentUtils = await load('utils.ts', { './data': {} });

@@ -1,3 +1,4 @@
+import { authenticatedRealtime } from '../lib/authenticatedRealtime';
 import { SupportUnreadBadge } from './SupportUnreadBadge';
 import { useEffect, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -48,9 +49,9 @@ export function AdminSupportInbox({ companies, unreadCounts = {} }: { companies:
   useEffect(() => {
     if (!supabase || !user) return;
     const client = supabase;
-    const channel = client.channel('admin-support-inbox-v2').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, () => setVersion(v => v + 1)).subscribe();
+    const stopRealtime = authenticatedRealtime(client, () => client.channel('admin-support-inbox-v2').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'support_messages' }, () => setVersion(v => v + 1)), { label: 'admin-support-inbox', expectedUserId: user.id });
     const timer = window.setInterval(() => setVersion(v => v + 1), 10000);
-    return () => { window.clearInterval(timer); void client.removeChannel(channel); };
+    return () => { window.clearInterval(timer); stopRealtime(); };
   }, [user]);
   async function update(action: 'priority_high' | 'priority_normal' | 'close' | 'reopen') {
     if (!supabase || !selected || lock.current) return;

@@ -1,3 +1,4 @@
+import { realtimeTransport } from './fixtures/realtime_transport.mjs';
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -301,6 +302,7 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
     navigator:network,
     document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
     require(name){
+      if(name==='../lib/authenticatedRealtime')return realtimeTransport;
       if(name==='react')return React;
       if(name==='../lib/supabase')return {supabase:client,isSupabaseConfigured:true};
       if(name==='../lib/invoicePayments')return invoiceModule.exports;
@@ -1066,3 +1068,28 @@ test('history hook serializes requests and rejects an unconfirmed sale ID',async
  await act(async()=>{release({data:'other-sale',error:null});await assert.rejects(pending,/não confirmado/);});assert.equal(h.current.sales[0].status,'concluida');
 });
 
+
+test('customer recovery reuses the receipt ID after a lost response and never stores the PIN',async()=>{
+ const calls=[];const confirmed=randomUUID();let fail=true;const requestId=randomUUID();
+ const h=await harness({branchId:'branch',resourceScope:'cadastros:clientes',rpc:async(name,args)=>{calls.push({name,args});return fail?{data:null,error:{message:'Lost response'}}:{data:confirmed,error:null};}});
+ const customer={name:'Cliente',branch_id:'branch',customer_type:'regular',allow_credit:false,credit_limit:0};
+ await act(async()=>assert.rejects(h.current.addCustomer(customer,'operator','secret-pin',requestId),/Lost response/));
+ assert.equal(h.current.customers.length,0);assert.ok(![...h.values.values()].join('').includes('secret-pin'));
+ fail=false;await act(async()=>h.current.addCustomer(customer,'operator','secret-pin',requestId));
+ assert.equal(calls[0].name,'create_partner_customer_once');assert.equal(calls[1].args.p_request_id,requestId);assert.equal(calls[0].args.p_request_id,requestId);assert.equal(h.current.customers[0].id,confirmed);
+ // The UI can retain the same ID after a branch change even after local receipt cleanup.
+ await act(async()=>h.current.addCustomer(customer,'operator','secret-pin',requestId));
+ assert.equal(calls[2].args.p_request_id,requestId);assert.equal(h.current.customers.length,1);
+});
+
+test('operational PDV keeps historical cache, refreshes known closures and falls back only for missing overload',async()=>{
+ const historical={id:'historical',user_id:'owner',branch_id:'branch',status:'concluida'};
+ const open={...historical,id:'open',status:'pre_venda'};const removed={...open,id:'removed'};const other={...open,id:'other',branch_id:'other-branch'};
+ const calls=[];let fallback=false;let denied=false;
+ const h=await harness({initialSales:[historical,open,removed,other],rpc:async(name,args)=>{calls.push(args);if(denied)return {data:null,error:{code:'42501',message:'Denied'}};if(fallback&&args.p_operational)return {data:null,error:{code:'PGRST202',message:'Missing overload'}};return {data:snapshot({operational:!fallback,sales:[{...open,status:'cancelada'}]}),error:null};}});
+ await act(async()=>h.current.refreshPdv('branch'));
+ assert.equal(calls[0].p_operational,true);assert.equal(calls[0].p_known_sales.join(','),'open,removed');
+ assert.equal(h.current.sales.find(s=>s.id==='open').status,'cancelada');assert.ok(h.current.sales.some(s=>s.id==='historical'));assert.ok(h.current.sales.some(s=>s.id==='other'));assert.ok(!h.current.sales.some(s=>s.id==='removed'));
+ fallback=true;await act(async()=>h.current.refreshPdv('branch'));assert.equal(calls.length,3);assert.equal(Object.keys(calls[2]).join(','),'p_branch_id');
+ denied=true;await act(async()=>assert.rejects(h.current.refreshPdv('branch'),e=>e.message==='Denied'));assert.equal(calls.length,4);
+});

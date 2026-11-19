@@ -1,3 +1,4 @@
+import { realtimeTransport } from './fixtures/realtime_transport.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {readFile} from 'node:fs/promises';
@@ -18,7 +19,7 @@ test('support unread: realtime INSERT refreshes, hidden tab never polls, returni
  const window={setInterval:(f,ms)=>{intervals.set(++timer,{f,ms});return timer;},clearInterval:id=>intervals.delete(id),
   addEventListener:(n,f)=>listeners.set(n,f),removeEventListener:(n,f)=>{if(listeners.get(n)===f)listeners.delete(n);}};
  const document={visibilityState:'visible',addEventListener:(n,f)=>docListeners.set(n,f),removeEventListener:(n,f)=>{if(docListeners.get(n)===f)docListeners.delete(n);}};
- const exports={};vm.runInNewContext(hookSource,{exports,window,document,require:n=>n==='../lib/supabase'?{supabase:client}:require(n)});
+ const exports={};vm.runInNewContext(hookSource,{exports,window,document,require:n=>n==='../lib/authenticatedRealtime'?realtimeTransport:n==='../lib/supabase'?{supabase:client}:require(n)});
  function Harness(){exports.useSupportUnread('owner');return null;}
  let view;await act(async()=>{view=create(React.createElement(Harness));});
  try{
@@ -42,7 +43,7 @@ test('support unread: first SUBSCRIBED does not duplicate the mount refresh, rec
   channel(){const q={on(){return q;},subscribe(cb){statusCb=cb;return q;}};return q;},removeChannel(){}};
  const window={setInterval:()=>1,clearInterval(){},addEventListener:(n,f)=>listeners.set(n,f),removeEventListener(){}};
  const document={visibilityState:'visible',addEventListener:(n,f)=>docListeners.set(n,f),removeEventListener(){}};
- const exports={};vm.runInNewContext(hookSource,{exports,window,document,require:n=>n==='../lib/supabase'?{supabase:client}:require(n)});
+ const exports={};vm.runInNewContext(hookSource,{exports,window,document,require:n=>n==='../lib/authenticatedRealtime'?realtimeTransport:n==='../lib/supabase'?{supabase:client}:require(n)});
  function Harness(){exports.useSupportUnread('owner');return null;}
  let view;await act(async()=>{view=create(React.createElement(Harness));});
  try{

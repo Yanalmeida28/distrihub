@@ -1,3 +1,4 @@
+import { realtimeTransport } from './fixtures/realtime_transport.mjs';
 import assert from 'node:assert/strict';
 import { test, afterEach } from 'node:test';
 import { readFile } from 'node:fs/promises';
@@ -56,6 +57,7 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],r
     navigator:{onLine:true},
     document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
     require(name){
+      if(name==='../lib/authenticatedRealtime')return realtimeTransport;
       if(name==='react')return React;
       if(name==='../lib/supabase')return {supabase:client,isSupabaseConfigured:true};
       if(name==='../lib/invoicePayments')return invoiceModule.exports;

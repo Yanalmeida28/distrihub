@@ -9,13 +9,14 @@ export class OperationAttempts {
     if (!value.id || !value.payload) throw new Error('Tentativa inválida. Confira a operação antes de continuar.');
     return value;
   }
-  get<T>(scope: string, kind: string, payload: T): OperationAttempt<T> {
+  get<T>(scope: string, kind: string, payload: T, requestId?: string): OperationAttempt<T> {
     const previous = this.pending<T>(scope, kind);
     if (previous) {
+      if (requestId && previous.id !== requestId) throw new Error('Existe um cadastro sem confirmação. Retome a tentativa original antes de cadastrar outro cliente.');
       if (JSON.stringify(previous.payload) !== JSON.stringify(payload)) throw new Error('Existe uma tentativa sem confirmação. Recupere os dados enviados antes de registrar outra operação.');
       return previous;
     }
-    const value = { id: crypto.randomUUID(), payload };
+    const value = { id: requestId ?? crypto.randomUUID(), payload };
     this.storage.setItem(this.key(scope, kind), JSON.stringify(value));
     return value;
   }
