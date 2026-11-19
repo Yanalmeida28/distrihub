@@ -48,6 +48,6 @@ export function AppUpdateNotice({expectedUserId=null}:{expectedUserId?:string|nu
   return <aside role="status" style={{ position: 'fixed', top: 12, left: 12, right: 12, zIndex: 6000, maxWidth: 600, margin: '0 auto', padding: 14, borderRadius: 10, background: '#163c30', color: '#fff', boxShadow: '0 4px 20px #0004' }}>
     <p style={{ margin: '0 0 10px' }}>Nova versão do DistriHub disponível. Salve o formulário antes de atualizar.</p>
     {updateError&&<p role="alert">{updateError}</p>}
-    <button type="button" className="rma-advance-btn" disabled={updating} onClick={()=>void update()}>{updating?'Confirmando login…':'Atualizar aplicativo'}</button>
+    <button type="button" className="rma-advance-btn" disabled={updating} onClick={()=>void update()}>{updating?'Confirmando acesso…':'Atualizar aplicativo'}</button>
   </aside>;
 }

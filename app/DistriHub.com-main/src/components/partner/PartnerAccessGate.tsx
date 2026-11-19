@@ -5,6 +5,7 @@ import { Lock, Shield, UserCheck, X } from 'lucide-react';
 import type { PartnerIdentity } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { authorizeOwner, authorizePin, rememberOperatorAccess, revokeOperatorSession, type PartnerAccess, type PinOperator } from '../../lib/partnerAccess';
+import { registerOperatorUpdatePreparation } from '../../lib/appUpdateSession';
 import { OperatorSelectionStore, OperatorSessionStore } from '../../lib/checkoutCash';
 import './SinglePanelModal.css';
 
@@ -92,6 +93,38 @@ export function PartnerAccessGate({ user, identity, identityError, onRetryIdenti
     }
     return () => { live = false; lifetime.value++; };
   }, [scope, user, identity, restoreRevision]);
+  useEffect(() => {
+    if (!identity || current?.kind !== 'employee') return;
+    const access = current;
+    return registerOperatorUpdatePreparation(identity.authUserId, async () => {
+      if (mode) throw new Error('Conclua ou cancele a troca de operador antes de atualizar.');
+      const attempt = generation.current.value;
+      const unchanged = () => {
+        if (generation.current.value !== attempt || currentRef.current !== access) {
+          throw new Error('O operador mudou. Confira o acesso antes de atualizar.');
+        }
+      };
+      const verified = await authorizePin(identity, access.operator.id, access.operator.name, access.operator.pin, access.operator.branchId);
+      unchanged();
+      if (verified.kind !== 'employee') throw new Error('Confirme o operador antes de atualizar.');
+      const remembered = await rememberOperatorAccess({ kind: 'employee', operator: { ...verified.operator, sessionExpiresAt: access.operator.sessionExpiresAt } });
+      unchanged();
+      if (remembered.kind !== 'employee' || !remembered.operator.sessionExpiresAt || !remembered.operator.pin.startsWith('ops_')) {
+        throw new Error('Não foi possível preparar seu operador para a atualização. Tente novamente sem fechar o app.');
+      }
+      try {
+        const store = new OperatorSessionStore(sessionStorage, scope);
+        store.save({ operatorId: remembered.operator.id, operatorName: remembered.operator.name, branchId: remembered.operator.branchId,
+          credential: remembered.operator.pin, expiresAt: remembered.operator.sessionExpiresAt });
+        const saved = store.read();
+        if (!saved || saved.credential !== remembered.operator.pin || saved.operatorId !== remembered.operator.id || saved.branchId !== remembered.operator.branchId) throw new Error('Sessão não persistida.');
+        new OperatorSelectionStore(sessionStorage, scope).save({ operatorId: saved.operatorId, branchId: saved.branchId });
+      } catch {
+        throw new Error('Não foi possível salvar a sessão do operador neste aparelho. Mantenha o app aberto e tente novamente.');
+      }
+      unchanged();
+    });
+  }, [identity, current, scope, mode]);
   function requestAccess(nextMode: Mode) { generation.current.value++; setRestoring(false); setRestoreError(false); setMode(nextMode); }
   if (!identity || !user) return <div className="partner-panel"><p role="status">
     {identityError || 'Validando sua sessão…'}</p>
