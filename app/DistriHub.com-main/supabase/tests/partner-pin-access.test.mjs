@@ -14,6 +14,7 @@ const compile = source => ts.transpileModule(source, {
 }).outputText;
 const helperSource = compile(await read('lib/partnerAccess.ts'));
 const gateSource = compile(await read('components/partner/PartnerAccessGate.tsx'));
+const updateSource = compile(await read('lib/appUpdateSession.ts'));
 const cashExports = {};
 vm.runInNewContext(compile(await read('lib/checkoutCash.ts')), { exports: cashExports });
 const identity = { authUserId: 'company', companyUserId: 'company', salespersonId: null, branchId: null, role: 'administrador' };
@@ -22,9 +23,10 @@ const employee = { company_id: 'company', salesperson_id: 'employee', branch_id:
 
 function harness({ reply = { data: [employee], error: null }, scope = { can_access_all_branches: false, branches: [{ id: 'north', name: 'Varejo' }] }, directory = [{ id: 'employee', name: 'Ana', active: true, branch_id: 'north', branch_name: 'Varejo' }, { id: 'inactive', name: 'Ana', active: false, branch_id: 'south', branch_name: 'Atacado' }], passwordUser = 'company', saved = null, savedSession = null, issuedSession = null, device = { ready: true, error: null, retry() {} } } = {}) {
   const calls = [], storage = new Map();
+  let storageBlocked = false;
   if (saved) storage.set('distrihub:operator-selection:company:company', JSON.stringify(saved));
   if (savedSession) storage.set('distrihub:operator-session:company:company', JSON.stringify(savedSession));
-  const sessionStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
+  const sessionStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => { if(storageBlocked) throw Error('storage blocked'); storage.set(key, value); }, removeItem: key => storage.delete(key) };
   const client = {
     from(table) {
       calls.push({ table });
@@ -38,7 +40,7 @@ function harness({ reply = { data: [employee], error: null }, scope = { can_acce
       if (name === 'list_partner_operator_directory') return { data: directory, error: null };
       if (name === 'read_partner_operator_branch_access') return { data: scope, error: null };
       if (name === 'verify_partner_owner_password') return { data: args.p_password === 'owner-secret' && passwordUser === 'company', error: null };
-      return typeof reply === 'function' ? reply() : reply; },
+      return typeof reply === 'function' ? reply(args) : reply; },
   };
   const deps = { supabase: client, createOwnerVerificationClient() {
     calls.push({ verifier: true });
@@ -51,13 +53,17 @@ function harness({ reply = { data: [employee], error: null }, scope = { can_acce
   } };
   const api = {};
   vm.runInNewContext(helperSource, { exports: api, Error, setTimeout: callback => { callback(); }, require: name => name === './supabase' ? deps : require(name) });
+  const updates = {};
+  const login = JSON.stringify({user:{id:'company'},access_token:'test-access',refresh_token:'test-refresh'});
+  vm.runInNewContext(updateSource, {exports:updates,Error,localStorage:{getItem:()=>login},require:()=>({AUTH_STORAGE_KEY:'auth',supabase:{auth:{getSession:async()=>({data:{session:JSON.parse(login)},error:null})}}})});
   const components = {};
   vm.runInNewContext(gateSource, { exports: components, Error, sessionStorage,
     require: name => name.endsWith('.css') ? {} : name === '../../lib/supabase' ? deps : name === '../../lib/partnerAccess' ? api
       : name === '../../lib/checkoutCash' ? cashExports
+      : name === '../../lib/appUpdateSession' ? updates
       : name === '../../hooks/useDeviceHeartbeat' ? { useDeviceHeartbeat: () => device } : require(name),
   });
-  return { ...api, ...components, calls, storage };
+  return { ...api, ...components, ...updates, calls, storage, blockStorage(){storageBlocked=true;} };
 }
 
 test('PIN authorizes the server-assigned branch directly without choosing a branch or logging out', async () => {
@@ -188,9 +194,10 @@ test('owner access verifies its password on the server without signing in or cha
 
 async function render(h, openOperator = true) {
   let renderer, logouts = 0;
-  const props = { user, identity, onSwitchAccount: async () => { logouts++; }, children: (operator, requestAccess, accessLocked) =>
+  const props = { user, identity, onSwitchAccount: async () => { logouts++; }, children: (operator, requestAccess, accessLocked, selectBranch) =>
     React.createElement('main', { 'data-partner-panel': true, 'data-locked': accessLocked, 'data-workspace': accessLocked ? undefined : true, 'data-operator': operator?.id ?? 'owner', 'data-branch': operator?.branchId ?? 'all' },
       React.createElement('button', { 'data-switch': true, 'aria-label': 'Trocar operador por PIN', onClick: () => requestAccess('employee') }, 'Trocar operador'),
+      React.createElement('button', { 'data-branch-switch': true, onClick: () => selectBranch('south') }, 'Mudar filial'),
       React.createElement('button', { 'data-owner': true, onClick: () => requestAccess('owner') }, 'Área do proprietário')) };
   await act(async () => { renderer = TestRenderer.create(React.createElement(h.PartnerAccessGate, props)); });
   if (openOperator) await act(async () => renderer.root.findByProps({ 'aria-label': 'Trocar operador por PIN' }).props.onClick());
@@ -384,4 +391,63 @@ test('pending PIN validation blocks duplicate submission and its late reply is i
   await view.close();
   await act(async () => finish({ data: [employee], error: null }));
   assert.equal(h.storage.size, 0);
+});
+
+
+test('app update revalidates and persists the same operator and selected branch before reload without saving the PIN', async()=>{
+ const credential='ops_'+'d'.repeat(64),expiresAt=new Date(Date.now()+3600000).toISOString();
+ const h=harness({issuedSession:{credential,expires_at:expiresAt}});let view=await render(h);
+ try {
+  await enterPin(view);
+  h.storage.delete('distrihub:operator-session:company:company');
+  await act(async()=>h.prepareAppUpdate('company'));
+  const savedSession=JSON.parse(h.storage.get('distrihub:operator-session:company:company'));
+  assert.equal(savedSession.operatorId,'employee');assert.equal(savedSession.branchId,'north');
+  assert.equal(savedSession.credential,credential);assert.doesNotMatch(JSON.stringify(savedSession),/1234|role|allowedBranches/);
+  assert.equal(h.calls.filter(c=>c.name==='create_partner_operator_session').length,1);
+  await view.close();view=await render(harness({savedSession}),false);
+  assert.equal(view.renderer.root.findByProps({'data-workspace':true}).props['data-operator'],'employee');
+  assert.equal(view.renderer.root.findByProps({'data-workspace':true}).props['data-branch'],'north');
+  assert.equal(view.renderer.root.findAllByProps({role:'dialog'}).length,0);
+ }finally{await view.close();}
+});
+
+test('app update retries unavailable operator persistence while keeping a failed update in the current workspace',async()=>{
+ let available=false;const credential='ops_'+'e'.repeat(64);
+ const h=harness({issuedSession:()=>available?{credential,expires_at:new Date(Date.now()+3600000).toISOString()}:null});
+ const view=await render(h);try{
+  await enterPin(view);await assert.rejects(h.prepareAppUpdate('company'),/preparar seu operador/);
+  assert.ok(view.renderer.root.findByProps({'data-workspace':true}));assert.equal(h.storage.has('distrihub:operator-session:company:company'),false);
+  available=true;await act(async()=>h.prepareAppUpdate('company'));
+  assert.equal(JSON.parse(h.storage.get('distrihub:operator-session:company:company')).credential,credential);
+  h.blockStorage();await assert.rejects(h.prepareAppUpdate('company'),/salvar a sessão/);
+  assert.ok(view.renderer.root.findByProps({'data-workspace':true}));
+ }finally{await view.close();}
+});
+
+test('an update refuses revoked access and a concurrent operator switch without granting access from stored selections',async()=>{
+ let revoked=false,finish;
+ const h=harness({reply:()=>revoked?{data:null,error:Error('revoked')}:finish===null?new Promise(resolve=>{finish=resolve;}):{data:[employee],error:null},issuedSession:{credential:'ops_'+'f'.repeat(64),expires_at:new Date(Date.now()+3600000).toISOString()}});
+ const view=await render(h);try{
+  await enterPin(view);revoked=true;await assert.rejects(h.prepareAppUpdate('company'),/PIN incorreto/);
+  revoked=false;finish=null;let pending;await act(async()=>{pending=h.prepareAppUpdate('company');await Promise.resolve();});
+  await act(async()=>view.renderer.root.findByProps({'data-switch':true}).props.onClick());
+  finish({data:[employee],error:null});await assert.rejects(pending,/operador mudou/);
+  await assert.rejects(h.prepareAppUpdate('company'),/Conclua ou cancele/);
+ }finally{await view.close();}
+});
+
+
+test('app update retains the manager branch selected after PIN entry and restores it using current server permissions',async()=>{
+ const scope={can_access_all_branches:true,branches:[{id:'north',name:'Norte'},{id:'south',name:'Sul'}]};
+ const reply=args=>({data:[{...employee,role:'gerente',branch_id:args.p_requested_branch_id??'north'}],error:null});
+ const h=harness({scope,reply,issuedSession:{credential:'ops_'+'1'.repeat(64),expires_at:new Date(Date.now()+3600000).toISOString()}});
+ let view=await render(h);try{
+  await enterPin(view);await act(async()=>view.renderer.root.findByProps({'data-branch-switch':true}).props.onClick());
+  await act(async()=>h.prepareAppUpdate('company'));
+  const savedSession=JSON.parse(h.storage.get('distrihub:operator-session:company:company'));
+  assert.equal(savedSession.branchId,'south');await view.close();
+  view=await render(harness({scope,reply,savedSession}),false);
+  assert.equal(view.renderer.root.findByProps({'data-workspace':true}).props['data-branch'],'south');
+ }finally{await view.close();}
 });
