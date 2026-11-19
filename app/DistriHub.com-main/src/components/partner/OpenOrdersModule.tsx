@@ -1,3 +1,4 @@
+import { MobileFilters } from './MobileFilters';
 import { SplitPaymentFields } from './SplitPaymentFields';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { orderMatchesDate } from '../../lib/openOrderFilters';
@@ -352,6 +353,16 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
 
       {/* Filter Bar */}
       <div className="orders-filter-bar">
+        <div className="mobile-order-search">
+          <label className="orders-filter-field">
+            <Search size={14} /> Cliente
+            <input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} type="search" enterKeyHint="search" aria-label="Buscar cliente nos pedidos" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); handleSearch(); } }} placeholder="Buscar cliente..." />
+          </label>
+          <button className="module-submit-btn" onClick={handleSearch}>
+            <Search size={14} /> Pesquisar
+          </button>
+        </div>
+        <MobileFilters activeCount={appliedFilters ? Object.values(appliedFilters).filter(value => Boolean(value) && value !== 'all').length : 0}>
         <div className="orders-filter-row">
           <div className="date-range-fields" role="group" aria-label="Período dos pedidos">
           <label className="orders-filter-field">
@@ -367,10 +378,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
             Identificador do pedido
             <input value={orderId} onChange={(e) => setOrderId(e.target.value)} placeholder="Nº do pedido" />
           </label>
-          <label className="orders-filter-field">
-            <Search size={14} /> Cliente
-            <input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Buscar cliente..." />
-          </label>
+
         </div>
         <div className="orders-filter-actions">
           <button type="button" className="rma-advance-btn" onClick={clearPeriod}>Limpar período</button>
@@ -380,9 +388,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
           <button className="rma-advance-btn" onClick={clearFilters}>
             <X size={14} /> Limpar filtros
           </button>
-          <button className="module-submit-btn" onClick={handleSearch}>
-            <Search size={14} /> Pesquisar
-          </button>
+
         </div>
         {showAdvanced && (
           <div className="orders-advanced-filters">
@@ -413,6 +419,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
             </label>
           </div>
         )}
+        </MobileFilters>
       </div>
 
       {/* Data Table */}

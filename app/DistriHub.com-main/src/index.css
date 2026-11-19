@@ -3977,3 +3977,40 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); overflow: visible !important; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { min-width: 0; max-width: 100%; min-height: 44px; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab svg { flex-shrink: 0; }
+
+/* Mobile workflows: keep searching visible and collapse secondary filters only. */
+.partner-panel .mobile-filters, .partner-panel .mobile-filters-content { display: contents; }
+.partner-panel .mobile-filters-toggle, .partner-panel .mobile-form-close { display: none; }
+.partner-panel .mobile-order-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; }
+.partner-panel .mobile-form-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+.partner-panel .mobile-form-help, .partner-panel .mobile-form-note { grid-column: 1 / -1; font-size: 12px; line-height: 1.5; }
+.partner-panel .mobile-form-help > summary { min-height: 44px; padding-block: 12px; cursor: pointer; }
+.partner-panel .mobile-form-help p + p { margin-top: 8px; }
+@media (max-width: 640px) {
+  .partner-panel .mobile-filters { display: block; min-width: 0; }
+  .partner-panel .mobile-filters-toggle { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; min-height: 44px; white-space: normal; text-align: left; }
+  .partner-panel .mobile-filters-content { display: none; }
+  .partner-panel .mobile-filters.is-expanded > .mobile-filters-content { display: grid; gap: 10px; padding-top: 10px; }
+  .partner-panel .mobile-order-search { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .partner-panel .mobile-order-search :is(input, button) { width: 100%; min-width: 0; min-height: 44px; }
+  .partner-panel .mobile-filters-content .orders-filter-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .partner-panel .mobile-filters-content .orders-filter-actions button { min-width: 0; min-height: 44px; white-space: normal; }
+  .partner-panel .mobile-form-actions { position: sticky; bottom: 0; z-index: 5; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--dh-border); background: var(--dh-surface, #102638); }
+  .partner-panel .mobile-form-actions > button { min-width: 0; min-height: 44px; width: 100%; white-space: normal; }
+  .partner-panel .mobile-form-close { display: block; }
+  .partner-panel :is(.accounts-entry-form, .product-entry-form, .cadastros-scope .rma-form) :is(input, select, textarea) { scroll-margin-block: 100px; }
+}
+@media (max-width: 640px) {
+  .partner-panel .product-registration-header { grid-template-columns: minmax(0, 1fr); }
+  .partner-panel .accounts-list-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .partner-panel .accounts-list-controls > :is(input[type="search"], .accounts-status-filter, .accounts-archive-notice) { grid-column: 1 / -1; width: 100%; }
+  .partner-panel .accounts-list-controls > :is(button, .accounts-view-toggle) { min-width: 0; width: 100%; }
+  .partner-panel .accounts-view-toggle { display: flex; }
+  .partner-panel .accounts-view-toggle > button { flex: 1; min-width: 0; }
+}
+
+/* A date needs room for the full value and its native calendar control. */
+.partner-panel .financial-accounts-module .accounts-due-period {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+.partner-panel .financial-accounts-module .accounts-due-period > label { white-space: normal; overflow-wrap: anywhere; }

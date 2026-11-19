@@ -608,7 +608,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
             </li>)}</ul>
             <button type="button" className="rma-advance-btn" disabled={saving} onClick={(event) => { void handleSubmit(event, true); }}>Cadastrar mesmo assim</button>
           </div>}
-          <button type="submit" className="module-submit-btn" disabled={saving || supplierSaving || photoBusy || !suppliersReady}>{saving ? 'Salvando...' : 'Cadastrar'}</button>
+          <div className="mobile-form-actions"><button type="submit" className="module-submit-btn" disabled={saving || supplierSaving || photoBusy || !suppliersReady}>{saving ? 'Salvando...' : 'Cadastrar'}</button><button type="button" className="rma-advance-btn mobile-form-close" disabled={saving || supplierSaving || photoBusy} onClick={() => setShowForm(false)}>Fechar cadastro</button></div>
         </form>
       )}
 
@@ -618,7 +618,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
           value={productSearch}
           onChange={(event) => setProductSearch(event.target.value)}
           placeholder="Pesquisar produto, modelo, SKU ou código de barras..."
-          aria-label="Pesquisar produto, modelo, SKU ou código de barras"
+          enterKeyHint="search" aria-label="Pesquisar produto, modelo, SKU ou código de barras"
         />
       </div>
       <div className="stock-table-wrap directory-card-wrap">
@@ -1454,7 +1454,7 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
         value={customerSearch}
         onChange={(e) => setCustomerSearch(e.target.value)}
         placeholder="Buscar por nome, CPF/CNPJ, telefone ou e-mail"
-        aria-label="Buscar clientes"
+        enterKeyHint="search" aria-label="Buscar clientes"
         style={{ width: '100%', marginBottom: '12px' }}
       />
       {showForm && (
@@ -1559,7 +1559,7 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
             Observações Adicionais
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas sobre o cliente..." rows={2} />
           </label>
-          <button type="submit" className="module-submit-btn">{editingCustomerId ? 'Salvar alterações' : 'Cadastrar cliente'}</button>
+          <div className="mobile-form-actions"><button type="submit" className="module-submit-btn">{editingCustomerId ? 'Salvar alterações' : 'Cadastrar cliente'}</button><button type="button" className="rma-advance-btn mobile-form-close" onClick={resetForm}>Fechar cadastro</button></div>
         </form>
       )}
 

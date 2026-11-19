@@ -9,7 +9,8 @@ import TestRenderer, { act } from 'react-test-renderer';
 import ts from '../../node_modules/typescript/lib/typescript.js';
 const require=createRequire(import.meta.url);
 const compile=source=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2020}}).outputText;
-const pdv={},filters={},editor={},mod={};
+const pdv={},filters={},editor={},mod={},mobileFilters={};
+vm.runInNewContext(compile(await readFile(new URL('../../src/components/partner/MobileFilters.tsx',import.meta.url),'utf8')),{exports:mobileFilters,require});
 let quoteCalls=[]; let quoteFailure=null; let quotePending=null;
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/pdv.ts',import.meta.url),'utf8')),{exports:pdv});
 vm.runInNewContext(compile(await readFile(new URL('../../src/lib/openOrderFilters.ts',import.meta.url),'utf8')),{exports:filters,Intl,Date,require:()=>businessTimeHelpers});
@@ -18,6 +19,7 @@ const load=name=>{
  if(name==='../../lib/orderEmail')return {get directOrderEmailEnabled(){return directEmail;},sendOrderQuoteEmail:async id=>{emailCalls.push(id);if(emailPending)await emailPending;return 'Aceito pelo serviço de e-mail';}};
  if(name==='../../lib/pdv')return pdv;
  if(name==='../../lib/openOrderFilters')return filters;
+ if(name==='./MobileFilters')return mobileFilters;
  if(name==='../../utils')return {money:{format:String}};
  if(name==='./SaleActionsMenu')return {SaleActionsMenu:props=>React.createElement('sale-actions',props)};
  if(name==='./OpenOrderItemsEditor')return editor;
@@ -114,4 +116,23 @@ test('direct quote email submits only the saved ID and blocks double click while
   await act(async()=>{release();await emailPending;});
   assert.ok(rendered().includes('Aceito pelo servi\u00e7o de e-mail'));
  } finally {directEmail=false;emailPending=null;}
+});
+
+test('mobile order search remains outside collapsible filters and applied filters survive opening and closing',async()=>{
+ await mount();const search=view.root.findByProps({'aria-label':'Buscar cliente nos pedidos'});
+ assert.ok(search.parent.parent.props.className==='mobile-order-search');
+ const toggle=()=>view.root.findByProps({className:'rma-advance-btn mobile-filters-toggle'});
+ assert.equal(toggle().props['aria-expanded'],false);
+ await act(async()=>search.props.onChange({target:{value:'Cliente A'}}));await act(async()=>button('Pesquisar').props.onClick());
+ assert.equal(view.root.findAllByType('sale-actions').length,1);assert.match(JSON.stringify(toggle().children[0].children),/1 ativo/);
+ await act(async()=>toggle().props.onClick());await act(async()=>toggle().props.onClick());
+ assert.equal(view.root.findByProps({'aria-label':'Buscar cliente nos pedidos'}).props.value,'Cliente A');assert.equal(view.root.findAllByType('sale-actions').length,1);
+});
+
+test('the mobile keyboard search action applies the order search without finalizing a sale',async()=>{
+ let writes=0;await mount({onFinalizePreSale:async()=>{writes++;}});
+ const field=()=>view.root.findByProps({'aria-label':'Buscar cliente nos pedidos'});
+ await act(async()=>field().props.onChange({target:{value:'Não encontrado'}}));
+ let prevented=false;await act(async()=>field().props.onKeyDown({key:'Enter',preventDefault(){prevented=true;}}));
+ assert.equal(prevented,true);assert.equal(view.root.findAllByType('sale-actions').length,0);assert.equal(writes,0);
 });

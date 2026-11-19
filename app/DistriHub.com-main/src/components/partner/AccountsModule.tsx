@@ -1,3 +1,4 @@
+import { MobileFilters } from './MobileFilters';
 import { useEffect, useRef, useState } from 'react';
 import type { PartnerBranch, PartnerInvoice, PartnerSupplier } from '../../types';
 import { accountBalance, accountPaid, isOverdue, payableCategories, expenseBehaviorLabels, isOperatingExpense, withdrawalSummary, type PayableAccount, type PayableExpenseBehavior } from '../../lib/accounts';
@@ -196,14 +197,14 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
     {kind === 'receber' && !onReceive && <p>O proprietário da loja pode registrar os recebimentos.</p>}
     {kind === 'pagar' && payables.loading && <p role="status">Carregando contas…</p>}
     {kind === 'pagar' && payables.error && <p role="alert">{payables.error} <button type="button" className="rma-advance-btn" onClick={() => void payables.reload()}>Tentar novamente</button></p>}
-    {kind === 'pagar' && <div className="orders-filter-row accounts-scope-filters" style={{ margin: '16px 0' }}>
+    {kind === 'pagar' && <MobileFilters label="Categoria e vencimento" activeCount={[categoryFilter, dueFrom, dueTo].filter(Boolean).length}><div className="orders-filter-row accounts-scope-filters" style={{ margin: '16px 0' }}>
       <label>Categoria<select aria-label="Filtrar categoria das contas" value={categoryFilter} onChange={event => { setCategoryFilter(event.target.value); setRecipientFilter(null); }}><option value="">Todas as categorias</option>{Object.entries(categories).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
       <div className="date-range-fields accounts-due-period" role="group" aria-label="Período de vencimento">
         <label>Vencimento de<input aria-label="Vencimento de" type="date" value={dueFrom} onChange={event => setDueFrom(event.target.value)} /></label>
         <label>Vencimento até<input aria-label="Vencimento até" type="date" value={dueTo} onChange={event => setDueTo(event.target.value)} /></label>
       </div>
       <button type="button" className="rma-advance-btn" onClick={() => { setCategoryFilter(''); setDueFrom(''); setDueTo(''); setRecipientFilter(null); }}>Limpar filtros de categoria e período</button>
-    </div>}
+    </div></MobileFilters>}
     {invalidPeriod && <p role="alert">Confira o período: a data inicial deve ser anterior ou igual à final.</p>}
     <div className="report-cards financial-accounts-totals">
       <div className="report-card"><small>Saldo em aberto</small><strong>{money.format(open)}</strong></div>
@@ -224,7 +225,7 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
         </div>
       </details>
       {filter === 'excluidas' && <span className="accounts-archive-notice" role="status">Exibindo contas excluídas</span>}
-      <input type="search" aria-label="Buscar contas" placeholder="Buscar contas" value={query} onChange={e => setQuery(e.target.value)} />
+      <input type="search" enterKeyHint="search" aria-label="Buscar contas" placeholder="Buscar contas" value={query} onChange={e => setQuery(e.target.value)} />
       <div className="accounts-view-toggle" role="group" aria-label="Visualização das contas">
         <button type="button" className={`rma-advance-btn ${view === 'table' ? 'active' : ''}`} aria-pressed={view === 'table'} onClick={() => setView('table')}>Tabela</button>
         <button type="button" className={`rma-advance-btn ${view === 'kanban' ? 'active' : ''}`} aria-pressed={view === 'kanban'} onClick={() => setView('kanban')}>Quadro</button>
@@ -256,12 +257,15 @@ function AccountsScreen({ timeZone, initialFilter = 'abertas', kind, invoices, p
       {form.terms === 'parcelado' && <label>Quantidade de parcelas<input aria-label="Quantidade de parcelas" type="number" required min={2} max={120} step={1} value={form.installmentCount} disabled={busy || pending || !isActive} onChange={e => { setForm({ ...form, installmentCount: e.target.value }); setInstallmentDates({}); }} /></label>}
       <label>{form.terms === 'parcelado' ? 'Vencimento da primeira parcela' : 'Vencimento'}<input aria-label="Vencimento" required type="date" value={form.dueDate} disabled={busy || pending || !isActive} aria-describedby="payable-date-help" onChange={e => { setForm({ ...form, dueDate: e.target.value }); setInstallmentDates({}); }} /></label>
       {form.terms === 'parcelado' && <div className="payable-schedule" aria-label="Prévia das parcelas"><strong>Confira as parcelas antes de cadastrar</strong><p>O total é dividido entre as parcelas. Inclua juros e taxas no valor total, se houver. Ajuste os vencimentos conforme a compra.</p>{schedule.length ? <ol>{schedule.map((item, index) => <li key={index}><span>Parcela {index + 1}/{schedule.length} · {money.format(item.amount)}</span><label>Vencimento<input aria-label={`Vencimento da parcela ${index + 1}`} type="date" required value={item.due_date} disabled={busy || pending || !isActive} onChange={e => setInstallmentDates({ ...installmentDates, [index]: e.target.value })} /></label></li>)}</ol> : <p>Informe valor total, quantidade de parcelas e primeiro vencimento para visualizar.</p>}</div>}
+      <p className="mobile-form-note">Cadastrar a conta não registra o pagamento.</p>
+      <details className="mobile-form-help"><summary>Como preencher esta conta</summary>
       {form.category === 'retirada' ? <p style={{ gridColumn: '1 / -1' }}>Informe a data real do lançamento e o vencimento. Cadastrar não movimenta o caixa: confirme o pagamento com a data em que o dinheiro saiu. Para corrigir uma conta já paga, edite o registro existente em vez de criar outra retirada.</p> : <>
       <p style={{ gridColumn: '1 / -1' }}>Data da compra informa quando você comprou. Vencimento é o prazo para pagar. Cadastrar a conta não registra pagamento; cada parcela ficará em aberto até você confirmar o pagamento.</p>
       <p id="payable-date-help" style={{ gridColumn: '1 / -1' }}>Esqueceu uma despesa? Informe o vencimento original, mesmo de um mês passado. Ela será considerada nesse período na Inteligência Empresarial. Ao registrar o pagamento, informe a data em que você realmente pagou; essa data define a saída no fluxo de caixa.</p>
       <p style={{ gridColumn: '1 / -1' }}>A categoria define como a conta entra no resultado. Escolha compra de mercadorias / estoque apenas para reposição de produtos; serviços, taxas e demais gastos usam a categoria de despesa correspondente. Selecionar um fornecedor não muda essa escolha.</p>
       </>}
-      <div><button className="module-submit-btn" disabled={busy || pending || !isActive}>{busy ? 'Salvando…' : 'Cadastrar'}</button> <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => setCreating(false)}>Cancelar</button></div>
+      </details>
+      <div className="mobile-form-actions"><button className="module-submit-btn" disabled={busy || pending || !isActive}>{busy ? 'Salvando…' : 'Cadastrar'}</button> <button type="button" className="rma-advance-btn" disabled={busy || pending || !isActive} onClick={() => setCreating(false)}>Cancelar</button></div>
     </form>}
     {view === 'kanban' ? <div className="accounts-kanban" aria-label={`Quadro de contas a ${kind}`}>
       {kanbanColumns.map(column => <section key={column.key} className="accounts-kanban-column">
