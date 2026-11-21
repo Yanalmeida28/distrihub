@@ -127,7 +127,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
     }
   }
 
-  if (!canManageAccount) return <div className="panel-module">
+  if (!canManageAccount) return <div className="panel-module settings-module">
     <div className="module-header"><span className="module-icon"><Settings size={20} /></span><div>
       <h3>Configurações do Sistema</h3><p>Configurações de impressão do seu dispositivo</p>
     </div></div>
@@ -136,7 +136,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
   </div>;
 
   return (
-    <div className="panel-module">
+    <div className="panel-module settings-module">
       <div className="module-header">
         <span className="module-icon"><Settings size={20} /></span>
         <div>
@@ -159,7 +159,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
         <span className="section-divider-label"><User size={14} /> Perfil da Conta</span>
       </div>
 
-      <div className="module-card">
+      <div className="module-card settings-account-card">
         <div className="rma-form">
           <label>
             <span className="social-label"><User size={14} /> Nome do Responsável</span>
