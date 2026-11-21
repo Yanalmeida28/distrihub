@@ -4020,3 +4020,17 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 }
 .partner-panel .financial-accounts-module .accounts-due-period > label { white-space: normal; overflow-wrap: anywhere; }
 .partner-panel .customer-save-fields { display: grid; gap: 12px; min-width: 0; margin: 0; padding: 0; border: 0; grid-column: 1 / -1; }
+
+/* Spacing within operational and configuration forms. */
+.partner-panel .cash-module .cash-card { display: grid; gap: 12px; min-width: 0; }
+.partner-panel .cash-module .cash-card fieldset > form { display: grid; gap: 12px; min-width: 0; }
+.partner-panel .cash-module .cash-fields > label { min-width: 0; gap: 8px; }
+.partner-panel .cash-module .cash-fields :is(input, select), .partner-panel .settings-module .rma-form :is(input, select) { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.partner-panel .personalization-module > .personalization-sections { display: grid; gap: 16px; }
+.partner-panel .personalization-module .module-card { min-width: 0; }
+.partner-panel .personalization-module .personalization-fields > label, .partner-panel .personalization-module .color-field { min-width: 0; }
+.partner-panel .personalization-module .personalization-fields :is(input, select) { box-sizing: border-box; max-width: 100%; }
+.partner-panel .settings-module .settings-account-card { display: grid; gap: 16px; min-width: 0; }
+.partner-panel .settings-module .settings-account-card .rma-form { gap: 16px; min-width: 0; }
+.partner-panel .settings-module .security-card { gap: 16px; flex-wrap: wrap; }
+.partner-panel .personalization-module .personalization-sections > section:not([hidden]) { display: grid; gap: 16px; min-width: 0; }

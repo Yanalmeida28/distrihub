@@ -103,8 +103,8 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
   }
 
   return (
-    <div className="panel-module">
-      <fieldset disabled={saving || reading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+    <div className="panel-module personalization-module">
+      <fieldset className="personalization-sections" disabled={saving || reading} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <div className="module-header">
         <span className="module-icon"><Wand2 size={20} /></span>
         <div>
