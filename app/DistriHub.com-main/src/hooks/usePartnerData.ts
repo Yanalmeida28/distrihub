@@ -1635,7 +1635,23 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         const eventBranchId = table === 'partner_products' && !identity.salespersonId ? null : branchId;
         if (payload.eventType !== 'DELETE' && (payload.new.user_id !== companyId || (eventBranchId && payload.new.branch_id !== eventBranchId))) return;
         if (payload.eventType === 'DELETE' && !dataSnapshotRef.current[key].some(row => row.id === payload.old.id && row.user_id === companyId && (!eventBranchId || row.branch_id === eventBranchId))) return;
-        if (!loadCacheRef.current.has(key) && !requestedResourcesRef.current.includes(key)) return;
+        const collectionLoaded = loadCacheRef.current.has(key) || requestedResourcesRef.current.includes(key);
+        const operationalScope = resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current);
+        // Operational snapshots are deliberately partial: receiving a sale must
+        // trigger reconciliation even when its full history was never loaded.
+        if ((table === 'partner_invoices' || table === 'partner_sales') && (collectionLoaded || operationalScope)) {
+          setPdvCredits([]);
+          for (const affected of ['sales', 'invoices', 'movements']) loadCacheRef.current.stale(affected);
+          dataRevisionRef.current.invalidate(['movements']);
+          reconcile();
+        }
+        if (!collectionLoaded) return;
+        if (table === 'rma_requests_v2') {
+          const previous = dataSnapshotRef.current.rmas.find(row => row.id === (payload.new.id ?? payload.old.id));
+          if (Number(previous?.refund_amount ?? 0) !== Number(payload.new.refund_amount ?? 0) || (previous?.refund_request_id ?? null) !== (payload.new.refund_request_id ?? null)) {
+            window.dispatchEvent(new CustomEvent('distrihub:financial-changed', { detail: { companyId, branchId: payload.new.branch_id ?? previous?.branch_id } }));
+          }
+        }
         const returnCreditChanged = (table === 'partner_invoices' && payload.eventType !== 'DELETE' &&
           Number(payload.new.return_credit_amount ?? 0) !== Number(dataSnapshotRef.current.invoices.find(invoice => invoice.id === payload.new.id)?.return_credit_amount ?? 0)) ||
           (table === 'rma_requests_v2' && Number(payload.new.credit_amount ?? 0) > 0);
@@ -1646,12 +1662,6 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         });
         setLastSyncedAt(new Date());
         if (returnCreditChanged) void loadData(true, ['invoices', ...(loadCacheRef.current.has('rmas') ? ['rmas' as const] : [])]);
-        // Credit is company-wide and cannot be derived from this branch's rows.
-        // Reconcile after financial events so billed checkout is not left disabled.
-        if (table === 'partner_invoices' || table === 'partner_sales') {
-          setPdvCredits([]);
-          reconcile();
-        }
       };
       channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter: `user_id=eq.${companyId}` }, applyChange);
       channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table, filter: `user_id=eq.${companyId}` }, applyChange);
@@ -1662,9 +1672,9 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       subscribed = status === 'SUBSCRIBED';
       if (subscribed) { const reconnecting = connectedOnce; connectedOnce = true; if (reconnecting || resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current)) reconcile(); }
     } });
-    // Employee RLS is narrower than the authorized PDV RPC (especially invoices).
-    // Keep branch reconciliation for employees without broadening table access.
-    const timer = window.setInterval(() => { if (!subscribed || (identity.salespersonId && (resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current)))) reconcile(); }, 30_000);
+    // Reconcile operational views even with a connected channel: an event can
+    // be missed or hidden by employee RLS. Use the small authorized snapshot.
+    const timer = window.setInterval(() => { if (!subscribed || resourceScopeRef.current === null || ['pdv', 'pedidos', 'caixa'].includes(resourceScopeRef.current)) reconcile(); }, 30_000);
     window.addEventListener('focus', reconcile);
     window.addEventListener('online', reconcile);
     document.addEventListener('visibilitychange', reconcile);
@@ -1680,6 +1690,10 @@ read('sales', (signal) => fetchAllPages((from, to) => client
   }, [identity, syncBranchId, loading, hasLoaded, refreshOperationalData, loadData]);
 
   const syncConfirmedSale = useCallback(async (branchId: string) => {
+    // A lean snapshot does not reload historical movements. Make affected
+    // collections revalidate on their next visit, even inside the cache TTL.
+    for (const key of ['sales', 'invoices', 'products', 'movements']) loadCacheRef.current.stale(key);
+    dataRevisionRef.current.invalidate(['sales', 'invoices', 'products', 'movements']);
     try { await refreshPdv(branchId); }
     catch {
       setPdvCredits([]);
@@ -2680,7 +2694,8 @@ read('sales', (signal) => fetchAllPages((from, to) => client
   }, [requireIdentity,data.rmas]);
 
   const refundRma = useCallback(async (id: string, amount: number, method: 'dinheiro' | 'pix' | 'cartao', reason: string, requestId: string, operatorId: string | null, operatorPin: string | null) => {
-    requireIdentity();
+    const currentIdentity = requireIdentity();
+    const scope = currentIdentity.authUserId + ':' + currentIdentity.companyUserId;
     if (!supabase) throw new Error('Supabase não configurado.');
     const { data: confirmed, error } = await supabase.rpc('record_partner_rma_refund', {
       p_rma_id: id, p_amount: amount, p_method: method, p_reason: reason, p_request_id: requestId,
@@ -2688,11 +2703,13 @@ read('sales', (signal) => fetchAllPages((from, to) => client
     });
     if (error) throw error;
     if (confirmed !== requestId) throw new Error('Reembolso sem confirmação. Recupere a tentativa antes de registrar outro.');
+    if (!mountedRef.current || identityScopeRef.current !== scope) return;
     dataRevisionRef.current.invalidate(['rmas']);
     setData(previous => ({ ...previous, rmas: previous.rmas.map(rma => rma.id === id ? {
       ...rma, refund_amount: amount, refund_request_id: requestId, refund_method: method,
       refund_reason: reason, refunded_at: new Date().toISOString(),
     } : rma) }));
+    window.dispatchEvent(new CustomEvent('distrihub:financial-changed', { detail: { companyId: currentIdentity.companyUserId, branchId: dataSnapshotRef.current.rmas.find(rma => rma.id === id)?.branch_id } }));
   }, [requireIdentity]);
 
   const applyRmaCredit = useCallback(async (rmaId: string, invoiceId: string, amount: number, applicationId: string) => {

@@ -70,7 +70,13 @@ export class PartnerLoadCache {
   }
   has(key: string): boolean { return this.loaded.has(key); }
   needs(key: string, now = Date.now()): boolean { return !this.loaded.has(key) || now - this.loaded.get(key)! >= 30_000; }
-  stale(key: string): void { if (this.loaded.has(key)) this.loaded.set(key, 0); }
+  stale(key: string): void {
+    if (this.loaded.has(key)) this.loaded.set(key, 0);
+    // A post-mutation read must not join a request started before the write.
+    this.controllers.get(key)?.abort();
+    this.controllers.delete(key);
+    this.pending.delete(key);
+  }
   mark(key: string): void { this.loaded.set(key, Date.now()); }
   read<T>(key: string, loader: (signal: AbortSignal) => PromiseLike<T>): Promise<T> {
     const existing = this.pending.get(key);

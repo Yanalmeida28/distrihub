@@ -274,7 +274,7 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
   const queryFilters=[];
   let activeScope=resourceScope;
   let activeBranchId=branchId;
-  const channels=[];
+  const channels=[];const events=[];
   const intervals=[];
   const timeouts=new Map();
   let timerId=0;
@@ -297,8 +297,8 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
   vm.runInNewContext(compile(productPersistenceSource),{exports:productPersistenceModule.exports});
   const hookModule={exports:{}};
   vm.runInNewContext(compile(source),{
-    exports:hookModule.exports,sessionStorage:tabStorage,crypto:{randomUUID},console,
-    window:{localStorage:storage,addEventListener(){},removeEventListener(){},setInterval(callback){intervals.push(callback);return intervals.length;},clearInterval(){},setTimeout(callback){const id=++timerId;timeouts.set(id,callback);return id;},clearTimeout(id){timeouts.delete(id);}},
+    exports:hookModule.exports,sessionStorage:tabStorage,crypto:{randomUUID},console,CustomEvent,
+    window:{dispatchEvent(event){events.push(event);return true;},localStorage:storage,addEventListener(){},removeEventListener(){},setInterval(callback){intervals.push(callback);return intervals.length;},clearInterval(){},setTimeout(callback){const id=++timerId;timeouts.set(id,callback);return id;},clearTimeout(id){timeouts.delete(id);}},
     navigator:network,
     document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},
     require(name){
@@ -317,7 +317,7 @@ async function harness({initialSales=[],initialInvoices=[],initialCustomers=[],i
   let current;
   function Probe(){current=hookModule.exports.usePartnerData(identity,activeBranchId,activeScope);return null;}
   await act(async()=>{renderer=TestRenderer.create(React.createElement(Probe));});
-  return {get current(){return current;},values,queries,queryFilters,network,
+  return {get current(){return current;},values,queries,queryFilters,network,events,
     async setScope(scope){activeScope=scope;await act(async()=>renderer.update(React.createElement(Probe)));},
     async setBranchId(id){activeBranchId=id;await act(async()=>renderer.update(React.createElement(Probe)));},
     emit(table,eventType,record,old={}){for(const channel of channels.filter(channel=>!channel.removed))for(const {filter,handler} of channel.handlers)if(filter.table===table&&filter.event===eventType)handler({eventType,new:record,old});},
@@ -504,13 +504,14 @@ test('a local checkout supersedes an older pending PDV read',async()=>{
   assert.equal(h.current.sales[0].status,'concluida');
 });
 
-test('Realtime updates one authorized row and healthy subscriptions avoid historical polling',async()=>{
+test('Realtime updates authorized rows and operational polling avoids full history reads',async()=>{
   const pre={...payload(),id:'pre',user_id:'owner',status:'pre_venda'};let calls=0;
-  const h=await harness({initialSales:[pre],branchId:'branch',rpc:async()=>{calls++;return {data:snapshot({sales:[pre]}),error:null};}});
+  const h=await harness({initialSales:[pre],branchId:'branch',rpc:async(name,args)=>{assert.equal(args.p_operational,true);calls++;return {data:snapshot({sales:[pre]}),error:null};}});
   await act(async()=>{h.status('SUBSCRIBED');h.flushTimers();});
   assert.equal(calls,1);
+  const fullReads=h.queries.length;
   await act(async()=>{h.tick();h.flushTimers();});
-  assert.equal(calls,1);
+  assert.equal(calls,2);assert.equal(h.queries.length,fullReads);
   act(()=>h.emit('partner_sales','UPDATE',{...pre,status:'concluida'}));
   assert.equal(h.current.sales[0].status,'concluida');
   act(()=>h.emit('partner_sales','UPDATE',pre));
@@ -520,7 +521,7 @@ test('Realtime updates one authorized row and healthy subscriptions avoid histor
   act(()=>h.emit('partner_sales','UPDATE',{...pre,branch_id:'other',status:'cancelada'}));
   assert.equal(h.current.sales[0].status,'concluida');
   await act(async()=>{h.status('CHANNEL_ERROR');h.tick();h.flushTimers();});
-  assert.equal(calls,2);
+  assert.equal(calls,3);
 });
 
 test('Realtime supersedes a delayed full snapshot and deletes only known scoped rows',async()=>{
@@ -1092,4 +1093,74 @@ test('operational PDV keeps historical cache, refreshes known closures and falls
  assert.equal(h.current.sales.find(s=>s.id==='open').status,'cancelada');assert.ok(h.current.sales.some(s=>s.id==='historical'));assert.ok(h.current.sales.some(s=>s.id==='other'));assert.ok(!h.current.sales.some(s=>s.id==='removed'));
  fallback=true;await act(async()=>h.current.refreshPdv('branch'));assert.equal(calls.length,3);assert.equal(Object.keys(calls[2]).join(','),'p_branch_id');
  denied=true;await act(async()=>assert.rejects(h.current.refreshPdv('branch'),e=>e.message==='Denied'));assert.equal(calls.length,4);
+});
+
+test('confirmed checkout revalidates cached stock history on immediate return without downloading it in the PDV',async()=>{
+ const old={id:'old',user_id:'owner',branch_id:'branch',type:'entrada',quantity:5};
+ const next={id:'new',user_id:'owner',branch_id:'branch',type:'saida',quantity:1};let server=[old];
+ const h=await harness({resourceScope:'relatorios:sem-giro',readResult:(table,fallback)=>table==='partner_stock_movements'?{data:server,error:null}:fallback,rpc:async(name,args)=>{
+  if(name==='get_partner_pdv_snapshot')return {data:snapshot({operational:true}),error:null};
+  server=[old,next];return {data:args.p_sale_id,error:null};
+ }});
+ assert.equal(h.current.movements.length,1);await h.setScope('pdv');
+ const before=h.queries.filter(q=>q==='partner_stock_movements').length;
+ await act(async()=>h.current.createSale(payload()));
+ assert.equal(h.queries.filter(q=>q==='partner_stock_movements').length,before);
+ await h.setScope('relatorios:sem-giro');
+ assert.equal(h.queries.filter(q=>q==='partner_stock_movements').length,before+1);
+ assert.equal(h.current.movements.length,2);
+});
+
+for(const table of ['partner_sales','partner_invoices'])test('owner operational view reconciles '+table+' events without marking partial history complete',async()=>{
+ const first={id:'first',user_id:'owner',branch_id:'branch',status:'concluida',total:100};const remote={...first,id:'remote',total:200};let current=[first],reads=0;
+ const h=await harness({resourceScope:'caixa',branchId:'branch',rpc:async()=>{reads++;return {data:snapshot({operational:true,sales:current}),error:null};}});
+ await act(async()=>{await h.current.refreshPdv('branch');h.status('SUBSCRIBED');h.flushTimers();});
+ const before=reads;current=[remote,first];
+ await act(async()=>{h.emit(table,'INSERT',remote);h.flushTimers();});
+ assert.equal(reads,before+1);assert.equal(h.current.sales.length,2);
+ assert.equal(h.queries.includes('partner_sales'),false);
+ await h.setScope('relatorios:vendas');assert.equal(h.queries.includes('partner_sales'),true);
+});
+
+test('connected owner cash reconciles missed events periodically and rejects foreign company or branch events',async()=>{
+ const first={id:'first',user_id:'owner',branch_id:'branch',status:'concluida',total:100};let current=[first],reads=0;
+ const h=await harness({resourceScope:'caixa',branchId:'branch',rpc:async()=>{reads++;return {data:snapshot({operational:true,sales:current}),error:null};}});
+ await act(async()=>{await h.current.refreshPdv('branch');h.status('SUBSCRIBED');h.flushTimers();});
+ const before=reads;
+ await act(async()=>{h.emit('partner_sales','INSERT',{...first,id:'foreign',user_id:'other'});h.emit('partner_sales','INSERT',{...first,id:'another',branch_id:'another'});h.flushTimers();});
+ assert.equal(reads,before);current=[{...first,id:'missed'},first];
+ await act(async()=>{h.tick();h.flushTimers();});assert.equal(reads,before+1);assert.equal(h.current.sales[0].id,'missed');
+});
+
+test('failed post-sale refresh keeps checkout confirmed and stock history stale for its next visit',async()=>{
+ let server=[];const h=await harness({resourceScope:'relatorios:sem-giro',readResult:(table,fallback)=>table==='partner_stock_movements'?{data:server,error:null}:fallback,rpc:async(name,args)=>{
+  if(name==='get_partner_pdv_snapshot')return {data:null,error:{message:'Read unavailable'}};
+  server=[{id:'movement',user_id:'owner',branch_id:'branch',type:'saida',quantity:1}];return {data:args.p_sale_id,error:null};
+ }});
+ await h.setScope('pdv');await act(async()=>h.current.createSale(payload()));assert.match(h.current.pdvSyncWarning,/confirmada/);
+ await h.setScope('relatorios:sem-giro');assert.equal(h.current.movements.length,1);
+});
+
+test('invalidating a loaded collection prevents joining an older pending read after checkout',async()=>{
+ const exports={};vm.runInNewContext(compile(syncSource),{exports,AbortController,setTimeout,clearTimeout});
+ const cache=new exports.PartnerLoadCache();cache.reset('owner');cache.mark('movements');let release,oldSignal;
+ const old=cache.read('movements',signal=>{oldSignal=signal;return new Promise(resolve=>{release=resolve;});});
+ await Promise.resolve();cache.stale('movements');assert.equal(oldSignal.aborted,true);assert.equal(cache.needs('movements'),true);
+ const fresh=cache.read('movements',async()=>['old','new']);assert.notEqual(fresh,old);assert.equal((await fresh).length,2);
+ release(['old']);await old;cache.mark('movements');assert.equal(cache.needs('movements'),false);
+});
+
+test('healthy nonoperational screens do not poll full history on the operational timer',async()=>{
+ let calls=0;const h=await harness({resourceScope:'cadastros:produtos',branchId:'branch',rpc:async()=>{calls++;return {data:snapshot({operational:true}),error:null};}});
+ await act(async()=>{h.status('SUBSCRIBED');h.tick();h.flushTimers();});assert.equal(calls,0);
+});
+
+test('confirmed and remote refunds notify the financial ledger with company and branch context',async()=>{
+ const rma={id:'rma-sync',user_id:'owner',branch_id:'branch',refund_amount:0,refund_request_id:null};
+ const h=await harness({resourceScope:'rma',branchId:'branch',readResult:(table,fallback)=>table==='rma_requests_v2'?{data:[rma],error:null}:fallback,rpc:async(name,args)=>({data:args.p_request_id,error:null})});
+ await act(async()=>h.current.refundRma(rma.id,20,'pix','Devolucao','refund-id',null,null));
+ assert.equal(h.current.rmas[0].refund_amount,20);assert.equal(h.events.length,1);
+ assert.equal(h.events[0].type,'distrihub:financial-changed');assert.equal(h.events[0].detail.companyId,'owner');assert.equal(h.events[0].detail.branchId,'branch');
+ await act(async()=>h.emit('rma_requests_v2','UPDATE',{...rma,refund_amount:30,refund_request_id:'remote-refund'}));assert.equal(h.events.length,2);
+ await act(async()=>h.emit('rma_requests_v2','UPDATE',{...rma,user_id:'foreign',refund_amount:40}));assert.equal(h.events.length,2);
 });

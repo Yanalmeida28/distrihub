@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { FinancialRefund, InvoiceReceipt, PayablePayment } from '../lib/financialFlow';
 
@@ -7,15 +7,44 @@ export function useFinancialMovements(userId: string | undefined, branchId: stri
   const [payments, setPayments] = useState<PayablePayment[]>([]);
   const [refunds, setRefunds] = useState<FinancialRefund[]>([]);
   const [loading, setLoading] = useState(true);
+  const reading = useRef(loading); reading.current = loading;
+  const loadedContext = useRef('');
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
   const reload = useCallback(() => setRevision(value => value + 1), []);
+  useEffect(() => {
+    if (!isActive || !userId) return;
+    const visible = () => document.visibilityState !== 'hidden' && (typeof navigator === 'undefined' || navigator.onLine !== false);
+    const resume = () => { if (visible() && !reading.current) reload(); };
+    const changed = (event: Event) => {
+      const detail = (event as CustomEvent<{ companyId?: string; branchId?: string | null }>).detail;
+      if (detail?.companyId === userId && (!branchId || !detail.branchId || detail.branchId === branchId) && visible()) reload();
+    };
+    // Events give prompt updates; the bounded retry also covers lost events.
+    const timer = window.setInterval(resume, 30_000);
+    window.addEventListener('distrihub:financial-changed', changed);
+    window.addEventListener('online', resume);
+    window.addEventListener('focus', resume);
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('distrihub:financial-changed', changed);
+      window.removeEventListener('online', resume);
+      window.removeEventListener('focus', resume);
+      document.removeEventListener('visibilitychange', resume);
+    };
+  }, [isActive, userId, branchId, reload]);
   // A sincronização pode recriar as listas sem alterar seu conteúdo. Isso não exige outra consulta.
   const sourceVersion = JSON.stringify([invoices, payables]);
   useEffect(() => {
     if (!isActive) return;
     let active = true;
-    setLoading(true); setError(''); setReceipts([]); setPayments([]); setRefunds([]);
+    const context = `${userId}:${branchId}`;
+    setLoading(true); setError('');
+    // Keep the current statement while revalidating so pagination stays stable.
+    // A company/branch change must never keep the previous context's records.
+    if (loadedContext.current !== context) { setReceipts([]); setPayments([]); setRefunds([]); }
+    loadedContext.current = context;
     async function load() {
       const client = supabase;
       if (!client || !userId) throw new Error('Loja não conectada.');
@@ -42,7 +71,7 @@ export function useFinancialMovements(userId: string | undefined, branchId: stri
         setRefunds((refundRows as FinancialRefund[]).filter(row => row.user_id === userId && (!branchId || row.branch_id === branchId)));
       }
     }
-    void load().catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'Falha ao consultar movimentos.'); })
+    void load().catch(cause => { if (active) { setReceipts([]); setPayments([]); setRefunds([]); setError(cause instanceof Error ? cause.message : 'Falha ao consultar movimentos.'); } })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [userId, branchId, sourceVersion, revision, isActive]);
