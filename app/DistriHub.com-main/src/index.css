@@ -2262,6 +2262,10 @@ html, body {
 .partner-panel .cadastros-scope .action-row { margin-bottom: 10px; gap: 8px; }
 .partner-panel .cadastros-scope .rma-form { padding: 16px; gap: 12px; margin-bottom: 12px; }
 .partner-panel .cadastros-scope .form-row { gap: 10px; }
+.partner-panel .cadastros-scope .modifier-entry-form .modifier-entry-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; min-width: 0; }
+.partner-panel .cadastros-scope .modifier-entry-form .modifier-entry-fields > label { min-width: 0; gap: 8px; }
+.partner-panel .cadastros-scope .modifier-entry-form :is(input, select) { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.partner-panel .service-order-warranty { margin-bottom: 16px; }
 .partner-panel .cadastros-scope .salesperson-edit-row > td { padding: 14px !important; background: var(--dh-blue-soft); }
 .partner-panel .cadastros-scope .salesperson-edit-panel { display: grid; gap: 14px; min-width: 0; }
 .partner-panel .cadastros-scope .salesperson-edit-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 12px; min-width: 0; }
