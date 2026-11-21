@@ -1205,8 +1205,8 @@ function ModifiersSubTab({ modifiers, products, onAdd, onDelete }: {
   return (
     <div>
       {actionError && <p role="alert" className="otp-error-msg">{actionError}</p>}
-      <form className="rma-form" onSubmit={handleSubmit}>
-        <div className="form-row">
+      <form className="rma-form modifier-entry-form" onSubmit={handleSubmit}>
+        <div className="modifier-entry-fields">
           <label>
             Produto Base
             <select value={productId} onChange={(e) => setProductId(e.target.value)} required>
