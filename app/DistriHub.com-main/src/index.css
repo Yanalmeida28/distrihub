@@ -1470,6 +1470,7 @@ select option:hover, select option:checked { background: #1d3445; color: #ffffff
 .partner-panel .pdv-search-bar input { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; min-height: 0 !important; color: var(--dh-text) !important; }
 .partner-panel .pdv-search-bar input:focus { border: none !important; box-shadow: none !important; }
 .partner-panel .pdv-search-bar input::placeholder { color: #adc2d6 !important; }
+.partner-panel .cadastros-scope .pdv-search-bar { margin-bottom: 16px; }
 .partner-panel .pdv-camera-button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--dh-radius-sm); background: var(--dh-blue); color: var(--dh-on-primary); cursor: pointer; }
 .partner-panel .pdv-camera-button:hover { filter: brightness(1.08); }
 .partner-panel .pdv-camera-button:focus-visible { outline: 2px solid var(--dh-blue); outline-offset: 2px; }
@@ -3373,7 +3374,7 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .pdv-checkout-layout .pdv-search-bar input { scroll-margin-top: calc(90px + env(safe-area-inset-top)); }
   .partner-panel .pdv-search-bar { height: auto; min-height: 52px; padding: 4px 8px; }
   .partner-panel .pdv-camera-button { min-width: 44px; flex-shrink: 0; }
-  .partner-panel .cadastros-scope .pdv-search-bar { position: sticky; top: calc(76px + env(safe-area-inset-top)); z-index: 9; background: var(--dh-surface); box-shadow: 0 4px 10px #0002; }
+  .partner-panel .cadastros-scope .pdv-search-bar { position: static; background: var(--dh-surface); box-shadow: 0 4px 10px #0002; }
   .partner-panel .cash-module .cash-card { padding: 12px; }
   .partner-panel .cash-module .cash-fields + button, .partner-panel .cash-module form > .module-submit-btn { width: 100%; white-space: normal; }
 }
