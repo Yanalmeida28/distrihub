@@ -4037,8 +4037,18 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .settings-module .settings-account-card .rma-form { gap: 16px; min-width: 0; }
 .partner-panel .settings-module .security-card { gap: 16px; flex-wrap: wrap; }
 .partner-panel .personalization-module .personalization-sections > section:not([hidden]) { display: grid; gap: 16px; min-width: 0; }
+.partner-panel .personalization-module .personalization-savebar { position: static; display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, auto)); gap: 12px; min-width: 0; margin-top: 8px; padding: 16px 0 8px; }
+.partner-panel .personalization-module .personalization-savebar > span { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.partner-panel .personalization-module .personalization-savebar > button { min-width: 0; max-width: 100%; height: auto; min-height: 44px; align-self: stretch; justify-content: center; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 800px) {
+  .partner-panel .personalization-module .personalization-savebar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .partner-panel .personalization-module .personalization-savebar > span { grid-column: 1 / -1; }
+}
+@media (max-width: 480px) {
+  .partner-panel .personalization-module .personalization-savebar { grid-template-columns: minmax(0, 1fr); }
+}
 /* Keep cash context and long operator names inside the PDV toolbar. */
 .partner-panel .pdv-workspace > .pdv-subtabs { flex-wrap: wrap !important; overflow: visible !important; min-width: 0; }
-.partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context { flex: 1 1 100%; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; margin: 0; padding: 12px; border: 1px solid var(--dh-border); border-radius: 8px; background: var(--dh-surface); }
 .partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context > span { flex: 1 1 220px; max-width: 100%; overflow-wrap: anywhere; }
 .partner-panel .pdv-workspace .pdv-cash-context > button { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 44px; height: auto; white-space: normal; overflow-wrap: anywhere; }
