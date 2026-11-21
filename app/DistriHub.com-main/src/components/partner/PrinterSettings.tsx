@@ -20,13 +20,13 @@ export function PrinterSettings() {
     try { await action(); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Não foi possível conectar à impressora.'); }
     finally { running.current = false; setBusy(false); }
   }
-  if (isMacComputer()) return <div className="module-card">
+  if (isMacComputer()) return <div className="module-card printer-settings-card">
     <h3>Impressora de cupons</h3>
     <p>No Mac, cupons e etiquetas são impressos pela janela de impressão do navegador, com a personalização salva.</p>
     <p>Adicione sua impressora em Ajustes do Sistema → Impressoras e Scanners. Ao imprimir no app, escolha a impressora e o tamanho do papel. A opção Salvar como PDF também está disponível nessa janela.</p>
     <p>O Conector DistriHub para impressão sem janela está disponível para Windows.</p>
   </div>;
-  return <div className="module-card">
+  return <div className="module-card printer-settings-card">
     <h3>Impressora de cupons</h3>
     <p>O modo personalizado direto imprime o logo, a fonte e a disposição da personalização sem abrir a janela do navegador. Requer o Conector DistriHub v2 neste computador.</p>
     <p role="status">{saved?.mode === 'image' ? 'Modo atual: personalizado direto, sem janela de impressão.' : saved?.mode === 'text' ? 'Modo atual: texto simples, sem logo e formatação.' : 'Modo atual: cupom personalizado pelo navegador.'}</p>

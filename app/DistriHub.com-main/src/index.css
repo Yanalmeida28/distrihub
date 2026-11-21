@@ -4031,6 +4031,14 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .personalization-module .personalization-fields > label, .partner-panel .personalization-module .color-field { min-width: 0; }
 .partner-panel .personalization-module .personalization-fields :is(input, select) { box-sizing: border-box; max-width: 100%; }
 .partner-panel .settings-module .settings-account-card { display: grid; gap: 16px; min-width: 0; }
+.partner-panel .printer-settings-card { display: grid; gap: 16px; min-width: 0; }
+.partner-panel .printer-settings-card :is(input, select, button) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.partner-panel .printer-settings-card > button { white-space: normal; }
 .partner-panel .settings-module .settings-account-card .rma-form { gap: 16px; min-width: 0; }
 .partner-panel .settings-module .security-card { gap: 16px; flex-wrap: wrap; }
 .partner-panel .personalization-module .personalization-sections > section:not([hidden]) { display: grid; gap: 16px; min-width: 0; }
+/* Keep cash context and long operator names inside the PDV toolbar. */
+.partner-panel .pdv-workspace > .pdv-subtabs { flex-wrap: wrap !important; overflow: visible !important; min-width: 0; }
+.partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context > span { flex: 1 1 220px; max-width: 100%; overflow-wrap: anywhere; }
+.partner-panel .pdv-workspace .pdv-cash-context > button { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 44px; height: auto; white-space: normal; overflow-wrap: anywhere; }
