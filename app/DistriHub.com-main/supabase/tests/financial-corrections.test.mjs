@@ -16,7 +16,7 @@ function environment(client={}){
   if(cache.has(name))return cache.get(name);
   const exports={};cache.set(name,exports);
   const url=new URL('../../src/'+name,import.meta.url);
-  vm.runInNewContext(compile(readFileSync(url,'utf8')),{exports,Error,Date,Intl,console,crypto:{randomUUID},window:{localStorage:storage},require:dep=>{
+  vm.runInNewContext(compile(readFileSync(url,'utf8')),{exports,Error,Date,Intl,console,crypto:{randomUUID},window:{localStorage:storage,setInterval(){return 1;},clearInterval(){},addEventListener(){},removeEventListener(){}},document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},require:dep=>{
    if(dep==='react'||dep==='react/jsx-runtime'||dep==='lucide-react')return require(dep);
    if(dep.endsWith('/supabase'))return {supabase:client};
    if(dep.endsWith('/utils'))return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};

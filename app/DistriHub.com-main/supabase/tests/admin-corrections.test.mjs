@@ -14,7 +14,7 @@ function harness(client={},ReportProbe){
  const load=name=>{
   if(cache.has(name))return cache.get(name);const exports={};cache.set(name,exports);
   const url=new URL('../../src/'+name,import.meta.url);let source=readFileSync(url,'utf8');if(name.endsWith('/AdminModule.tsx'))source+='\nexport {ExecutiveDashboard, AdminFinancialSummary};';
-  vm.runInNewContext(compile(source),{exports,Error,Intl,Date:FixedDate,console,window:{setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn)},localStorage:{setItem(){}},require:dep=>{
+  vm.runInNewContext(compile(source),{exports,Error,Intl,Date:FixedDate,console,document:{visibilityState:'visible',addEventListener(){},removeEventListener(){}},window:{addEventListener(){},removeEventListener(){},setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn)},localStorage:{setItem(){}},require:dep=>{
    if(['react','react/jsx-runtime','lucide-react'].includes(dep))return require(dep);
    if(dep.endsWith('/supabase'))return {supabase:client};if(dep.endsWith('/useDeviceHeartbeat'))return {deviceIdentity:()=>({id:'browser',name:'Terminal',nameKey:'name'})};
    if(dep==='xlsx')return {};
