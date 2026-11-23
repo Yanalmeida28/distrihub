@@ -60,6 +60,7 @@ test('Atendimento scopes access, assignments, history, quotes and test delivery'
     for (let index = 0; index < 34; index++) await event(String(index));
     await event('33');
     await event('foreign-1', 'incoming', 'foreign');
+    await db.exec(await readFile(new URL('../migrations/20261123152117_atendimento_recovery.sql', import.meta.url), 'utf8'));
 
     const authenticate = async user => {
       await db.exec('SET ROLE authenticated');
@@ -79,13 +80,14 @@ test('Atendimento scopes access, assignments, history, quotes and test delivery'
     assert.equal(list.channel, 'test');
     assert.equal(list.rows.length, 1);
     assert.equal(list.rows[0].customer_id, null);
-    assert.deepEqual(await call('list', {}, null, company, sibling), { channel: 'unconfigured', rows: [] });
+    assert.deepEqual(await call('list', {}, null, company, sibling), { schemaVersion: 2, channel: 'unconfigured', rows: [] });
     const conversationId = list.rows[0].id;
     const context = { conversationId };
     const [assigned, competing] = await Promise.allSettled([call('assume', context), call('assume', context, second)]);
     assert.equal(assigned.status, 'fulfilled');
     assert.equal(competing.status, 'rejected');
     assert.match(competing.reason.message, /ATENDIMENTO_ALREADY_ASSIGNED/);
+    assert.equal((await call('list', { filter: 'waiting' })).rows.length, 0);
     const first = await call('history', context);
     assert.equal(first.length, 31);
     const older = await call('history', { ...context, before: first[29].position });
@@ -101,10 +103,32 @@ test('Atendimento scopes access, assignments, history, quotes and test delivery'
     }
     const prepared = await call('prepare_quote', { ...context, targetId: quote });
     assert.equal((await call('prepare_quote', { ...context, targetId: quote })).operationId, prepared.operationId);
+    await db.exec('RESET ROLE');
+    await db.query('UPDATE partner_sales SET total=15 WHERE id=$1', [quote]);
+    for (let index = 0; index < 130; index++) await event(`offline-${index}`);
+    await event('offline-129');
+    await authenticate(company);
+    const changed = await call('prepare_quote', { ...context, targetId: quote });
+    assert.notEqual(changed.operationId, prepared.operationId);
+    assert.equal((await call('prepare_quote', { ...context, targetId: quote })).operationId, changed.operationId);
+    let after = first[0].position;
+    const recovered = [];
+    for (;;) {
+      const page = await call('history', { ...context, after });
+      if (!page.length) break;
+      recovered.push(...page.map(message => message.position));
+      after = page[page.length - 1].position;
+    }
+    assert.equal(recovered.length, 130);
+    assert.deepEqual(recovered, [...new Set(recovered)].sort((a, b) => a - b));
     await call('transfer', { ...context, targetId: second });
+    assert.equal((await call('list', { filter: 'mine' })).rows.length, 0);
+    assert.equal((await call('details', context)).conversation.assignee_name, 'Segundo');
     await assert.rejects(call('resolve', context), /ATENDIMENTO_ASSIGNMENT_DENIED/);
     const outgoing = { ...context, requestId: id(99), body: 'Resposta' };
     await call('test_send', outgoing, second);
+    assert.deepEqual(await call('send_status', outgoing, second), { delivery: 'submitted' });
+    assert.deepEqual(await call('send_status', outgoing), {});
     await call('test_send', outgoing, second);
     assert.equal((await call('history', context, second))[0].delivery, 'submitted');
     await db.exec('RESET ROLE; SET ROLE service_role');

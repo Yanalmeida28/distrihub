@@ -405,6 +405,7 @@ export function PartnerPanel({
 
   const effectiveBranchId = accessLocked ? '' :
     isEmployeeRestricted ? lockedBranchId ?? '' : selectedBranchId;
+  const atendimentoBranch = partner.branches.find(branch => branch.id === effectiveBranchId);
   useEffect(() => {
     if (!deviceSession.ready || !effectiveBranchId || partner.loading || (activeTab !== 'pdv' && activeTab !== 'pedidos')) return;
     let active = true;
@@ -511,9 +512,9 @@ export function PartnerPanel({
 
   const blockedTabs = useMemo(() => [...new Set<Tab>([
     ...roleBlockedTabs,
-    ...(!effectiveBranchId || (!atendimentoChatEnabled && (isEmployeeRestricted || pinOperator)) ? ['atendimento' as const] : []),
+    ...(!atendimentoBranch || (!atendimentoChatEnabled && (isEmployeeRestricted || pinOperator)) ? ['atendimento' as const] : []),
     ...(activeSalesperson?.blocked_modules ?? []).filter((module): module is Tab => allTabs.some(tab => tab.id === module)),
-  ])], [roleBlockedTabs, activeSalesperson?.blocked_modules, isEmployeeRestricted, pinOperator, effectiveBranchId]);
+  ])], [roleBlockedTabs, activeSalesperson?.blocked_modules, isEmployeeRestricted, pinOperator, atendimentoBranch]);
 
   const visibleTabs = useMemo(() => {
     if (accessLocked) return allTabs.filter(tab => tab.id !== 'atendimento');
@@ -2416,15 +2417,16 @@ export function PartnerPanel({
               </div>
             )}
 
-            {effectiveBranchId && identity?.companyUserId && visitedTabs.has('atendimento') && (
+            {atendimentoBranch && identity?.companyUserId && visitedTabs.has('atendimento') && (
               <div hidden={activeTab !== 'atendimento'}>
                 {renderTab('atendimento', atendimentoChatEnabled ? <AtendimentoChatModule
                   key={`${identity.authUserId}:${identity.companyUserId}:${effectiveBranchId}:${pinOperator?.id ?? identity.salespersonId ?? 'owner'}`}
                   active={activeTab === 'atendimento'}
+                  authUserId={identity.authUserId}
                   companyId={identity.companyUserId}
                   companyName={partner.profile?.name}
                   branchId={effectiveBranchId}
-                  branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name ?? 'Filial'}
+                  branchName={atendimentoBranch.name}
                   operatorId={pinOperator?.id ?? identity.salespersonId ?? undefined}
                   credential={pinOperator?.pin}
                   customers={partner.customers.filter(customer => customer.user_id === identity.companyUserId && (!customer.branch_id || customer.branch_id === effectiveBranchId))}
