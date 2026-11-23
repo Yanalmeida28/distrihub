@@ -1,3 +1,4 @@
+declare const __ATENDIMENTO_CHAT_ENABLED__: boolean;
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { SessionDraftProvider, useSessionDraftScope, useSessionDraftState } from '../../hooks/useSessionDraft';
 import { createPortal } from 'react-dom';
@@ -2572,7 +2573,7 @@ function SalespeopleSubTab({
                                 os: 'Ordens de Serviço',
                                 historico: 'Histórico',
                                 suporte: 'Suporte',
-                                ...(import.meta.env.VITE_ATENDIMENTO_CHAT === 'true' ? { atendimento: 'Atendimento' } : {}),
+                                ...(typeof __ATENDIMENTO_CHAT_ENABLED__ !== 'undefined' && __ATENDIMENTO_CHAT_ENABLED__ ? { atendimento: 'Atendimento' } : {}),
                                 fiscal: 'Nota Fiscal',
                                 administrativo: 'Administrativo',
                                 entregas: 'Entregas',
