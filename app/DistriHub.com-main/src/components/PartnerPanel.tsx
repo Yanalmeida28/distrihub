@@ -21,6 +21,7 @@ import {
   FileText,
   Shield,
   Headphones,
+  MessageCircle,
   Wrench,
   UserCheck,
   Lock,
@@ -71,6 +72,8 @@ const loadDeliveryModule = moduleLoader(() => import('./partner/DeliveryModule')
 const DeliveryModule = lazy(loadDeliveryModule);
 const loadSettingsModule = moduleLoader(() => import('./partner/SettingsModule').then((module) => ({ default: module.SettingsModule })));
 const SettingsModule = lazy(loadSettingsModule);
+const loadAtendimentoModule = moduleLoader(() => import('./partner/AtendimentoModule'));
+const AtendimentoModule = lazy(loadAtendimentoModule);
 const loadOpenOrdersModule = moduleLoader(() => import('./partner/OpenOrdersModule').then((module) => ({ default: module.OpenOrdersModule })));
 const OpenOrdersModule = lazy(loadOpenOrdersModule);
 const loadFiscalModule = moduleLoader(() => import('./partner/FiscalModule').then((module) => ({ default: module.FiscalModule })));
@@ -126,6 +129,7 @@ type Tab =
   | 'os'
   | 'historico'
   | 'suporte'
+  | 'atendimento'
   | 'fiscal'
   | 'administrativo'
   | 'financeiro'
@@ -143,6 +147,7 @@ const tabCodeLoaders: Record<Tab, () => Promise<unknown>> = {
   'os': loadServiceOrdersModule,
   'historico': loadSalesHistoryModule,
   'suporte': loadSupportChatModule,
+  'atendimento': loadAtendimentoModule,
   'fiscal': loadFiscalModule,
   'administrativo': loadAdminModule,
   'financeiro': loadFinancialModule,
@@ -192,6 +197,11 @@ const allTabs: {
     id: 'suporte',
     label: 'Suporte',
     icon: Headphones,
+  },
+  {
+    id: 'atendimento',
+    label: 'Atendimento',
+    icon: MessageCircle,
   },
   {
     id: 'fiscal',
@@ -498,8 +508,9 @@ export function PartnerPanel({
 
   const blockedTabs = useMemo(() => [...new Set<Tab>([
     ...roleBlockedTabs,
+    ...(isEmployeeRestricted || pinOperator ? ['atendimento' as const] : []),
     ...(activeSalesperson?.blocked_modules ?? []).filter((module): module is Tab => allTabs.some(tab => tab.id === module)),
-  ])], [roleBlockedTabs, activeSalesperson?.blocked_modules]);
+  ])], [roleBlockedTabs, activeSalesperson?.blocked_modules, isEmployeeRestricted, pinOperator]);
 
   const visibleTabs = useMemo(() => {
     if (accessLocked) return allTabs;
@@ -2399,6 +2410,12 @@ export function PartnerPanel({
                   partner.updateStoreSettings
                 }
               />)}
+              </div>
+            )}
+
+            {visitedTabs.has('atendimento') && (
+              <div hidden={activeTab !== 'atendimento'}>
+                {renderTab('atendimento', <AtendimentoModule key={partner.profile?.id} />)}
               </div>
             )}
 
