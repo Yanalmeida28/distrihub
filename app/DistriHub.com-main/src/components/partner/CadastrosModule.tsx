@@ -2572,6 +2572,7 @@ function SalespeopleSubTab({
                                 os: 'Ordens de Serviço',
                                 historico: 'Histórico',
                                 suporte: 'Suporte',
+                                ...(import.meta.env.VITE_ATENDIMENTO_CHAT === 'true' ? { atendimento: 'Atendimento' } : {}),
                                 fiscal: 'Nota Fiscal',
                                 administrativo: 'Administrativo',
                                 entregas: 'Entregas',

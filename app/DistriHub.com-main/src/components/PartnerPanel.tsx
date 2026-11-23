@@ -74,6 +74,8 @@ const loadSettingsModule = moduleLoader(() => import('./partner/SettingsModule')
 const SettingsModule = lazy(loadSettingsModule);
 const loadAtendimentoModule = moduleLoader(() => import('./partner/AtendimentoModule'));
 const AtendimentoModule = lazy(loadAtendimentoModule);
+const AtendimentoChatModule = lazy(moduleLoader(() => import('./partner/AtendimentoChatModule')));
+const atendimentoChatEnabled = import.meta.env.VITE_ATENDIMENTO_CHAT === 'true';
 const loadOpenOrdersModule = moduleLoader(() => import('./partner/OpenOrdersModule').then((module) => ({ default: module.OpenOrdersModule })));
 const OpenOrdersModule = lazy(loadOpenOrdersModule);
 const loadFiscalModule = moduleLoader(() => import('./partner/FiscalModule').then((module) => ({ default: module.FiscalModule })));
@@ -508,12 +510,12 @@ export function PartnerPanel({
 
   const blockedTabs = useMemo(() => [...new Set<Tab>([
     ...roleBlockedTabs,
-    ...(isEmployeeRestricted || pinOperator ? ['atendimento' as const] : []),
+    ...(!effectiveBranchId || (!atendimentoChatEnabled && (isEmployeeRestricted || pinOperator)) ? ['atendimento' as const] : []),
     ...(activeSalesperson?.blocked_modules ?? []).filter((module): module is Tab => allTabs.some(tab => tab.id === module)),
-  ])], [roleBlockedTabs, activeSalesperson?.blocked_modules, isEmployeeRestricted, pinOperator]);
+  ])], [roleBlockedTabs, activeSalesperson?.blocked_modules, isEmployeeRestricted, pinOperator, effectiveBranchId]);
 
   const visibleTabs = useMemo(() => {
-    if (accessLocked) return allTabs;
+    if (accessLocked) return allTabs.filter(tab => tab.id !== 'atendimento');
     return allTabs.filter((tab) =>
       !blockedTabs.includes(tab.id) && canUseSaasFeature(saas.subscription, tab.id),
     );
@@ -2413,9 +2415,19 @@ export function PartnerPanel({
               </div>
             )}
 
-            {visitedTabs.has('atendimento') && (
+            {effectiveBranchId && identity?.companyUserId && visitedTabs.has('atendimento') && (
               <div hidden={activeTab !== 'atendimento'}>
-                {renderTab('atendimento', <AtendimentoModule
+                {renderTab('atendimento', atendimentoChatEnabled ? <AtendimentoChatModule
+                  key={`${identity.authUserId}:${identity.companyUserId}:${effectiveBranchId}:${pinOperator?.id ?? identity.salespersonId ?? 'owner'}`}
+                  active={activeTab === 'atendimento'}
+                  companyId={identity.companyUserId}
+                  companyName={partner.profile?.name}
+                  branchId={effectiveBranchId}
+                  branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name ?? 'Filial'}
+                  operatorId={pinOperator?.id ?? identity.salespersonId ?? undefined}
+                  credential={pinOperator?.pin}
+                  customers={partner.customers.filter(customer => customer.user_id === identity.companyUserId && (!customer.branch_id || customer.branch_id === effectiveBranchId))}
+                /> : <AtendimentoModule
                   key={`${identity?.companyUserId}:${effectiveBranchId}`}
                   branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name}
                 />)}
