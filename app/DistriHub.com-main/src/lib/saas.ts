@@ -39,7 +39,7 @@ export const saasInvoiceLabels: Record<SaasInvoice['status'], string> = {
 };
 export function canUseSaasFeature(subscription: SaasSubscription | null, feature: string): boolean {
   if (feature === 'configuracoes' || feature === 'suporte') return true;
-  return subscription?.can_access === true && subscription.features.includes(feature);
+  return subscription?.can_access === true && (feature === 'atendimento' || subscription.features.includes(feature));
 }
 export function saasAccessDateForInput(value: string | null): string {
   return value ? new Date(value).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }) : '';
