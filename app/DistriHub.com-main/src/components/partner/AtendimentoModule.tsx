@@ -32,23 +32,10 @@ export default function AtendimentoModule({ branchName }: { branchName?: string 
         <span className="atendimento-status">API oficial pendente</span>
       </header>
 
-      {branchName ? (
-        <section className="atendimento-connection" aria-labelledby="atendimento-web-title">
-          <div className="atendimento-connection-row">
-            <div>
-              <h3 id="atendimento-web-title">WhatsApp Web</h3>
-              <p>Teste nesta filial. No WhatsApp, abra Aparelhos conectados e escaneie o QR Code exibido na nova guia.</p>
-              <p>Use o número da filial ao entrar. As mensagens ficam no WhatsApp Web.</p>
-            </div>
-            <a className="btn-primary atendimento-button" href="https://web.whatsapp.com/" target="_blank" rel="noopener noreferrer">
-              <ArrowUpRight size={17} aria-hidden="true" /> Conectar via WhatsApp Web
-            </a>
-          </div>
-        </section>
-      ) : (
+      {!branchName && (
         <section className="atendimento-connection">
-          <h3>Selecione a filial do teste</h3>
-          <p>Escolha uma filial no seletor do painel para abrir o WhatsApp Web.</p>
+          <h3>Selecione uma filial</h3>
+          <p>Escolha uma filial no seletor do painel para acessar o atendimento.</p>
         </section>
       )}
 
