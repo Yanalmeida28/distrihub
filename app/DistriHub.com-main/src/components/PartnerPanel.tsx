@@ -2415,7 +2415,10 @@ export function PartnerPanel({
 
             {visitedTabs.has('atendimento') && (
               <div hidden={activeTab !== 'atendimento'}>
-                {renderTab('atendimento', <AtendimentoModule key={partner.profile?.id} />)}
+                {renderTab('atendimento', <AtendimentoModule
+                  key={`${identity?.companyUserId}:${effectiveBranchId}`}
+                  branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name}
+                />)}
               </div>
             )}
 
