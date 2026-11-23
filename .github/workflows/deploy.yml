@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      atendimento_chat:
+        description: Ativar Chat na compilação deste ambiente
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -86,6 +91,7 @@ jobs:
       - name: Gerar build
         run: npm run build
         env:
+          VITE_ATENDIMENTO_CHAT: ${{ inputs.atendimento_chat && 'true' || 'false' }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
