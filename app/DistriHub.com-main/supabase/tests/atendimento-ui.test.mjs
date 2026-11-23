@@ -21,9 +21,7 @@ test('Atendimento opens an empty inbox and gives clear connection instructions',
   assert.equal(tree.root.findByProps({ id: 'atendimento-connection-guide' }).props.hidden, true);
   act(() => button('Ver instruções de conexão').props.onClick());
   assert.equal(tree.root.findByProps({ id: 'atendimento-connection-guide' }).props.hidden, false);
-  const web = tree.root.findByProps({ href: 'https://web.whatsapp.com/' });
-  assert.equal(web.props.target, '_blank');
-  assert.equal(web.props.rel, 'noopener noreferrer');
+  assert.equal(tree.root.findAllByProps({ href: 'https://web.whatsapp.com/' }).length, 0);
   assert.ok(JSON.stringify(tree.toJSON()).includes('Filial Centro'));
   assert.match(tree.root.findByProps({ rel: 'noreferrer' }).props.href, /^https:\/\/developers\.facebook\.com\//);
   const tabs = tree.root.findByType('nav').findAllByType('button');
