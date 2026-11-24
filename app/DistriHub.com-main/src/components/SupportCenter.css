@@ -1,0 +1,53 @@
+.support-center { display: grid; gap: 1rem; }
+.support-center-header, .support-center-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .6rem;
+}
+.support-center-header { justify-content: space-between; }
+.support-center-header h2, .support-center h3 { margin: 0; }
+.support-center-header .module-header { margin-bottom: 0; }
+.support-center-actions button { display: inline-flex; align-items: center; gap: .4rem; }
+.support-center-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+.support-center-list, .support-center-thread, .support-center-form {
+  display: grid;
+  gap: .7rem;
+  min-width: 0;
+  padding: .85rem;
+  border: 1px solid var(--dh-border, #29465f);
+  border-radius: var(--dh-radius, 10px);
+}
+.support-center label { display: grid; gap: .35rem; min-width: 0; }
+.support-center input, .support-center select, .support-center textarea {
+  width: 100%;
+  min-width: 0;
+  padding: .5rem;
+}
+.support-center textarea { min-height: 5rem; resize: vertical; }
+.support-center button { min-height: 40px; }
+.support-ticket-row {
+  display: grid;
+  gap: .3rem;
+  padding: .65rem;
+  border: 1px solid var(--dh-border, #29465f);
+  border-radius: 8px;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.support-ticket-row[aria-pressed="true"] { border-color: var(--dh-blue, #3193e5); }
+.support-ticket-row :is(span, small), .support-ticket-messages small { color: var(--dh-text-secondary, #adc2d6); }
+.support-ticket-messages { display: grid; gap: .55rem; margin: 0; padding: 0; max-height: 32rem; overflow: auto; list-style: none; }
+.support-ticket-messages li { padding: .55rem .75rem; border: 1px solid var(--dh-border, #29465f); border-radius: 8px; overflow-wrap: anywhere; }
+.support-ticket-messages li[data-admin="true"] { background: var(--dh-blue-soft, #112c41); }
+.support-ticket-messages p { margin: .25rem 0 0; white-space: pre-wrap; }
+.support-ticket-image { display: block; margin-top: .5rem; max-width: 100%; max-height: 28rem; object-fit: contain; }
+.support-legacy { margin-top: 1rem; }
+@media (max-width: 700px) {
+  .support-center-layout { grid-template-columns: minmax(0, 1fr); }
+}
