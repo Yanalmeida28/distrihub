@@ -259,12 +259,19 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
         <div className="module-card">
           <div className="module-card-title"><Palette size={16} /> Aparência do painel</div>
           <div className="personalization-fields">
+            <label>Tema do painel
+              <select aria-label="Tema do painel" value={panel.theme} onChange={event => updatePreference('panel', { ...panel, theme: event.target.value as typeof panel.theme })}>
+                <option value="default">Padrão</option>
+                <option value="blue-glass">Azul vidro</option>
+                <option value="white">Fundo branco</option>
+              </select>
+            </label>
             <label>Tamanho dos textos<select aria-label="Tamanho dos textos do painel" value={panel.text_size} onChange={e => updatePreference('panel', { ...panel, text_size: e.target.value as typeof panel.text_size })}><option value="normal">Normal</option><option value="large">Grande</option><option value="extra-large">Extra grande</option></select></label>
             <label>Espaçamento<select aria-label="Espaçamento do painel" value={panel.density} onChange={e => updatePreference('panel', { ...panel, density: e.target.value as typeof panel.density })}><option value="comfortable">Confortável</option><option value="compact">Compacto</option></select></label>
             <label>Cantos dos cartões e botões<select aria-label="Cantos do painel" value={panel.corners} onChange={e => updatePreference('panel', { ...panel, corners: e.target.value as typeof panel.corners })}><option value="standard">Padrão</option><option value="rounded">Mais arredondados</option><option value="square">Mais retos</option></select></label>
           </div>
-          <div className="personalization-panel-preview" style={{ ...storeTheme(settings.primary_color, settings.nav_color), ...panelStyle(panel) } as React.CSSProperties}>
-            <strong>Prévia do painel</strong><div className="personalization-preview-card">Resumo de vendas <b>R$ 1.250,00</b></div>
+          <div className="personalization-panel-preview" data-panel-theme={panel.theme} style={{ ...storeTheme(settings.primary_color, settings.nav_color), ...panelStyle(panel) } as React.CSSProperties}>
+            <strong>Prévia do painel</strong><div className="personalization-preview-card">Entradas <b>R$ 1.250,00</b></div>
             <div className="personalization-preview-row"><span>Produto de exemplo</span><strong>R$ 100,00</strong></div>
             <button type="button" disabled>Botão de exemplo</button>
           </div>

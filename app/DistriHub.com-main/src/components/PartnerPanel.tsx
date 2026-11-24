@@ -1614,7 +1614,7 @@ export function PartnerPanel({
   }
 
   return (
-    <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-personalized-panel={storeSettings.personalization?.panel ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(storeSettings.personalization?.panel ? panelStyle(storeSettings.personalization.panel) : {}) } as React.CSSProperties}>
+    <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-panel-theme={storeSettings.personalization?.panel?.theme ?? storeSettings.personalization?.panel?.financial_theme} data-personalized-panel={storeSettings.personalization?.panel ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(storeSettings.personalization?.panel ? panelStyle(storeSettings.personalization.panel) : {}) } as React.CSSProperties}>
       <div className="sidebar-mobile-bar">
         <button
           className="sidebar-toggle"

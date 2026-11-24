@@ -339,6 +339,8 @@ export interface ReceiptPreferences {
 }
 
 export interface PanelPreferences {
+  theme: 'default' | 'blue-glass' | 'white';
+  financial_theme?: PanelPreferences['theme'];
   text_size: 'normal' | 'large' | 'extra-large';
   density: 'comfortable' | 'compact';
   corners: 'standard' | 'rounded' | 'square';

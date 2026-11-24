@@ -81,6 +81,10 @@ test('personalization preserves independent panel, receipt and catalog choices w
   await act(async()=>renderer.root.findByProps({'aria-label':'Aplicar tema Verde'}).props.onClick());
   await change('Largura do papel do cupom','58');
   await change('Fonte do cupom','14');
+  await change('Tema do painel','white');
+  assert.equal(renderer.root.findByProps({className:'personalization-panel-preview'}).props['data-panel-theme'],'white');
+  await change('Tema do painel','blue-glass');
+  assert.equal(renderer.root.findByProps({className:'personalization-panel-preview'}).props['data-panel-theme'],'blue-glass');
   await change('Tamanho dos textos do painel','large');
   await change('Mensagem de boas-vindas do catálogo','Bem-vindo!\nConfira nossos produtos.');
   await change('WhatsApp do catálogo','11999999999');
@@ -89,6 +93,7 @@ test('personalization preserves independent panel, receipt and catalog choices w
   assert.equal(submitted.nav_color,'#14532d');
   assert.equal(submitted.personalization.receipt.paper_width,'58');
   assert.equal(submitted.personalization.receipt.font_size,14);
+  assert.equal(submitted.personalization.panel.theme,'blue-glass');
   assert.equal(submitted.personalization.panel.text_size,'large');
   assert.equal(submitted.personalization.catalog.welcome_message,'Bem-vindo!\nConfira nossos produtos.');
   assert.equal(submitted.receipt_footer_text,settings.receipt_footer_text);

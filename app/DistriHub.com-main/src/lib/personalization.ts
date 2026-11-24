@@ -1,7 +1,7 @@
 import type { CatalogPreferences, PanelPreferences, ReceiptPreferences } from '../types';
 
 export const receiptDefaults: ReceiptPreferences = { paper_width: '80', font_size: 12, header_text: '', show_phone: true, show_address: true, show_document: false, show_salesperson: true };
-export const panelDefaults: PanelPreferences = { text_size: 'normal', density: 'comfortable', corners: 'standard' };
+export const panelDefaults: PanelPreferences = { theme: 'default', text_size: 'normal', density: 'comfortable', corners: 'standard' };
 export const catalogDefaults: CatalogPreferences = { welcome_message: '', card_size: 'normal', banner_height: 220, show_stock: true, show_sku: true, whatsapp_phone: '', show_whatsapp: true };
 
 function object(value: unknown): Record<string, unknown> { return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
@@ -18,7 +18,8 @@ export function receiptPreferences(value?: unknown): ReceiptPreferences {
 
 export function panelPreferences(value?: unknown): PanelPreferences {
   const data = object(value);
-  return { text_size: choice(data.text_size, ['normal', 'large', 'extra-large'], 'normal'), density: choice(data.density, ['comfortable', 'compact'], 'comfortable'), corners: choice(data.corners, ['standard', 'rounded', 'square'], 'standard') };
+  return { theme: choice(data.theme ?? data.financial_theme, ['default', 'blue-glass', 'white'], panelDefaults.theme),
+    text_size: choice(data.text_size, ['normal', 'large', 'extra-large'], 'normal'), density: choice(data.density, ['comfortable', 'compact'], 'comfortable'), corners: choice(data.corners, ['standard', 'rounded', 'square'], 'standard') };
 }
 
 export function catalogPreferences(value?: unknown): CatalogPreferences {
