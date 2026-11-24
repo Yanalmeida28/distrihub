@@ -170,11 +170,11 @@ export function CadastrosModule({
           <button
             key={id}
             type="button"
-            className={`subtab ${subTab === id ? 'active' : ''}${mobilePrimaryTabs.includes(id) ? '' : ' cadastros-secondary-tab'}`}
+            className={`subtab ${subTab === id ? 'active' : ''}${mobilePrimaryTabs.includes(id) ? '' : ' cadastros-secondary-tab'}${id === 'produtos' ? ' cadastros-products-tab' : ''}`}
             onClick={() => selectSubTab(id)}
           >
             <Icon size={15} />
-            {id === 'produtos' ? <><span className="cadastros-title-mobile">Produtos</span><span className="cadastros-title-desktop">{label}</span></> : label}
+            {label}
           </button>
         ))}
         {otherTabs.length > 0 && <select
@@ -1530,7 +1530,7 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
             setEditingCustomerId(null);
           }
         }}>
-          {showForm ? 'Cancelar' : <><Plus size={16} /> <span>Novo<span className="cadastros-title-desktop"> Cliente</span></span></>}
+          {showForm ? 'Cancelar' : <><Plus size={16} /> Novo Cliente</>}
         </button>
         {canExport && <MobileExportControls>
           <ExportButtons allowed={canExport} target="clientes" products={[]} customers={customers} />

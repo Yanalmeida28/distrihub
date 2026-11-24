@@ -108,3 +108,14 @@
     overflow-wrap: anywhere;
   }
 }
+
+@media (width < 768px) {
+  .partner-panel .cadastros-scope .cadastros-subtab-bar .cadastros-products-tab {
+    font-size: 0;
+  }
+
+  .partner-panel .cadastros-scope .cadastros-products-tab::after {
+    content: 'Produtos';
+    font-size: 12.5px;
+  }
+}
