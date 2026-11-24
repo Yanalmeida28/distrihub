@@ -129,6 +129,13 @@ export function CadastrosModule({
   const visibleSubTabs = showSalespeopleOutsideAdmin
     ? [...availableSubTabs, { id: 'vendedores' as const, label: 'Colaboradores', icon: Users }]
     : availableSubTabs;
+  const mobilePrimaryTabs: SubTab[] = ['produtos', 'clientes', 'fornecedores'];
+  const otherTabs = visibleSubTabs.filter(tab => !mobilePrimaryTabs.includes(tab.id));
+  function selectSubTab(id: SubTab) {
+    setVisitedSubTabs(current => current.has(id) ? current : new Set(current).add(id));
+    setSubTab(id);
+  }
+
   useEffect(() => {
     if (!canImportExport && !adminTarget && ['importar', 'xml'].includes(subTab)) setSubTab('produtos');
   }, [canImportExport, adminTarget, subTab, setSubTab]);
@@ -149,7 +156,7 @@ export function CadastrosModule({
       key={`${parentDraftScope}:cadastros:${adminTarget ?? 'principal'}`}
       scope={`${parentDraftScope}:cadastros:${adminTarget ?? 'principal'}`}
     >
-    <div className="panel-module cadastros-scope">
+    <div className={`panel-module cadastros-scope${adminTarget ? '' : ' cadastros-main'}`}>
       <div className="module-header">
         <span className="module-icon"><Boxes size={20} /></span>
         <div>
@@ -162,15 +169,26 @@ export function CadastrosModule({
         {visibleSubTabs.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
-            className={`subtab ${subTab === id ? 'active' : ''}`}
-            onClick={() => {
-              setVisitedSubTabs((current) => current.has(id) ? current : new Set(current).add(id));
-              setSubTab(id);
-            }}
+            type="button"
+            className={`subtab ${subTab === id ? 'active' : ''}${mobilePrimaryTabs.includes(id) ? '' : ' cadastros-secondary-tab'}`}
+            onClick={() => selectSubTab(id)}
           >
-            <Icon size={15} /> {label}
+            <Icon size={15} />
+            {id === 'produtos' ? <><span className="cadastros-title-mobile">Produtos</span><span className="cadastros-title-desktop">{label}</span></> : label}
           </button>
         ))}
+        {otherTabs.length > 0 && <select
+          className="cadastros-more"
+          aria-label="Mais opções de Cadastros"
+          value={otherTabs.some(tab => tab.id === subTab) ? subTab : ''}
+          onChange={event => {
+            const tab = otherTabs.find(item => item.id === event.target.value);
+            if (tab) selectSubTab(tab.id);
+          }}
+        >
+          <option value="" disabled>Mais</option>
+          {otherTabs.map(tab => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
+        </select>}
       </div>}
 
       <div className="subtab-content">
@@ -306,6 +324,17 @@ function StockAdjustmentSubTab({ products, branchId, onUpdate }: {
         </form> : <button type="button" className="rma-advance-btn" disabled={saving} onClick={() => { setEditing({ id: p.id, stock: String(p.stock) }); setError(''); setNotice(''); }}>Ajustar saldo</button>}</td>
       </tr>)}</tbody></table></div>
   </div>;
+}
+
+function MobileExportControls({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    <button type="button" className="rma-advance-btn cadastros-export-toggle"
+      aria-expanded={open} onClick={() => setOpen(current => !current)}>
+      Exportar
+    </button>
+    <div className="cadastros-product-exports" data-mobile-open={open}>{children}</div>
+  </>;
 }
 
 function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsService = false, isActive = true, products, allProducts, branches, selectedBranchId, categories, suppliers, onAddSupplier, onAddProduct, findProductDuplicates, onUpdateProduct, onDeleteProduct }: {
@@ -502,10 +531,17 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
   return (
     <div>
       <div className="action-row product-list-toolbar">
+        {!showForm && <div className="pdv-search-bar cadastros-mobile-search">
+          <input type="search" aria-label="Buscar produto" placeholder="Buscar produto ou SKU"
+            enterKeyHint="search" value={productSearch}
+            onChange={event => { setProductSearch(event.target.value); setProductPage(1); }} />
+        </div>}
         <button className="module-action-btn" aria-label={showForm ? 'Cancelar' : `Novo ${itemLabel}`} onClick={() => setShowForm(!showForm)}>
           {showForm ? 'Cancelar' : <><Plus size={16} /> <span>Novo<span className="cadastros-title-desktop"> {itemLabel}</span></span></>}
         </button>
-        <ExportButtons allowed={canExport} target="produtos" products={products} customers={[]} />
+        {canExport && <MobileExportControls>
+          <ExportButtons allowed={canExport} target="produtos" products={products} customers={[]} />
+        </MobileExportControls>}
       </div>
       {deleteError && <p role="alert" className="otp-error-msg">{deleteError}</p>}
       {productNotice && <p role="status">{productNotice}</p>}
@@ -623,7 +659,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
         </form>
       )}
 
-      <div className="pdv-search-bar">
+      <div className="pdv-search-bar cadastros-desktop-search">
         <input
           type="search"
           value={productSearch}
@@ -1474,7 +1510,12 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
 
   return (
     <div>
-      <div className="action-row">
+      <div className="action-row product-list-toolbar">
+        <div className="pdv-search-bar cadastros-mobile-search">
+          <input type="search" autoComplete="off" aria-label="Buscar cliente"
+            placeholder="Buscar cliente" enterKeyHint="search" value={customerSearch}
+            onChange={event => setCustomerSearch(event.target.value)} />
+        </div>
         <button className="module-action-btn" disabled={savingCustomer || customerUncertain || !isActive} onClick={() => {
           if (customerSave.current.pending || customerUncertain || !isActive) return;
           if (showForm && editingCustomerId) {
@@ -1489,11 +1530,14 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
             setEditingCustomerId(null);
           }
         }}>
-          {showForm ? 'Cancelar' : <><Plus size={16} /> Novo Cliente</>}
+          {showForm ? 'Cancelar' : <><Plus size={16} /> <span>Novo<span className="cadastros-title-desktop"> Cliente</span></span></>}
         </button>
-        <ExportButtons allowed={canExport} target="clientes" products={[]} customers={customers} />
+        {canExport && <MobileExportControls>
+          <ExportButtons allowed={canExport} target="clientes" products={[]} customers={customers} />
+        </MobileExportControls>}
       </div>
       <input
+        className="cadastros-desktop-search"
         type="search"
         autoComplete="off"
         value={customerSearch}
