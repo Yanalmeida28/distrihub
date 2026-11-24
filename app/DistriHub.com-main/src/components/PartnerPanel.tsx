@@ -2,7 +2,7 @@ import { useSupportUnread } from '../hooks/useSupportUnread';
 import { SupportUnreadBadge } from './SupportUnreadBadge';
 import { ModuleBoundary } from './ModuleBoundary';
 import { moduleLoader } from '../lib/moduleLoading';
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import {
   ArrowLeft,
@@ -50,6 +50,7 @@ import { BranchSelector } from './partner/BranchSelector';
 import { useCheckoutCash } from '../hooks/useCheckoutCash';
 import { SessionDraftProvider, useSessionDraftState, clearConfirmedPdvDraft } from '../hooks/useSessionDraft';
 import { OperatorSelectionStore } from '../lib/checkoutCash';
+import './PartnerPanelMobileMenu.css';
 
 const loadCadastrosModule = moduleLoader(() => import('./partner/CadastrosModule').then((module) => ({ default: module.CadastrosModule })));
 const CadastrosModule = lazy(loadCadastrosModule);
@@ -249,6 +250,25 @@ const allTabs: {
   },
 ];
 
+const MOBILE_MENU_QUERY = '(width < 768px)';
+const mobileMenuGroups = [
+  { title: 'Vendas', tabs: ['pdv', 'caixa', 'pedidos', 'historico'] },
+  { title: 'Operação', tabs: ['cadastros', 'os', 'entregas', 'rma', 'atendimento'] },
+  { title: 'Gestão', tabs: ['financeiro', 'fiscal', 'relatorios', 'administrativo', 'white-label', 'configuracoes'] },
+  { title: 'Apoio', tabs: ['suporte'] },
+] satisfies { title: string; tabs: Tab[] }[];
+const mobileMenuLabels: Partial<Record<Tab, string>> = { entregas: 'Entregas', rma: 'RMA' };
+
+function subscribeToMobileMenu(onChange: () => void) {
+  const query = typeof window === 'undefined' ? undefined : window.matchMedia?.(MOBILE_MENU_QUERY);
+  query?.addEventListener('change', onChange);
+  return () => query?.removeEventListener('change', onChange);
+}
+
+function isMobileMenu() {
+  return typeof window !== 'undefined' && (window.matchMedia?.(MOBILE_MENU_QUERY).matches ?? false);
+}
+
 const gerenteBlockedTabs: Tab[] = [
   'financeiro',
   'white-label',
@@ -337,6 +357,7 @@ export function PartnerPanel({
     catch { return ''; }
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const mobileMenu = useSyncExternalStore(subscribeToMobileMenu, isMobileMenu, () => false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [legacySupportOpen, setLegacySupportOpen] = useState(false);
   const [switchingBranch, setSwitchingBranch] = useState(false);
@@ -1613,6 +1634,47 @@ export function PartnerPanel({
     );
   }
 
+  function renderNavTab({ id, label, icon: Icon }: (typeof visibleTabs)[number]) {
+    const title = mobileMenu ? mobileMenuLabels[id] ?? label : label;
+    const selected = !helpOpen && activeTab === id && !(mobileMenu && accessLocked);
+    return (
+      <button
+        key={id}
+        title={title}
+        onPointerEnter={() => preloadTab(id)}
+        onFocus={() => preloadTab(id)}
+        onTouchStart={() => preloadTab(id)}
+        aria-label={title}
+        aria-current={mobileMenu && selected ? 'page' : undefined}
+        className={`sidebar-nav-item ${selected ? 'active' : ''}`}
+        onClick={() => handleTabClick(id)}
+      >
+        <Icon size={20} />
+        <span className="sidebar-nav-label">{title}</span>
+        {id === 'suporte' && <SupportUnreadBadge count={supportUnread.total} />}
+      </button>
+    );
+  }
+
+  const supportActions = <>
+    <button type="button" aria-label="Ajuda" aria-current={helpOpen ? 'page' : undefined} className={`sidebar-nav-item ${helpOpen ? 'active' : ''}`} onClick={() => { setHelpOpen(true); setSidebarOpen(false); }}>
+      <BookOpen size={20} /><span className="sidebar-nav-label">Ajuda</span>
+    </button>
+    <button
+      type="button"
+      className="sidebar-nav-item"
+      onClick={() => void partner.synchronize()}
+      disabled={accessLocked || partner.loading || partner.syncing}
+      aria-label={partner.syncing ? 'Sincronizando' : 'Sincronizar'}
+      aria-busy={partner.syncing}
+    >
+      <RefreshCw size={20} />
+      <span className="sidebar-nav-label">{partner.syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+    </button>
+  </>;
+  const headerTab = visibleTabs.find(tab => tab.id === activeTab);
+  const mobileHeaderTitle = accessLocked ? 'Selecionar operador' : helpOpen ? 'Ajuda' : headerTab && (mobileMenuLabels[headerTab.id] ?? headerTab.label);
+
   return (
     <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-panel-theme={storeSettings.personalization?.panel?.theme ?? storeSettings.personalization?.panel?.financial_theme} data-personalized-panel={storeSettings.personalization?.panel ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(storeSettings.personalization?.panel ? panelStyle(storeSettings.personalization.panel) : {}) } as React.CSSProperties}>
       <div className="sidebar-mobile-bar">
@@ -1637,12 +1699,7 @@ export function PartnerPanel({
         <span className="sidebar-mobile-title">
           <Store size={18} />
 
-          {
-            visibleTabs.find(
-              (tab) =>
-                tab.id === activeTab,
-            )?.label
-          }
+          {mobileMenu ? mobileHeaderTitle : headerTab?.label}
         </span>
 
         <button
@@ -1818,47 +1875,19 @@ export function PartnerPanel({
         {branchAccessError && <p role="alert">{branchAccessError}</p>}
 
         <nav className="sidebar-nav">
-          {visibleTabs.map(
-            ({
-              id,
-              label,
-              icon: Icon,
-            }) => (
-              <button
-                key={id}
-                title={label}
-                onPointerEnter={() => preloadTab(id)}
-                onFocus={() => preloadTab(id)}
-                onTouchStart={() => preloadTab(id)}
-                aria-label={label}
-                className={`sidebar-nav-item ${
-                  !helpOpen && activeTab === id
-                    ? 'active'
-                    : ''
-                }`}
-                onClick={() =>
-                  handleTabClick(id)
-                }
-              >
-                <Icon size={20} />
-                <span className="sidebar-nav-label">{label}</span>{id === 'suporte' && <SupportUnreadBadge count={supportUnread.total} />}
-              </button>
-            ),
-          )}
-          <button type="button" aria-label="Ajuda" aria-current={helpOpen?'page':undefined} className={'sidebar-nav-item '+(helpOpen?'active':'')} onClick={()=>{setHelpOpen(true);setSidebarOpen(false);}}>
-            <BookOpen size={20}/><span className="sidebar-nav-label">Ajuda</span>
-          </button>
-          <button
-            type="button"
-            className="sidebar-nav-item"
-            onClick={() => void partner.synchronize()}
-            disabled={accessLocked || partner.loading || partner.syncing}
-            aria-label={partner.syncing ? 'Sincronizando' : 'Sincronizar'}
-            aria-busy={partner.syncing}
-          >
-            <RefreshCw size={20} />
-            <span className="sidebar-nav-label">{partner.syncing ? 'Sincronizando...' : 'Sincronizar'}</span>
-          </button>
+          {mobileMenu ? mobileMenuGroups.map(({ title, tabs }) => {
+            const buttons = tabs.flatMap(id => {
+              const tab = visibleTabs.find(item => item.id === id);
+              return tab ? [renderNavTab(tab)] : [];
+            });
+            const isSupport = title === 'Apoio';
+            if (!buttons.length && !isSupport) return null;
+            return <div key={title} className="sidebar-mobile-menu-group" role="group" aria-label={title}>
+              <span className="sidebar-mobile-menu-heading" aria-hidden="true">{title}</span>
+              {buttons}
+              {isSupport && supportActions}
+            </div>;
+          }) : <>{visibleTabs.map(renderNavTab)}{supportActions}</>}
           <span role="status" className="sidebar-sync-status">
             {partner.syncError
               ? `Falha ao sincronizar: ${partner.syncError}`

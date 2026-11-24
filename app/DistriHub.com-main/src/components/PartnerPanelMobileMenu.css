@@ -1,0 +1,18 @@
+@media (width < 768px) {
+  .partner-panel .sidebar-nav > .sidebar-mobile-menu-group {
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
+  }
+
+  .partner-panel .sidebar-nav > .sidebar-mobile-menu-group + .sidebar-mobile-menu-group {
+    margin-block-start: 8px;
+  }
+
+  .partner-panel .sidebar-mobile-menu-heading {
+    padding: 6px 14px 2px;
+    color: var(--store-nav-text);
+    font-size: 12px;
+    font-weight: 700;
+  }
+}

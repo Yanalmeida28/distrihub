@@ -77,39 +77,64 @@ test('PIN authorizes the server-assigned branch directly without choosing a bran
   assert.equal(h.calls.some(call => call.verifier), false);
 });
 
-test('the real PartnerPanel renders its own menus while all operational hooks and module prefetch remain disabled', async () => {
+test('the real PartnerPanel preserves desktop navigation and groups the mobile menu across PIN and permission changes', async () => {
   const calls = [], exports = {};
   const device = { ready: false, error: null, retry() {} };
   let modulesAllowed = true;
+  let allowedTabs = null;
+  let width = 1280;
+  const mediaListeners = new Set();
+  const window = {
+    addEventListener() {}, removeEventListener() {},
+    matchMedia: query => ({
+      get matches() { return query === '(width < 768px)' ? width < 768 : width <= 900; },
+      addEventListener: (_, listener) => mediaListeners.add(listener),
+      removeEventListener: (_, listener) => mediaListeners.delete(listener),
+    }),
+  };
   const partner = { loading: false, syncing: false, settings: null, profile: null,
     branches: [], salespeople: [], suppliers: [], categories: [], products: [], movements: [], sales: [], customers: [], rmas: [], invoices: [], orders: [] };
+  const cadastroNavigation = {};
+  vm.runInNewContext(compile(await read('lib/cadastrosNavigation.ts')), { exports: cadastroNavigation });
   const dependencies = {
     './ModuleBoundary': { ModuleBoundary: ({ children }) => children },
     '../hooks/usePartnerData': { usePartnerData: value => { calls.push(['data', value]); return partner; } },
     '../hooks/useDeviceHeartbeat': { useDeviceHeartbeat: value => { calls.push(['device', value]); return device; } },
     './partner/DeviceSessions': { DeviceAccessGate: () => React.createElement('section', { 'data-device-error': true }) },
     '../hooks/useSaasSubscription': { useSaasSubscription: value => { calls.push(['subscription', value]); return { loading: false, subscription: null }; } },
-    '../hooks/useSupportUnread': { useSupportUnread: value => { calls.push(['unread', value]); return { total: 0 }; } },
+    '../hooks/useSupportUnread': { useSupportUnread: value => { calls.push(['unread', value]); return { total: value ? 3 : 0 }; } },
+    './SupportUnreadBadge': { SupportUnreadBadge: ({ count }) => React.createElement('span', { 'data-unread': count }) },
     '../hooks/useCheckoutCash': { useCheckoutCash: (...args) => { calls.push(['cash', args[5]]); return { refresh() { throw new Error('Unexpected cash read'); } }; } },
     '../hooks/useSessionDraft': { useSessionDraftState: (_key, initial) => React.useState(initial), SessionDraftProvider: () => null },
     '../lib/partnerSync': { branchDirectoryRows: rows => rows },
+    '../lib/cadastrosNavigation': cadastroNavigation,
     '../lib/storeTheme': { storeTheme: () => ({}) },
-    '../lib/saas': { canUseSaasFeature: () => modulesAllowed },
+    '../lib/saas': { canUseSaasFeature: (_, tab) => modulesAllowed && (!allowedTabs || allowedTabs.includes(tab)) },
     '../lib/checkoutCash': cashExports,
     '../lib/moduleLoading': { moduleLoader: () => () => { throw new Error('Unexpected module prefetch'); } },
     './partner/HelpModule': { HelpModule: props => React.createElement('section', { 'data-help': true },
       React.createElement('button', { 'data-help-back': true, onClick: props.onBack }, 'Back')) },
   };
-  vm.runInNewContext(compile(await read('components/PartnerPanel.tsx')), { exports, Error,
+  vm.runInNewContext(compile(await read('components/PartnerPanel.tsx')), { exports, Error, window,
+    document: { body: { style: {} }, addEventListener() {}, removeEventListener() {} }, navigator: { onLine: true },
     require: name => dependencies[name] ?? (name.startsWith('.') ? new Proxy({}, { get: () => () => null }) : require(name)),
   });
   let renderer;
   const requests = [];
-  await act(async () => { renderer = TestRenderer.create(React.createElement(exports.PartnerPanel, {
+  const lockedProps = {
     accessLocked: true, pinOperator: null, user, identity, identityError: null,
     segment: 'assistencia', onBack() {}, onRequestAccess: mode => requests.push(mode),
-  })); });
+  };
+  await act(async () => { renderer = TestRenderer.create(React.createElement(exports.PartnerPanel, lockedProps)); });
   try {
+    const nav = () => renderer.root.findByProps({ className: 'sidebar-nav' });
+    const labels = container => container.findAllByType('button').map(button => button.props['aria-label']);
+    const groupLabels = () => nav().findAllByProps({ role: 'group' }).map(group => [group.props['aria-label'], labels(group)]);
+    const title = () => renderer.root.findByProps({ className: 'sidebar-mobile-title' }).children.filter(item => typeof item === 'string').join('');
+    const desktopLabels = ['Cadastros', 'PDV & Vendas', 'Caixa', 'Pedidos em Aberto', 'Ordens de Serviço', 'Histórico', 'Suporte', 'Nota Fiscal', 'Administrativo', 'Gestão de Entregas', 'Financeiro', 'RMA & Devoluções', 'Relatórios & CRM', 'Personalização', 'Configurações', 'Ajuda', 'Sincronizar'];
+    const resize = async next => act(async () => { width = next; for (const listener of [...mediaListeners]) listener(); });
+    assert.deepEqual(labels(nav()), desktopLabels);
+    assert.deepEqual(groupLabels(), []);
     assert.equal(renderer.root.findAllByProps({ className: 'partner-panel sidebar-layout' }).length, 1);
     assert.equal(renderer.root.findAllByType('form').length, 0);
     for (const label of ['Financeiro', 'Cadastros', 'PDV & Vendas']) {
@@ -150,6 +175,42 @@ test('the real PartnerPanel renders its own menus while all operational hooks an
     assert.equal(renderer.root.findAllByProps({ 'data-device-error': true }).length, 0);
     assert.equal(renderer.root.findAllByProps({ 'aria-busy': 'true' }).length, 0);
     assert.equal(calls.filter(([kind]) => kind === 'data').at(-1)[1], identity);
+
+    await act(async () => renderer.update(React.createElement(exports.PartnerPanel, lockedProps)));
+    await resize(768);
+    assert.deepEqual(labels(nav()), desktopLabels);
+    await resize(390);
+    const mobileGroups = [
+      ['Vendas', ['PDV & Vendas', 'Caixa', 'Pedidos em Aberto', 'Histórico']],
+      ['Operação', ['Cadastros', 'Ordens de Serviço', 'Entregas', 'RMA']],
+      ['Gestão', ['Financeiro', 'Nota Fiscal', 'Relatórios & CRM', 'Administrativo', 'Personalização', 'Configurações']],
+      ['Apoio', ['Suporte', 'Ajuda', 'Sincronizar']],
+    ];
+    assert.deepEqual(groupLabels(), mobileGroups);
+    assert.equal(title(), 'Selecionar operador');
+    assert.equal(nav().findAllByType('button').filter(button => /\bactive\b/.test(button.props.className)).length, 0);
+    await act(async () => renderer.root.findByProps({ 'aria-label': 'Menu' }).props.onClick());
+    assert.equal(renderer.root.findByProps({ 'aria-label': 'Menu' }).props['aria-expanded'], true);
+    await act(async () => renderer.root.findByProps({ 'aria-label': 'Cadastros' }).props.onClick());
+    assert.equal(renderer.root.findByProps({ 'aria-label': 'Menu' }).props['aria-expanded'], false);
+    assert.equal(title(), 'Selecionar operador');
+    await act(async () => renderer.root.findByProps({ className: 'rma-advance-btn sidebar-owner-access' }).props.onClick());
+    assert.deepEqual(requests, ['employee', 'owner']);
+
+    modulesAllowed = true;
+    allowedTabs = ['cadastros', 'suporte', 'atendimento'];
+    await act(async () => renderer.update(React.createElement(exports.PartnerPanel, unlockedProps)));
+    assert.deepEqual(groupLabels(), [['Operação', ['Cadastros']], ['Apoio', ['Suporte', 'Ajuda', 'Sincronizar']]]);
+    assert.equal(title(), 'Cadastros');
+    assert.equal(nav().findByProps({ 'aria-label': 'Cadastros' }).props['aria-current'], 'page');
+    assert.equal(nav().findByProps({ 'aria-label': 'Suporte' }).findByProps({ 'data-unread': 3 }).type, 'span');
+    await act(async () => renderer.root.findByProps({ 'aria-label': 'Menu' }).props.onClick());
+    await act(async () => nav().findByProps({ 'aria-label': 'Suporte' }).props.onClick());
+    assert.equal(renderer.root.findByProps({ 'aria-label': 'Menu' }).props['aria-expanded'], false);
+    assert.equal(title(), 'Suporte');
+    await resize(1280);
+    assert.deepEqual(groupLabels(), []);
+    assert.deepEqual(labels(nav()), ['Cadastros', 'Suporte', 'Ajuda', 'Sincronizar']);
   } finally { await act(async () => renderer.unmount()); }
 });
 
