@@ -1,0 +1,67 @@
+.partner-panel :is(.mobile-routine-filter-toggle, .financial-title-mobile) {
+  display: none;
+}
+
+@media (width < 768px) {
+  .partner-panel [data-mobile-filters] .mobile-routine-filter-toggle {
+    display: inline-flex;
+    align-self: end;
+    margin: 0;
+  }
+
+  .partner-panel [data-mobile-filters="false"] .mobile-routine-filter-extra {
+    display: none;
+  }
+
+  .partner-panel :is(.sales-history-filters, .delivery-search-controls) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px;
+  }
+
+  .partner-panel :is(.sales-history-filters, .delivery-search-controls) > .mobile-routine-filter-extra {
+    grid-column: 1 / -1;
+  }
+
+  .partner-panel .rma-control-filters > .form-row:first-of-type {
+    align-items: end;
+  }
+
+  .partner-panel .financial-scope .financial-title-mobile {
+    display: inline;
+  }
+
+  .partner-panel .financial-scope .financial-title-desktop {
+    display: none;
+  }
+
+  .partner-panel :is(.delivery-scope, .financial-scope, .rma-control-filters) .orders-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .partner-panel :is(.delivery-scope, .financial-scope, .rma-control-filters) .orders-summary-card {
+    padding: 8px 10px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .partner-panel :is(.delivery-scope, .financial-scope, .rma-control-filters) .orders-summary-card strong {
+    font-size: 17px !important;
+  }
+
+  .partner-panel .financial-scope .financial-dashboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .partner-panel .financial-scope .fin-card {
+    min-width: 0;
+    padding: 8px 10px;
+    overflow-wrap: anywhere;
+  }
+
+  .partner-panel .financial-scope .fin-card > svg {
+    display: none;
+  }
+}

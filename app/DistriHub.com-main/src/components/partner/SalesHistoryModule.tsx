@@ -40,6 +40,7 @@ export function SalesHistoryModule(props: Props) {
 }
 
 function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = true, currentRole, onPageLoaded, sales, rmaRequests = [], customers, salespeople, receiptDetails, onCancelSale }: Props) {
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
   const actionInFlight = useRef(false);
@@ -195,15 +196,17 @@ function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = 
   }
 
   return (<>
-    <div className="orders-filter-row sales-history-filters">
+    <div className="orders-filter-row sales-history-filters" data-mobile-filters={advancedFiltersOpen}>
       <label>Buscar venda<input type="search" name="sales-history-search" maxLength={200} autoComplete="off" data-lpignore="true" data-1p-ignore="true" disabled={!!cancelTarget} value={search} onChange={e => { if (!cancelTarget) setSearch(e.target.value); }} placeholder="Cliente, número da venda, série ou IMEI" /></label>
-      <div className="date-range-fields" role="group" aria-label="Período do histórico">
+      <button type="button" className="rma-advance-btn mobile-routine-filter-toggle"
+        aria-expanded={advancedFiltersOpen} onClick={() => setAdvancedFiltersOpen(open => !open)}>Filtros{(startDate || endDate || status !== 'all') ? ' ativos' : ''}</button>
+      <div className="date-range-fields mobile-routine-filter-extra" role="group" aria-label="Período do histórico">
         <label>Data inicial<input type="date" aria-label="Data inicial do histórico" value={startDate} onChange={e => setStartDate(e.target.value)} /></label>
         <label>Data final<input type="date" aria-label="Data final do histórico" value={endDate} onChange={e => setEndDate(e.target.value)} /></label>
       </div>
-      <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option><option value="aberta">Aberta</option><option value="devolucao">Devolução</option></select></label>
-      <button className="rma-advance-btn" onClick={() => { const today = localDate(new Date(), timeZone); setStartDate(today); setEndDate(today); }}>Hoje</button>
-      <button type="button" className="rma-advance-btn" onClick={() => { setStartDate(''); setEndDate(''); }}>Limpar período</button>
+      <label className="mobile-routine-filter-extra">Status<select value={status} onChange={e => setStatus(e.target.value)}><option value="all">Todos</option><option value="concluida">Concluída</option><option value="cancelada">Cancelada</option><option value="aberta">Aberta</option><option value="devolucao">Devolução</option></select></label>
+      <button className="rma-advance-btn mobile-routine-filter-extra" onClick={() => { const today = localDate(new Date(), timeZone); setStartDate(today); setEndDate(today); }}>Hoje</button>
+      <button type="button" className="rma-advance-btn mobile-routine-filter-extra" onClick={() => { setStartDate(''); setEndDate(''); }}>Limpar período</button>
     </div>
     {historyError && <p role="alert" className="otp-error-msg">{historyError}<button className="rma-advance-btn" onClick={() => setHistoryVersion(value => value + 1)}>Tentar novamente</button></p>}
     {serverMode && !currentHistory ? !historyError && <p role="status">Carregando histórico...</p> : <p>{serverMode ? currentHistory?.total ?? 0 : filteredSales.length} vendas encontradas no período. Total concluído: <strong>{money.format(serverMode ? currentHistory?.completedTotal ?? 0 : filteredSales.filter(s => s.status === 'concluida').reduce((sum, s) => sum + Number(s.total), 0))}</strong></p>}

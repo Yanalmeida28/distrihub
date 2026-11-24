@@ -37,6 +37,7 @@ function errorMessage(error: unknown, fallback: string) {
 export function RmaModule({
   rmaRequests, customers, products, sales, warrantyTerms, currentRole, onCreate, onUpdateStatus, onGrantCredit, onRefund, onAddPhotos, onDelete,
 }: RmaModuleProps) {
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [manualEntry, setManualEntry] = useState(false);
@@ -341,15 +342,17 @@ export function RmaModule({
         </form>
       </div>}
 
-      <div className="module-card rma-form rma-control-filters">
+      <div className="module-card rma-form rma-control-filters" data-mobile-filters={advancedFiltersOpen}>
         <h4>Controle de devoluções</h4>
         <div className="form-row">
           <label>Buscar<input aria-label="Buscar devoluções" placeholder="Cliente, produto, SKU ou pedido" value={controlFilters.search} onChange={event => setControlFilters(previous => ({ ...previous, search: event.target.value }))} /></label>
-          <label>Data considerada<select value={controlFilters.dateBasis} onChange={event => setControlFilters(previous => ({ ...previous, dateBasis: event.target.value as RmaFilters['dateBasis'] }))}><option value="solicitacao">Solicitação</option><option value="reembolso">Reembolso</option><option value="credito">Geração do crédito</option></select></label>
-          <label>De<input type="date" aria-label="Início do período RMA" value={controlFilters.from} onChange={event => setControlFilters(previous => ({ ...previous, from: event.target.value }))} /></label>
-          <label>Até<input type="date" aria-label="Fim do período RMA" value={controlFilters.to} onChange={event => setControlFilters(previous => ({ ...previous, to: event.target.value }))} /></label>
+          <button type="button" className="rma-advance-btn mobile-routine-filter-toggle"
+        aria-expanded={advancedFiltersOpen} onClick={() => setAdvancedFiltersOpen(open => !open)}>Filtros{(controlFilters.from || controlFilters.to || controlFilters.dateBasis !== 'solicitacao' || controlFilters.destination !== 'all' || controlFilters.settlement !== 'all') ? ' ativos' : ''}</button>
+          <label className="mobile-routine-filter-extra">Data considerada<select value={controlFilters.dateBasis} onChange={event => setControlFilters(previous => ({ ...previous, dateBasis: event.target.value as RmaFilters['dateBasis'] }))}><option value="solicitacao">Solicitação</option><option value="reembolso">Reembolso</option><option value="credito">Geração do crédito</option></select></label>
+          <label className="mobile-routine-filter-extra">De<input type="date" aria-label="Início do período RMA" value={controlFilters.from} onChange={event => setControlFilters(previous => ({ ...previous, from: event.target.value }))} /></label>
+          <label className="mobile-routine-filter-extra">Até<input type="date" aria-label="Fim do período RMA" value={controlFilters.to} onChange={event => setControlFilters(previous => ({ ...previous, to: event.target.value }))} /></label>
         </div>
-        <div className="form-row">
+        <div className="form-row mobile-routine-filter-extra">
           <label>Destino<select aria-label="Filtrar destino RMA" value={controlFilters.destination} onChange={event => setControlFilters(previous => ({ ...previous, destination: event.target.value }))}><option value="all">Todos os destinos</option>{Object.entries(rmaDestinations).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
           <label>Solução financeira<select aria-label="Filtrar solução RMA" value={controlFilters.settlement} onChange={event => setControlFilters(previous => ({ ...previous, settlement: event.target.value }))}><option value="all">Todas</option><option value="pendente">Sem crédito ou reembolso</option><option value="credito">Crédito gerado</option><option value="reembolso">Reembolsado</option></select></label>
           <button type="button" className="rma-advance-btn" onClick={() => { setControlFilters({ search: '', from: '', to: '', destination: 'all', settlement: 'all', dateBasis: 'solicitacao' }); setFilter('all'); }}>Limpar filtros</button>

@@ -34,6 +34,7 @@ export function DeliveryModule(props: Props) {
 }
 
 function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], selectedBranchId, onUpdateDelivery, companyId, operatorKey = '', operatorId, operatorPin, currentRole, isActive = true }: Props) {
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const remote = useDeliveries(companyId, selectedBranchId, operatorId, operatorPin, isActive);
   const sales = companyId ? remote.sales : fallbackSales;
   const canAssign = currentRole !== 'logistica';
@@ -261,10 +262,12 @@ function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], sel
         </div>
       </div>
 
-      <div className="orders-filter-row">
+      <div className="orders-filter-row delivery-search-controls" data-mobile-filters={advancedFiltersOpen}>
         <input type="search" aria-label="Buscar entrega" placeholder="Buscar cliente ou pedido" autoComplete="off" value={query} onChange={e => setQuery(e.target.value)} />
-        <select aria-label="Filtrar entregador" value={driverFilter} onChange={e => setDriverFilter(e.target.value)}><option value="">Todos os entregadores</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
-        <label>Previsão<input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} /></label>
+        <button type="button" className="rma-advance-btn mobile-routine-filter-toggle"
+        aria-expanded={advancedFiltersOpen} onClick={() => setAdvancedFiltersOpen(open => !open)}>Filtros{(driverFilter || dateFilter) ? ' ativos' : ''}</button>
+        <select className="mobile-routine-filter-extra" aria-label="Filtrar entregador" value={driverFilter} onChange={e => setDriverFilter(e.target.value)}><option value="">Todos os entregadores</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
+        <label className="mobile-routine-filter-extra">Previsão<input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)} /></label>
       </div>
       <div className="subtab-bar">
         <button className={`subtab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>

@@ -149,7 +149,7 @@ function FinancialScreen({ invoices, creditLimit, creditUsed, onPayInvoice, rmaR
       <div className="module-header">
         <span className="module-icon"><Wallet size={20} /></span>
         <div>
-          <h3>Módulo Financeiro & Pagamentos B2B</h3>
+          <h3><span className="financial-title-mobile">Financeiro</span><span className="financial-title-desktop">Módulo Financeiro &amp; Pagamentos B2B</span></h3>
           <p>Limite de crédito, faturas, quitação via PIX e saldo de RMA</p>
         </div>
       </div>
