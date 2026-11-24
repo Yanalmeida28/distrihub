@@ -569,6 +569,14 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     setVisibleProductCount(PRODUCT_PAGE_SIZE);
   }, [search, selectedBranchId]);
   const [cart, setCart] = useSessionDraftState<{ product_id: string; name: string; quantity: number; unit_price: number }[]>('checkout:cart', rescuedSale?.items ?? []);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewingSale = reviewOpen && cart.length > 0;
+  useEffect(() => {
+    if (!cart.length) setReviewOpen(false);
+  }, [cart.length]);
+  useEffect(() => {
+    if (reviewingSale) goToSaleSection(paymentSectionRef.current);
+  }, [reviewingSale]);
   const [initialBackupId] = useState(() => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
   const [backupId] = useSessionDraftState('checkout:backup-id', initialBackupId);
   const [backups, setBackups] = useState<PdvCartBackup[]>([]);
@@ -985,7 +993,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
         </div>)}
       </div>}
       <fieldset disabled={cartLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-      <div className="pdv-layout pdv-checkout-layout">
+      <div className="pdv-layout pdv-checkout-layout" data-mobile-review={reviewingSale} data-empty-cart={cart.length === 0}>
         <div className="pdv-left">
           <div className="pdv-search-bar">
             <Search size={18} />
@@ -1025,6 +1033,14 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
               </button>
             )}
           </div>
+
+          <label className="pdv-mobile-price-table">
+            Tabela de preços
+            <select value={clientType} onChange={event => handleClientTypeChange(event.target.value as ClientType)}>
+              <option value="varejo">Varejo</option>
+              <option value="atacado">Atacado</option>
+            </select>
+          </label>
 
           {selectionNotice && (
             <p className="pdv-selection-notice" role="alert">{selectionNotice}</p>
@@ -1269,8 +1285,8 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
       {isActive && !cameraOpen && <nav className="pdv-mobile-actions" aria-label="Atalhos da venda">
         <button type="button" disabled={cartLocked} onClick={() => goToSaleSection(searchInputRef.current)}><Search size={19}/><span>Buscar</span></button>
         {cameraScannerEnabled && <button type="button" disabled={cartLocked} onClick={() => { if (canChangeCart()) setCameraOpen(true); }}><Camera size={19}/><span>Câmera</span></button>}
-        <button type="button" onClick={() => goToSaleSection(cartSectionRef.current)}><ShoppingCart size={19}/><span>Carrinho · {cart.reduce((count, item) => count + item.quantity, 0)}</span></button>
-        <button type="button" className="pdv-mobile-review" disabled={!cart.length || cartLocked} onClick={() => goToSaleSection(paymentSectionRef.current)}><strong>{money.format(chargeTotal)}</strong><span>Revisar venda</span></button>
+        <button type="button" onClick={() => { setReviewOpen(false); goToSaleSection(cartSectionRef.current); }}><ShoppingCart size={19}/><span>Carrinho · {cart.reduce((count, item) => count + item.quantity, 0)}</span></button>
+        <button type="button" className="pdv-mobile-review" disabled={!cart.length || cartLocked} aria-expanded={reviewingSale} onClick={() => { if (reviewingSale) goToSaleSection(paymentSectionRef.current); else setReviewOpen(true); }}><strong>{money.format(chargeTotal)}</strong><span>Revisar venda</span></button>
       </nav>}
       </fieldset>
     </>

@@ -1,0 +1,75 @@
+@media (width < 768px) {
+  .partner-panel .open-orders-module > .module-header,
+  .partner-panel .open-orders-module .orders-search-caption {
+    display: none;
+  }
+
+  .partner-panel .open-orders-module .orders-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .partner-panel .open-orders-module .orders-summary-card {
+    padding: 8px 10px !important;
+  }
+
+  .partner-panel .open-orders-module .orders-summary-card strong {
+    font-size: 17px !important;
+    margin-top: 2px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .partner-panel .open-orders-module .orders-summary[data-all-pending="true"] > :last-child {
+    display: none;
+  }
+
+  .partner-panel .open-orders-module .orders-filter-bar {
+    padding: 10px;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .partner-panel .open-orders-module .mobile-order-search {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .partner-panel .open-orders-module .mobile-order-search button {
+    width: auto;
+    margin: 0;
+    padding-inline: 10px;
+    white-space: nowrap;
+  }
+
+  .partner-panel .mobile-catalog-orders {
+    margin-bottom: 10px;
+    border: 1px solid var(--dh-border);
+    border-radius: var(--dh-radius-sm);
+  }
+
+  .partner-panel .mobile-catalog-orders > summary {
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+
+  .partner-panel .mobile-catalog-orders > summary span {
+    margin-inline-start: 8px;
+    color: var(--dh-warning);
+    font-size: 12px;
+  }
+
+  .partner-panel .open-orders-module .orders-table td {
+    padding-block: 7px;
+    overflow-wrap: anywhere;
+  }
+
+  .partner-panel .open-orders-module .orders-table td:is(
+    [data-label="Pedido"], [data-label="Cliente"], [data-label="Ações"]
+  )::before {
+    display: none;
+  }
+
+  .partner-panel .open-orders-module .orders-table td[data-label="Total"] strong {
+    font-size: 16px;
+  }
+}

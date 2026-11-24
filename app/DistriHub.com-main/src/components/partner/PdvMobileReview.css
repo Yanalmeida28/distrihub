@@ -1,0 +1,47 @@
+.pdv-mobile-price-table {
+  display: none;
+}
+
+@media (width < 768px) {
+  .partner-panel .pdv-checkout-layout .pdv-mobile-price-table {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-block: 8px;
+    color: var(--dh-text-secondary);
+    font-size: 13px;
+  }
+
+  .partner-panel .pdv-mobile-price-table select {
+    min-height: 44px;
+    padding: 6px 10px;
+    border: 1px solid var(--dh-border);
+    border-radius: var(--dh-radius-sm);
+    background: var(--dh-surface);
+    color: var(--dh-text);
+  }
+
+  .partner-panel .pdv-checkout-layout[data-mobile-review="false"] :is(
+    .pdv-sale-scroll > :not([role="alert"]), .pdv-total-bar, .pdv-checkout-actions,
+    .pdv-save-presale-btn, .pdv-sale-footer > .pdv-restricted-checkout
+  ) {
+    display: none;
+  }
+
+  .partner-panel .pdv-checkout-layout[data-mobile-review="false"] .pdv-sale-scroll:not(:has(> [role="alert"])),
+  .partner-panel .pdv-checkout-layout[data-mobile-review="false"] .pdv-sale-footer:not(:has(.sent-message, .otp-error-msg)) {
+    display: none;
+  }
+
+  .partner-panel .pdv-checkout-layout[data-empty-cart="true"] .pdv-cart-table .empty-row {
+    padding-block: 8px;
+  }
+
+  .partner-panel .pdv-checkout-layout .pdv-checkout-btn:disabled {
+    background: var(--dh-surface) !important;
+    border-color: var(--dh-border) !important;
+    color: var(--dh-text-secondary) !important;
+    opacity: .65;
+  }
+}

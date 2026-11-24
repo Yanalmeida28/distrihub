@@ -685,17 +685,19 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
                   <td data-label="Custo">{money.format(p.cost_price)}</td>
                   <td data-label="Varejo">{money.format(p.sale_price)}</td>
                   <td data-label="Atacado">{p.wholesale_price > 0 ? money.format(p.wholesale_price) : '—'}</td>
-                  <td data-label="Estoque">{p.is_service ? 'Não se aplica' : p.control_stock === false ? 'Sem controle' : p.stock}</td>
-                  <td data-label="Status">
+                  <td className="product-stock-desktop" data-label="Estoque">{p.is_service ? 'Não se aplica' : p.control_stock === false ? 'Sem controle' : p.stock}</td>
+                  <td className="product-stock-status" data-label="Status">
+                    {!p.is_service && p.control_stock === false && <span className="product-stock-mobile">Sem controle</span>}
+                    {!p.is_service && p.control_stock !== false && p.stock < 0 && <span className="product-stock-mobile">{p.stock} un.</span>}
                     {p.is_service && <span className="rma-status-badge">Serviço</span>}
                     {!p.is_service && p.control_stock !== false && p.stock <= (p.min_stock || 0) && p.stock > 0 && (
-                      <span className="rma-status-badge stock-low">Estoque baixo</span>
+                      <span className="rma-status-badge stock-low"><span className="product-stock-mobile">{p.stock} un. · </span>Estoque baixo</span>
                     )}
                     {!p.is_service && p.control_stock !== false && p.stock === 0 && (
                       <span className="rma-status-badge stock-empty">Sem estoque</span>
                     )}
                     {!p.is_service && p.control_stock !== false && p.stock > (p.min_stock || 0) && (
-                      <span className="rma-status-badge stock-ok">OK</span>
+                      <span className="rma-status-badge stock-ok"><span className="product-stock-mobile">{p.stock} un. · </span>OK</span>
                     )}
                   </td>
                   <td className="product-actions-cell directory-card-actions" data-label="Ações">

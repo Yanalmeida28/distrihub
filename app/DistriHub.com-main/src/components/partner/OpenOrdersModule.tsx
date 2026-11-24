@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { MobileFilters } from './MobileFilters';
 import { SplitPaymentFields } from './SplitPaymentFields';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +17,7 @@ import { saleShareUrl } from '../../lib/saleShare';
 import { shareOrderQuotePdf, downloadOrderQuotePdf, prepareOrderQuoteLogo } from '../../lib/orderQuotePdf';
 
 type Props = {
+  catalogOrders?: ReactNode;
   timeZone?: string;
   canEditPrice: boolean;
   products: PartnerProduct[];
@@ -48,7 +50,7 @@ const payStatusLabels: Record<string, { label: string; color: string }> = {
   cancelado: { label: 'Cancelado', color: '#fda4af' },
 };
 
-export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
+export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
   useEffect(() => { void prepareOrderQuoteLogo(receiptDetails?.settings?.logo_url); }, [receiptDetails?.settings?.logo_url]);
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
@@ -322,7 +324,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
   }
 
   return (
-    <div className="panel-module">
+    <div className="panel-module open-orders-module">
       <div className="module-header">
         <span className="module-icon"><ClipboardList size={20} /></span>
         <div>
@@ -331,7 +333,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
         </div>
       </div>
 
-      <div className="orders-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+      <div className="orders-summary" data-all-pending={pendingCount === displayedOrders.length} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
           <small style={{ color: '#8ba3b5' }}>Pedidos em aberto</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{displayedOrders.length}</strong>
@@ -355,7 +357,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
       <div className="orders-filter-bar">
         <div className="mobile-order-search">
           <label className="orders-filter-field">
-            <Search size={14} /> Cliente
+            <span className="orders-search-caption"><Search size={14} /> Cliente</span>
             <input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} type="search" enterKeyHint="search" aria-label="Buscar cliente nos pedidos" onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); handleSearch(); } }} placeholder="Buscar cliente..." />
           </label>
           <button className="module-submit-btn" onClick={handleSearch}>
@@ -423,6 +425,7 @@ export function OpenOrdersModule({ timeZone, canEditPrice, products, onUpdateIte
       </div>
 
       {/* Data Table */}
+      {catalogOrders}
       <div className="stock-table-wrap open-orders-table-wrap">
         <table className="rma-table orders-table">
           <thead>

@@ -228,6 +228,17 @@ test('pesquisa fica à esquerda e carrinho acima das opções à direita', async
   assert.equal(layout.children[0], left);
   assert.equal(layout.children[1].props['aria-label'], 'Opções da venda');
   assert.equal(layout.children[1].children[0].props['aria-label'], 'Carrinho');
+  const review = () => renderer.root.findByProps({ className: 'pdv-mobile-review' });
+  assert.equal(review().props.disabled, true);
+  assert.equal(layout.props['data-mobile-review'], false);
+  await act(async () => left.findByProps({ className: 'pdv-product-card' }).props.onClick());
+  assert.equal(review().props.disabled, false);
+  await act(async () => review().props.onClick());
+  assert.equal(layout.props['data-mobile-review'], true);
+  const remove = renderer.root.findByProps({ className: 'pdv-remove' });
+  await act(async () => remove.props.onClick());
+  assert.equal(layout.props['data-mobile-review'], false);
+  assert.equal(review().props.disabled, true);
 });
 test('leitor de código adiciona o produto pelo SKU e leituras repetidas aumentam a quantidade', async () => {
   await act(async () => {

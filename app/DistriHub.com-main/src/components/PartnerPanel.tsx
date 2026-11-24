@@ -2048,8 +2048,8 @@ export function PartnerPanel({
             {visitedTabs.has('pedidos') && (
               <div hidden={activeTab !== 'pedidos'}>
               {renderTab('pedidos', <>
-              <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} />
-              <OpenOrdersModule timeZone={storeSettings.personalization?.business_time_zone}
+              {!mobileMenu && <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} />}
+              <OpenOrdersModule catalogOrders={mobileMenu ? <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} compact /> : undefined} timeZone={storeSettings.personalization?.business_time_zone}
                 key={`${identity?.authUserId}:${identity?.companyUserId}:${effectiveBranchId}`}
                 isActive={activeTab === 'pedidos'}
                 onPullToPdv={(sale) => {
