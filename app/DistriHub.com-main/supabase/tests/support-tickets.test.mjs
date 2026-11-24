@@ -18,7 +18,7 @@ test('support tickets isolate companies, preserve retry identity and support cla
       INSERT INTO public.partner_profiles VALUES ('${owner}','Empresa A'),('${other}','Empresa B');
       INSERT INTO public.partner_branches VALUES ('${branch}','${owner}','Balcão',true),('${foreignBranch}','${other}','Exterior',true);
     `);
-    await db.exec(await readFile(new URL('../migrations/20261124050615_support_tickets.sql', import.meta.url), 'utf8'));
+    await db.exec(await readFile(new URL('../migrations/20261124052118_support_tickets.sql', import.meta.url), 'utf8'));
     await db.exec('SET ROLE authenticated');
     const login = user => db.query("SELECT set_config('test.uid',$1,false)", [user]);
     const call = async (asAdmin, action, input = {}) => (await db.query('SELECT public.support_ticket_workspace($1,$2,$3::jsonb) result', [asAdmin, action, JSON.stringify(input)])).rows[0].result;
