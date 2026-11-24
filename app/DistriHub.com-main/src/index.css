@@ -2074,14 +2074,9 @@ html, body {
 /* 5. Responsividade Específica para Telas Pequenas (<= 768px) */
 @media (max-width: 768px) {
   .partner-panel .cadastros-subtab-bar {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
     max-width: 100%;
     padding-bottom: 2px;
   }
-  .partner-panel .cadastros-subtab-bar::-webkit-scrollbar { display: none; }
   .partner-panel .cadastros-subtab-bar .subtab {
     flex-shrink: 0;
     white-space: nowrap;
@@ -2258,8 +2253,8 @@ html, body {
    ===================================================================== */
 
 /* --- Navegação das 10 sub-abas: compacta e legível --- */
-.partner-panel .cadastros-scope .cadastros-subtab-bar { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 14px; }
-.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { padding: 7px 11px; font-size: 13px; gap: 6px; min-height: 36px; }
+.partner-panel .cadastros-scope .cadastros-subtab-bar { display: flex; flex-wrap: wrap; overflow: visible; gap: 4px 8px; margin-bottom: 14px; }
+.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { padding: 7px 11px; font-size: 13px; gap: 6px; min-height: 44px; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { flex: 0 0 auto; justify-content: center; white-space: nowrap; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab svg { flex-shrink: 0; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab.active { font-weight: 700; }
@@ -2583,7 +2578,7 @@ html, body {
 /* --- Mobile ≤ 768px: navegação compacta, toque confortável, sem quebras --- */
 @media (max-width: 768px) {
   .partner-panel .cadastros-scope .cadastros-subtab-bar { display: flex; }
-  .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { padding: 8px 10px; font-size: 12.5px; min-height: 40px; }
+  .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { padding: 8px 10px; font-size: 12.5px; }
   .partner-panel .cadastros-scope .rma-form { padding: 14px; }
   .partner-panel .cadastros-scope .rma-form.inline { flex-direction: column; align-items: stretch; }
   .partner-panel .cadastros-scope .rma-form.inline label { min-width: 0; }
@@ -3993,9 +3988,6 @@ body, .app-shell { background: #091724; color: #edf5fc; }
 .partner-panel .admin-top-sections .admin-sidebar-section-header,
 .partner-panel .admin-top-items .admin-sidebar-item { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 44px; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .partner-panel .admin-top-sections .admin-sidebar-section-header svg { flex-shrink: 0; }
-.partner-panel .cadastros-scope .cadastros-subtab-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); overflow: visible !important; }
-.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { min-width: 0; max-width: 100%; min-height: 44px; white-space: normal; overflow-wrap: anywhere; text-align: left; }
-.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab svg { flex-shrink: 0; }
 
 /* Mobile workflows: keep searching visible and collapse secondary filters only. */
 .partner-panel .mobile-filters, .partner-panel .mobile-filters-content { display: contents; }
