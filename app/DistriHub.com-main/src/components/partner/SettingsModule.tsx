@@ -145,17 +145,24 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
         </div>
       </div>
 
-      <PrinterSettings />
+      <nav className="mobile-management-only settings-mobile-links" aria-label="Ir para seção de configurações">
+        <a className="rma-advance-btn" href="#settings-printing">Impressão</a>
+        {branchManagement && <a className="rma-advance-btn" href="#settings-branches">Filiais</a>}
+        <a className="rma-advance-btn" href="#settings-account">Perfil</a>
+        <a className="rma-advance-btn" href="#settings-security">Segurança</a>
+        <a className="rma-advance-btn" href="#settings-billing">Assinatura</a>
+      </nav>
+      <div id="settings-printing" className="settings-mobile-target"><PrinterSettings /></div>
 
       {/* Profile Section */}
       {branchManagement && <>
-        <div className="section-divider">
+        <div className="section-divider settings-mobile-target" id="settings-branches">
           <span className="section-divider-label"><Building2 size={14} /> Filiais</span>
         </div>
         {branchManagement}
       </>}
 
-      <div className="section-divider">
+      <div className="section-divider settings-mobile-target" id="settings-account">
         <span className="section-divider-label"><User size={14} /> Perfil da Conta</span>
       </div>
 
@@ -194,7 +201,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
       {/* Security Section */}
       {profile?.id && <CompanyRegistration key={profile.id} companyId={profile.id} />}
 
-      <div className="section-divider">
+      <div className="section-divider settings-mobile-target" id="settings-security">
         <span className="section-divider-label"><Shield size={14} /> Segurança</span>
       </div>
 
@@ -214,7 +221,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
       {canManageOwnerPassword && <OwnerPasswordSettings />}
 
       {/* SaaS Billing Section */}
-      <div className="section-divider">
+      <div className="section-divider settings-mobile-target" id="settings-billing">
         <span className="section-divider-label"><CreditCard size={14} /> Assinatura & Faturamento</span>
       </div>
 

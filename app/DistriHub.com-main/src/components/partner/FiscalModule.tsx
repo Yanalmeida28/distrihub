@@ -258,11 +258,11 @@ export function FiscalModule({ products, sales, customers, profile, currentRole,
   ];
 
   return (
-    <div className="panel-module">
+    <div className="panel-module fiscal-mobile-scope">
       <div className="module-header">
         <span className="module-icon"><FileText size={20} /></span>
         <div>
-          <h3>Solicitações fiscais — NF-e / NFC-e</h3>
+          <h3><span className="mobile-management-only">Nota Fiscal</span><span className="mobile-management-desktop">Solicitações fiscais — NF-e / NFC-e</span></h3>
           <p>Prepare solicitações por filial. A transmissão e autorização dependem da integração com um provedor fiscal.</p>
         </div>
       </div>

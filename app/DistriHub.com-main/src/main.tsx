@@ -6,6 +6,7 @@ import './components/partner/CadastrosMobile.css';
 import './components/partner/PdvMobileReview.css';
 import './components/partner/OpenOrdersMobile.css';
 import './components/partner/RoutinesMobile.css';
+import './components/partner/ManagementMobile.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

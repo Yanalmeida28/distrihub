@@ -1,0 +1,63 @@
+.partner-panel .mobile-management-only {
+  display: none;
+}
+
+@media (width < 768px) {
+  .partner-panel .mobile-management-only {
+    display: inline;
+  }
+
+  .partner-panel :is(.mobile-management-desktop, [data-reports-desktop-navigation]) {
+    display: none;
+  }
+
+  .partner-panel .reports-mobile-selector {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 10px;
+    color: var(--dh-text-secondary);
+  }
+
+  .partner-panel .reports-mobile-selector select {
+    width: 100%;
+    color: var(--dh-text);
+    background: var(--dh-surface);
+  }
+
+  .partner-panel .reports-mobile-scope .orders-filter-row > button {
+    min-width: 0 !important;
+    flex: 0 1 auto;
+  }
+
+  .partner-panel .fiscal-mobile-scope .fiscal-sale-dispatch-grid {
+    gap: 8px;
+  }
+
+  .partner-panel .fiscal-mobile-scope .fiscal-dispatch-toggle {
+    min-width: 0;
+    padding: 8px 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .partner-panel .personalization-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .partner-panel .personalization-tabs button {
+    padding: 6px 8px;
+  }
+
+  .partner-panel .settings-mobile-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .partner-panel .settings-mobile-target {
+    scroll-margin-top: calc(80px + env(safe-area-inset-top));
+  }
+}

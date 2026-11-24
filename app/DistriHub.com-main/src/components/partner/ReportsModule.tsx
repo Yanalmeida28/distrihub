@@ -134,16 +134,22 @@ export function ReportsModule({ showNavigation = true, timeZone, initialCrmSegme
   }
 
   return (
-    <div className="panel-module">
+    <div className="panel-module reports-mobile-scope">
       <div className="module-header">
         <span className="module-icon"><BarChart3 size={20} /></span>
         <div>
-          <h3>Central de Relatórios Inteligente & CRM</h3>
+          <h3><span className="mobile-management-only">Relatórios e CRM</span><span className="mobile-management-desktop">Central de Relatórios Inteligente & CRM</span></h3>
           <p>Vendas, financeiro, estoque e relacionamento com clientes</p>
         </div>
       </div>
 
-      {showNavigation && <div className="subtab-bar" style={{ marginBottom: '12px' }}>
+      {showNavigation && <label className="mobile-management-only reports-mobile-selector">
+        Relatório
+        <select value={tab} onChange={event => { const next = tabs.find(item => item.id === event.target.value); if (next) { onDataScopeChange?.(next.id); setTab(next.id); setRangeError(null); } }}>
+          {tabs.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </select>
+      </label>}
+      {showNavigation && <div className="subtab-bar" data-reports-desktop-navigation style={{ marginBottom: '12px' }}>
         {tabs.map(({ id, label, icon: Icon }) => (
           <button key={id} className={`subtab ${tab === id ? 'active' : ''}`} onClick={() => { onDataScopeChange?.(id); setTab(id); setRangeError(null); }}>
             <Icon size={15} /> {label}
