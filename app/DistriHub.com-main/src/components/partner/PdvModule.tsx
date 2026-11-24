@@ -758,7 +758,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
       lastClickRef.current = { id: product.id, time: now };
     }
 
-    if (!product.is_service) {
+    if (!product.is_service && product.control_stock !== false) {
       const inCart = cartRef.current.find((i) => i.product_id === product.id)?.quantity ?? 0;
       if (product.stock <= 0) {
         showSelectionNotice(`"${product.name}" está sem estoque nesta filial.`);
@@ -792,7 +792,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
     if (delta > 0) {
       const product = products.find((p) => p.id === id);
       const inCart = cartRef.current.find((i) => i.product_id === id)?.quantity ?? 0;
-      if (product && !product.is_service && inCart + 1 > product.stock) {
+      if (product && !product.is_service && product.control_stock !== false && inCart + 1 > product.stock) {
         showSelectionNotice(`Estoque insuficiente: apenas ${product.stock} un. de "${product.name}" disponíveis.`);
         return;
       }
@@ -1039,7 +1039,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
               </p>
             ) : (
               filtered.slice(0, visibleProductCount).map((p) => {
-                const outOfStock = !p.is_service && p.stock <= 0;
+                const outOfStock = !p.is_service && p.control_stock !== false && p.stock <= 0;
                 const inCartQty = cart.find((i) => i.product_id === p.id)?.quantity ?? 0;
                 const justAdded = lastAddedId === p.id;
                 return (
@@ -1053,7 +1053,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                     <strong>{p.name}</strong>
                     {p.sku && <small>SKU: {p.sku}</small>}
                     <span>{priceTable === 'premium' && p.premium_price == null ? 'Premium não configurado' : money.format(getPriceForProduct(p, priceTable))}</span>
-                    {!p.is_service && (
+                    {!p.is_service && p.control_stock !== false && (
                       <small className={`pdv-stock${outOfStock ? ' out' : ''}`}>
                         {outOfStock ? 'Sem estoque' : `${p.stock} un. em estoque`}
                       </small>

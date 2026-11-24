@@ -946,6 +946,13 @@ select option:hover, select option:checked { background: #1d3445; color: #ffffff
 .product-list-table .product-identity-text { min-width: 0; overflow-wrap: anywhere; }
 .product-list-table .product-identity-text strong,
 .product-list-table .product-identity-text small { display: block; }
+.product-list-table .product-identity-text strong { overflow-wrap: break-word; }
+.partner-panel .cadastros-scope .product-list-table td[data-label="Custo"],
+.partner-panel .cadastros-scope .product-list-table td[data-label="Varejo"],
+.partner-panel .cadastros-scope .product-list-table td[data-label="Atacado"] {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .product-list-table .product-identity-text small { margin-top: 4px; color: var(--dh-text-secondary); }
 .partner-panel .cadastros-scope .product-list-table .directory-card-title .product-identity-text strong { font-size: 14px; line-height: 1.4; }
 .partner-panel .cadastros-scope .product-list-table .directory-card-title .product-identity-text small { font-size: 12px; line-height: 1.4; }
@@ -2251,9 +2258,10 @@ html, body {
    ===================================================================== */
 
 /* --- Navegação das 10 sub-abas: compacta e legível --- */
-.partner-panel .cadastros-scope .cadastros-subtab-bar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; margin-bottom: 14px; }
+.partner-panel .cadastros-scope .cadastros-subtab-bar { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 14px; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { padding: 7px 11px; font-size: 13px; gap: 6px; min-height: 36px; }
-.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { justify-content: center; min-width: 0; white-space: nowrap; }
+.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab { flex: 0 0 auto; justify-content: center; white-space: nowrap; }
+.partner-panel .cadastros-scope .cadastros-subtab-bar .subtab svg { flex-shrink: 0; }
 .partner-panel .cadastros-scope .cadastros-subtab-bar .subtab.active { font-weight: 700; }
 
 /* --- Estrutura: menos espaço vazio, mesma hierarquia --- */
@@ -2924,17 +2932,27 @@ html, body {
 
 /* Branch selection expands below the operator inside the sidebar. */
 .sidebar-branch-selector { margin: 0 12px 12px; min-width: 0; color: #fff; }
+.partner-panel .partner-sidebar .sidebar-owner-access {
+  margin: 0 12px 12px;
+  min-height: 44px;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+.sidebar-owner-access svg,
+.sidebar-branch-current svg,
+.sidebar-branch-dropdown summary svg { flex-shrink: 0; }
 .sidebar-branch-label { display: block; margin-bottom: 5px; font-size: 11px; color: rgba(255,255,255,.65); }
 .sidebar-branch-dropdown, .sidebar-branch-current { border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: rgba(255,255,255,.06); }
-.sidebar-branch-dropdown summary, .sidebar-branch-current { display: flex; align-items: center; gap: 8px; padding: 10px; font-size: 12px; }
+.sidebar-branch-dropdown summary, .sidebar-branch-current { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 10px; font-size: 12px; }
 .sidebar-branch-dropdown summary { cursor: pointer; list-style: none; }
 .sidebar-branch-dropdown summary::-webkit-details-marker { display: none; }
-.sidebar-branch-dropdown summary span, .sidebar-branch-current span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.sidebar-branch-dropdown summary svg { flex-shrink: 0; }
+.sidebar-branch-dropdown summary span, .sidebar-branch-current span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .sidebar-branch-dropdown[open] summary > svg:last-child { transform: rotate(180deg); }
 .sidebar-branch-options { display: flex; flex-direction: column; gap: 3px; max-height: 240px; overflow-y: auto; padding: 4px; border-top: 1px solid rgba(255,255,255,.15); }
 .sidebar-branch-options button { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 9px 6px; border: 0; border-radius: 5px; color: #fff; background: transparent; font-size: 12px; text-align: left; cursor: pointer; }
-.sidebar-branch-options button span { overflow-wrap: anywhere; min-width: 0; }
+.sidebar-branch-options button span { overflow-wrap: break-word; min-width: 0; }
 .sidebar-branch-options button svg { flex-shrink: 0; }
 .sidebar-branch-options button:hover, .sidebar-branch-options button[aria-pressed="true"] { background: rgba(255,255,255,.14); }
 .sidebar-branch-dropdown summary:focus-visible, .sidebar-branch-options button:focus-visible { outline: 2px solid #7bc8f5; outline-offset: 2px; }
@@ -3313,12 +3331,11 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .financial-scope .fin-invoices .directory-card-table .empty-row { grid-column: 1 / -1; }
 }
 @media (max-width: 768px) {
-  .partner-panel .cadastros-scope .product-list-toolbar { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1.65fr); gap: 4px; }
-  .partner-panel .product-list-toolbar > .module-action-btn { width: 100%; min-width: 0; min-height: 40px; padding: 6px 4px; gap: 3px; font-size: 10px; line-height: 1.2; }
-  .partner-panel .product-list-toolbar > .module-action-btn svg { flex: 0 0 11px; width: 11px; height: 11px; }
-  .partner-panel .product-list-toolbar .export-btn-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; min-width: 0; }
-  .partner-panel .product-list-toolbar .export-btn-group > button { min-width: 0; min-height: 40px; padding: 4px 2px; gap: 3px; font-size: 10px; }
-  .partner-panel .product-list-toolbar .export-btn-group svg { width: 11px; height: 11px; flex-shrink: 0; }
+  .partner-panel .cadastros-scope .product-list-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .partner-panel .product-list-toolbar .export-btn-group { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+  .partner-panel .product-list-toolbar > .module-action-btn,
+  .partner-panel .product-list-toolbar .export-btn-group > button { min-height: 44px; padding: 8px 10px; gap: 6px; font-size: 13px; white-space: nowrap; }
+  .partner-panel .product-list-toolbar :is(.module-action-btn, .export-btn-group) svg { flex: 0 0 16px; width: 16px; height: 16px; }
   .partner-panel .cadastros-scope .category-browser-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .partner-panel .cadastros-scope .category-browser-item { display: grid; grid-template-columns: minmax(0, 1fr) 32px; min-width: 0; min-height: 72px; }
   .partner-panel .cadastros-scope .category-browser-select { display: grid; grid-template-columns: 14px minmax(0, 1fr); grid-column: 1; grid-row: 1; gap: 4px; padding: 8px; min-height: 72px; font-size: 12px; }
@@ -3383,10 +3400,7 @@ body, .app-shell { background: #091724; color: #edf5fc; }
   .partner-panel .cash-module .cash-fields + button, .partner-panel .cash-module form > .module-submit-btn { width: 100%; white-space: normal; }
 }
 @media screen and (max-width: 600px) {
-  .partner-panel .cadastros-scope .product-list-toolbar { grid-template-columns: minmax(0, 1fr); gap: 8px; }
-  .partner-panel .product-list-toolbar > .module-action-btn,
-  .partner-panel .product-list-toolbar .export-btn-group > button { min-height: 44px; padding: 8px; gap: 6px; font-size: 13px; white-space: normal; }
-  .partner-panel .product-list-toolbar :is(.module-action-btn, .export-btn-group) svg { width: 16px; height: 16px; flex-basis: 16px; }
+  .partner-panel .product-list-toolbar > .module-action-btn { flex-basis: 100%; }
 }
 .bi-module { display: grid; gap: 24px; min-width: 0; color: var(--dh-text, #eaf1f6); }
 .bi-result-status { display: grid; gap: 8px; border-left: 4px solid #7bc8ff; }

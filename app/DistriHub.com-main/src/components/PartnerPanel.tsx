@@ -1801,9 +1801,9 @@ export function PartnerPanel({
           </div>
         </div>
 
-        <button type="button" className="rma-advance-btn" style={{ margin: '0 12px 12px' }}
+        <button type="button" className="rma-advance-btn sidebar-owner-access"
           onClick={() => onRequestAccess('owner')}>
-          <Shield size={14} /> Área do proprietário
+          <Shield size={16} aria-hidden="true" /><span>Área do proprietário</span>
         </button>
 
           {!accessLocked && <BranchSelector

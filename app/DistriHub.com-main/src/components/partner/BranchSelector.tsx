@@ -18,11 +18,11 @@ export function BranchSelector({ branches, selectedBranchId, onSelectBranch, isE
   return <div className="sidebar-branch-selector">
     <span className="sidebar-branch-label">Filial ativa</span>
     {isEmployeeLocked ? (
-      <div className="sidebar-branch-current"><Lock size={16} aria-hidden="true" /><span>{selectedName}</span></div>
+      <div className="sidebar-branch-current"><Lock size={16} aria-hidden="true" /><span title={selectedName}>{selectedName}</span></div>
     ) : (
       <details className="sidebar-branch-dropdown" key={selectedBranchId}>
         <summary aria-label={`Selecionar filial: ${selectedName}`}>
-          <Building2 size={16} aria-hidden="true" /><span>{selectedName}</span><ChevronDown size={16} aria-hidden="true" />
+          <Building2 size={16} aria-hidden="true" /><span title={selectedName}>{selectedName}</span><ChevronDown size={16} aria-hidden="true" />
         </summary>
         <div className="sidebar-branch-options" role="group" aria-label="Filiais disponíveis">
           {[...(allowConsolidated ? [{ id: '', name: 'Todas as filiais' }] : []), ...options].map(branch => (

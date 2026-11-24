@@ -74,6 +74,13 @@ test('barcode in another branch is ignored',async()=>{
 async function typeCode(){await act(async()=>search().props.onChange({target:{value:'0789012345678'}}));}
 function enter(){search().props.onKeyDown({key:'Enter',preventDefault(){}});}
 async function openCamera(){await act(async()=>renderer.root.findByProps({'aria-label':'Ler código pela câmera'}).props.onClick());}
+test('produto preparado na hora entra no PDV mesmo com saldo zero', async () => {
+ const h = harness();
+ await mount(h, { products: [{ ...props.products[0], stock: 0, control_stock: false }] });
+ await typeCode();
+ act(() => { enter(); enter(); });
+ assert.equal(qty(), '2');
+});
 test('leituras no mesmo ciclo respeitam estoque e preservam duas unidades legítimas',async()=>{const h=harness();await mount(h,{products:[{...props.products[0],stock:1}]});await typeCode();act(()=>{enter();enter();});assert.equal(qty(),'1');assert.match(renderer.root.findByProps({role:'alert'}).children.join(''),/insuficiente/);await act(async()=>renderer.unmount());renderer=null;await mount(h,{products:[{...props.products[0],stock:2}]});await typeCode();act(()=>{enter();enter();});assert.equal(qty(),'2');});
 test('finalização bloqueia teclado, câmera e alteração de quantidade sem perder uma leitura',async()=>{const h=harness();let release,payload;await mount(h,{onCreateSale:sale=>{payload=sale;return new Promise(done=>release=done);}});await typeCode();await act(async()=>enter());await openCamera();const staleDetected=renderer.root.findByType(h.exports.Camera).props.onDetected;await typeCode();act(()=>{void renderer.root.findByProps({className:'module-cancel-btn pdv-checkout-btn'}).props.onClick();enter();staleDetected('0789012345678');renderer.root.findByProps({'aria-label':'Aumentar quantidade de Produto'}).props.onClick();});assert.equal(qty(),'1');assert.equal(payload.items[0].quantity,1);assert.equal(renderer.root.findAllByType(h.exports.Camera).length,0);assert.equal(search().props.disabled,true);assert.equal(renderer.root.findByProps({'aria-label':'Ler código pela câmera'}).props.disabled,true);assert.ok(h.stops>0);await act(async()=>release({id:'saved',...payload}));assert.equal(qty(),undefined);});
 test('venda incerta bloqueia leitor e carrinho até recuperação',async()=>{const h=harness();await mount(h,{hasPendingSale:true});await typeCode();act(()=>enter());assert.equal(qty(),undefined);assert.equal(search().props.disabled,true);});
