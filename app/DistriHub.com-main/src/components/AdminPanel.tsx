@@ -11,6 +11,7 @@ import type { AdminCompany, AdminLojista } from '../types';
 import { money } from '../utils';
 import { AdminSaasModule } from './AdminSaasModule';
 import { AdminSupportInbox } from './AdminSupportInbox';
+import { SupportCenter } from './SupportCenter';
 import { AdminPlanRequestsModule } from './AdminPlanRequestsModule';
 import { AdminCompanySegmentField } from './AdminCompanySegmentField';
 import { CompanyRegistration } from './CompanyRegistration';
@@ -249,7 +250,13 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
           {tab === 'faturas' && <AdminSaasModule view="invoices" />}
           {tab === 'assinaturas' && <AdminSaasModule view="subscriptions" initialCompanyId={accessCompanyId} onChanged={() => setCompaniesVersion(version => version + 1)} />}
 
-          {tab === 'suporte' && <AdminSupportInbox companies={lojistas} unreadCounts={supportUnread.conversations} />}
+          {tab === 'suporte' && <>
+            <SupportCenter admin />
+            <details className="module-card support-legacy">
+              <summary>Histórico do chat de suporte</summary>
+              <AdminSupportInbox companies={lojistas} unreadCounts={supportUnread.conversations} />
+            </details>
+          </>}
 
           {tab === 'planos' && <AdminPlanRequestsModule onChanged={() => setCompaniesVersion(v => v + 1)} />}
 

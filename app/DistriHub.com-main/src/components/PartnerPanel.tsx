@@ -89,6 +89,7 @@ const loadOrderHistoryModule = moduleLoader(() => import('./partner/OrderHistory
 const OrderHistoryModule = lazy(loadOrderHistoryModule);
 const loadSupportChatModule = moduleLoader(() => import('./partner/SupportChatModule').then((module) => ({ default: module.SupportChatModule })));
 const SupportChatModule = lazy(loadSupportChatModule);
+const SupportCenter = lazy(() => import('./SupportCenter').then(module => ({ default: module.SupportCenter })));
 const loadServiceOrdersModule = moduleLoader(() => import('./partner/ServiceOrdersModule').then((module) => ({ default: module.ServiceOrdersModule })));
 const ServiceOrdersModule = lazy(loadServiceOrdersModule);
 const loadCatalogOrdersModule = moduleLoader(() => import('./partner/CatalogOrdersModule').then(module => ({ default: module.CatalogOrdersModule })));
@@ -337,6 +338,7 @@ export function PartnerPanel({
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [legacySupportOpen, setLegacySupportOpen] = useState(false);
   const [switchingBranch, setSwitchingBranch] = useState(false);
   const [branchAccessError, setBranchAccessError] = useState<string | null>(null);
   useEffect(() => {
@@ -2140,10 +2142,19 @@ export function PartnerPanel({
             {visitedTabs.has('suporte') && (
               <div hidden={activeTab !== 'suporte'}>
               {renderTab('suporte',
-              <SupportChatModule
-                user={user}
-                isActive={activeTab === 'suporte'}
-              />)}
+              <>
+                <SupportCenter
+                  key={user?.id}
+                  active={activeTab === 'suporte' && !helpOpen}
+                  branchId={effectiveBranchId || undefined}
+                  branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name}
+                  onHelp={() => { setHelpOpen(true); setSidebarOpen(false); }}
+                />
+                <details className="module-card support-legacy" onToggle={event => setLegacySupportOpen(event.currentTarget.open)}>
+                  <summary>Histórico do chat de suporte</summary>
+                  {legacySupportOpen && <SupportChatModule user={user} isActive={activeTab === 'suporte' && !helpOpen} />}
+                </details>
+              </>)}
               </div>
             )}
 
