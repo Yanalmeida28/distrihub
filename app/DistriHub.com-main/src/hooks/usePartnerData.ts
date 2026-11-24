@@ -1015,7 +1015,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
 
       const { data: created, error: rpcError } =
         await client.rpc(
-          'save_partner_product_profile',
+          product.control_stock === false ? 'save_partner_product_stock_profile' : 'save_partner_product_profile',
           {
             p_salesperson_id: effectiveOperatorId,
             p_pin: effectiveOperatorPin,
@@ -1032,6 +1032,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
             p_sku: product.sku,
             p_barcode: product.barcode?.trim() || null,
             p_is_service: product.is_service,
+            ...(product.control_stock === false ? { p_control_stock: false } : {}),
             p_image_url: product.image_url ?? null,
             p_supplier_id: product.supplier_id ?? null,
             p_premium_price: product.premium_price ?? null,
@@ -1123,7 +1124,8 @@ read('sales', (signal) => fetchAllPages((from, to) => client
 
       const { data: savedProduct, error: rpcError } =
         await supabase.rpc(
-          'save_partner_product_profile',
+          product.control_stock !== undefined && product.control_stock !== (existing.control_stock !== false)
+            ? 'save_partner_product_stock_profile' : 'save_partner_product_profile',
           {
             p_salesperson_id: effectiveOperatorId,
             p_pin: effectiveOperatorPin,
@@ -1148,6 +1150,8 @@ read('sales', (signal) => fetchAllPages((from, to) => client
             p_barcode: product.barcode === undefined ? existing.barcode ?? null : product.barcode?.trim() || null,
             p_is_service:
               product.is_service ?? existing.is_service,
+            ...(product.control_stock !== undefined && product.control_stock !== (existing.control_stock !== false)
+              ? { p_control_stock: product.control_stock } : {}),
             p_image_url:
               product.image_url === undefined ? existing.image_url ?? null : product.image_url,
             p_supplier_id: product.supplier_id === undefined ? existing.supplier_id ?? null : product.supplier_id,

@@ -174,7 +174,7 @@ export function CadastrosModule({
       </div>}
 
       <div className="subtab-content">
-        {adminTarget === 'estoque' && <StockAdjustmentSubTab products={filteredProducts.filter(p => !p.is_service)} branchId={selectedBranchId} onUpdate={onUpdateProduct} />}
+        {adminTarget === 'estoque' && <StockAdjustmentSubTab products={filteredProducts.filter(p => !p.is_service && p.control_stock !== false)} branchId={selectedBranchId} onUpdate={onUpdateProduct} />}
         {adminTarget !== 'estoque' && (adminTarget ? subTab === 'produtos' : visitedSubTabs.has('produtos')) && (
           <div hidden={subTab !== 'produtos'}>
           <ProductsSubTab
@@ -356,6 +356,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
   const [category, setCategory] = useSessionDraftState('products:category', '');
   const [supplierId, setSupplierId] = useSessionDraftState('products:supplier', '');
   const [isService, setIsService] = useSessionDraftState('products:is-service', defaultIsService);
+  const [controlStock, setControlStock] = useSessionDraftState('products:control-stock', true);
   const [ncm, setNcm] = useSessionDraftState('products:ncm', '');
   const [cfop, setCfop] = useSessionDraftState('products:cfop', '');
   const [cstCsosn, setCstCsosn] = useSessionDraftState('products:cst-csosn', '');
@@ -407,8 +408,9 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
     return {
       name, sku: sku.trim() || null, barcode: barcode.trim() || null, cost_price: Number(cost) || 0, sale_price: Number(sale) || 0,
       wholesale_price: Number(wholesale) || 0, premium_price: premium.trim() ? Number(premium) : null,
-      stock: Number(stock) || 0, min_stock: Number(minStock) || 0,
+      stock: controlStock && !isService ? Number(stock) || 0 : 0, min_stock: controlStock && !isService ? Number(minStock) || 0 : 0,
       image_url: imageUrl, supplier_id: supplierId || null, category: category || null, is_service: isService, branch_id: selectedBranchId,
+      control_stock: isService || controlStock,
       ncm: ncm || null, cfop: cfop || null, cst_csosn: cstCsosn || null,
       icms_rate: Number(icmsRate) || 0, pis_rate: Number(pisRate) || 0, cofins_rate: Number(cofinsRate) || 0,
       brand: undefined,
@@ -420,7 +422,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
   }
 
   function clearNewProductForm() {
-    setName(''); setSku(''); setBarcode(''); setCost(''); setSale(''); setWholesale(''); setPremium(''); setStock(''); setMinStock('5'); setCategory(''); setSupplierId(''); setIsService(defaultIsService);
+    setName(''); setSku(''); setBarcode(''); setCost(''); setSale(''); setWholesale(''); setPremium(''); setStock(''); setMinStock('5'); setCategory(''); setSupplierId(''); setIsService(defaultIsService); setControlStock(true);
     setNcm(''); setCfop(''); setCstCsosn(''); setIcmsRate(''); setPisRate(''); setCofinsRate('');
     setShowForm(false);
     setImageUrl(null);
@@ -555,11 +557,11 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
           <div className="form-row product-form-row product-stock-row">
             <label>
               Estoque
-              <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" />
+              <input type="number" disabled={isService || !controlStock} value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" />
             </label>
             <label>
               Alerta Mínimo
-              <input type="number" value={minStock} onChange={(e) => setMinStock(e.target.value)} placeholder="5" />
+              <input type="number" disabled={isService || !controlStock} value={minStock} onChange={(e) => setMinStock(e.target.value)} placeholder="5" />
             </label>
             <label>
               Categoria
@@ -572,6 +574,7 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
               <input type="checkbox" checked={isService} onChange={(e) => setIsService(e.target.checked)} />
               É um serviço (sem estoque)
             </label>
+            {!isService && <label className="checkbox-label"><input type="checkbox" checked={controlStock} onChange={event => setControlStock(event.target.checked)} /> Controlar estoque</label>}
           </div>
           </section>
           {!suppliersReady && <p role="status">Aguarde o carregamento dos fornecedores para salvar. Se houver falha, use Sincronizar no painel.</p>}
@@ -646,16 +649,16 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
                   <td data-label="Custo">{money.format(p.cost_price)}</td>
                   <td data-label="Varejo">{money.format(p.sale_price)}</td>
                   <td data-label="Atacado">{p.wholesale_price > 0 ? money.format(p.wholesale_price) : '—'}</td>
-                  <td data-label="Estoque">{p.is_service ? 'Não se aplica' : p.stock}</td>
+                  <td data-label="Estoque">{p.is_service ? 'Não se aplica' : p.control_stock === false ? 'Sem controle' : p.stock}</td>
                   <td data-label="Status">
                     {p.is_service && <span className="rma-status-badge">Serviço</span>}
-                    {!p.is_service && p.stock <= (p.min_stock || 0) && p.stock > 0 && (
+                    {!p.is_service && p.control_stock !== false && p.stock <= (p.min_stock || 0) && p.stock > 0 && (
                       <span className="rma-status-badge stock-low">Estoque baixo</span>
                     )}
-                    {!p.is_service && p.stock === 0 && (
+                    {!p.is_service && p.control_stock !== false && p.stock === 0 && (
                       <span className="rma-status-badge stock-empty">Sem estoque</span>
                     )}
-                    {!p.is_service && p.stock > (p.min_stock || 0) && (
+                    {!p.is_service && p.control_stock !== false && p.stock > (p.min_stock || 0) && (
                       <span className="rma-status-badge stock-ok">OK</span>
                     )}
                   </td>
@@ -805,6 +808,7 @@ function ProductEditModal({ suppliersReady = true, product, categories, supplier
   const [category, setCategory] = useState(product.category ?? '');
   const [supplierId, setSupplierId] = useState(product.supplier_id ?? '');
   const [isService, setIsService] = useState(product.is_service);
+  const [controlStock, setControlStock] = useState(product.control_stock !== false);
   const [ncm, setNcm] = useState(product.ncm ?? '');
   const [cfop, setCfop] = useState(product.cfop ?? '');
   const [cstCsosn, setCstCsosn] = useState(product.cst_csosn ?? '');
@@ -825,6 +829,7 @@ function ProductEditModal({ suppliersReady = true, product, categories, supplier
       sale_price: Number(sale) || 0, wholesale_price: Number(wholesale) || 0, premium_price: premium.trim() ? Number(premium) : null,
       stock: Math.max(0, Number(stock) || 0), min_stock: Math.max(0, Number(minStock) || 0),
       supplier_id: supplierId || null, category: category || null, is_service: isService, ncm: ncm || null,
+      control_stock: isService || controlStock,
       cfop: cfop || null, cst_csosn: cstCsosn || null, icms_rate: Number(icmsRate) || 0,
       pis_rate: Number(pisRate) || 0, cofins_rate: Number(cofinsRate) || 0,
     });
@@ -847,10 +852,11 @@ function ProductEditModal({ suppliersReady = true, product, categories, supplier
           <div className="form-row"><label>Preço de custo<input type="number" min="0" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} /></label><label>Preço varejo<input type="number" min="0" step="0.01" value={sale} onChange={(e) => setSale(e.target.value)} required /></label><label>Preço atacado<input type="number" min="0" step="0.01" value={wholesale} onChange={(e) => setWholesale(e.target.value)} /></label></div>
           <label>Preço Premium (opcional)<input aria-label="Preço Premium" type="number" min="0" max="99999999.99" step="0.01" value={premium} onChange={event => setPremium(event.target.value)} placeholder="Não configurado" /></label>
           <ProductProfitPreview cost={cost} retail={sale} wholesale={wholesale} />
-          <div className="form-row"><label>Estoque<input type="number" min="0" step="1" value={stock} onChange={(e) => setStock(e.target.value)} /></label><label>Estoque mínimo<input type="number" min="0" step="1" value={minStock} onChange={(e) => setMinStock(e.target.value)} /></label><label>Categoria<select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">Selecione...</option>{categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label></div>
+          <div className="form-row"><label>Estoque<input type="number" min="0" step="1" disabled={!controlStock} value={stock} onChange={(e) => setStock(e.target.value)} /></label><label>Estoque mínimo<input type="number" min="0" step="1" disabled={!controlStock} value={minStock} onChange={(e) => setMinStock(e.target.value)} /></label><label>Categoria<select value={category} onChange={(e) => setCategory(e.target.value)}><option value="">Selecione...</option>{categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></label></div>
           {!suppliersReady && <p role="status">Aguarde o carregamento dos fornecedores para salvar. Se houver falha, use Sincronizar no painel.</p>}
           <SupplierField suppliers={suppliers} value={supplierId} onChange={setSupplierId} onAdd={onAddSupplier} disabled={saving || !suppliersReady} onBusyChange={setSupplierSaving} />
           <label className="checkbox-label"><input type="checkbox" checked={isService} onChange={(e) => setIsService(e.target.checked)} /> É um serviço (sem estoque)</label>
+          {!isService && <label className="checkbox-label"><input type="checkbox" checked={controlStock} onChange={event => setControlStock(event.target.checked)} /> Controlar estoque</label>}
           <div className="form-row"><label>NCM<input value={ncm} onChange={(e) => setNcm(e.target.value)} /></label><label>CFOP<input value={cfop} onChange={(e) => setCfop(e.target.value)} /></label><label>CST/CSOSN<input value={cstCsosn} onChange={(e) => setCstCsosn(e.target.value)} /></label></div>
           <div className="form-row"><label>ICMS (%)<input type="number" min="0" step="0.01" value={icmsRate} onChange={(e) => setIcmsRate(e.target.value)} /></label><label>PIS (%)<input type="number" min="0" step="0.01" value={pisRate} onChange={(e) => setPisRate(e.target.value)} /></label><label>COFINS (%)<input type="number" min="0" step="0.01" value={cofinsRate} onChange={(e) => setCofinsRate(e.target.value)} /></label></div>
           {error && <div className="branch-action-error" role="alert">{error}</div>}
@@ -1023,7 +1029,7 @@ function CategoriesSubTab({ categories, products, onAdd, onDelete, branches = []
                       <td>{product.sku ?? '—'}</td>
                       <td>{money.format(product.sale_price)}</td>
                       <td>{product.wholesale_price > 0 ? money.format(product.wholesale_price) : '—'}</td>
-                      <td>{product.is_service ? '—' : product.stock}</td>
+                      <td>{product.is_service ? '—' : product.control_stock === false ? 'Sem controle' : product.stock}</td>
                     </tr>
                   ))
                 )}
@@ -2766,7 +2772,7 @@ function ReplenishmentSubTab({ products, sales, selectedBranchId, onReplenishSto
   const [success, setSuccess] = useState<string | null>(null);
   const abcAnalysis = useMemo(() => {
     const completedSales = sales.filter((s) => s.status === 'concluida');
-    const productStats: Record<string, { name: string; sku: string | null; stock: number; minStock: number; totalSold: number; revenue: number; isService: boolean }> = {};
+    const productStats: Record<string, { name: string; sku: string | null; stock: number; minStock: number; totalSold: number; revenue: number; tracksStock: boolean }> = {};
 
     for (const product of products) {
       productStats[product.id] = {
@@ -2776,7 +2782,7 @@ function ReplenishmentSubTab({ products, sales, selectedBranchId, onReplenishSto
         minStock: product.min_stock,
         totalSold: 0,
         revenue: 0,
-        isService: product.is_service,
+        tracksStock: !product.is_service && product.control_stock !== false,
       };
     }
 
@@ -2790,7 +2796,7 @@ function ReplenishmentSubTab({ products, sales, selectedBranchId, onReplenishSto
     }
 
     const ranked = Object.entries(productStats)
-      .filter(([, s]) => !s.isService)
+      .filter(([, s]) => s.tracksStock)
       .map(([id, s]) => ({ id, ...s }))
       .sort((a, b) => b.revenue - a.revenue);
 

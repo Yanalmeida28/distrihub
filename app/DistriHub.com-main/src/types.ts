@@ -194,6 +194,7 @@ export interface PartnerProduct {
   image_url: string | null;
   category: string | null;
   is_service: boolean;
+  control_stock?: boolean;
   branch_id: string | null;
   ncm?: string | null;
   cfop?: string | null;
