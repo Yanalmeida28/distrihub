@@ -153,7 +153,7 @@ export function CadastrosModule({
       <div className="module-header">
         <span className="module-icon"><Boxes size={20} /></span>
         <div>
-          <h3>{adminTarget ? ({ produtos: 'Produtos', servicos: 'Serviços', combos: 'Combos de Produtos', importar: 'Importar / Exportar', fornecedores: 'Fornecedores', estoque: 'Ajuste de Estoque', vendedores: 'Usuários e permissões', clientes: 'Clientes' } as Record<string, string>)[adminTarget] : 'Cadastros Essenciais & Entrada Automática'}</h3>
+          <h3>{adminTarget ? ({ produtos: 'Produtos', servicos: 'Serviços', combos: 'Combos de Produtos', importar: 'Importar / Exportar', fornecedores: 'Fornecedores', estoque: 'Ajuste de Estoque', vendedores: 'Usuários e permissões', clientes: 'Clientes' } as Record<string, string>)[adminTarget] : <><span className="cadastros-title-mobile">Cadastros</span><span className="cadastros-title-desktop">Cadastros Essenciais &amp; Entrada Automática</span></>}</h3>
           <p>{adminTarget === 'vendedores' ? 'Cadastre usuários e edite os acessos, a função, a filial e o PIN da equipe.' : adminTarget ? 'Cadastre e gerencie os registros da opção selecionada no Administrativo.' : 'Produtos, serviços, categorias, clientes e fornecedores'}</p>
         </div>
       </div>
@@ -502,8 +502,8 @@ function ProductsSubTab({ canExport = false, suppliersReady = true, defaultIsSer
   return (
     <div>
       <div className="action-row product-list-toolbar">
-        <button className="module-action-btn" onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancelar' : <><Plus size={16} /> Novo {itemLabel}</>}
+        <button className="module-action-btn" aria-label={showForm ? 'Cancelar' : `Novo ${itemLabel}`} onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancelar' : <><Plus size={16} /> <span>Novo<span className="cadastros-title-desktop"> {itemLabel}</span></span></>}
         </button>
         <ExportButtons allowed={canExport} target="produtos" products={products} customers={[]} />
       </div>

@@ -6,13 +6,28 @@
   }
 
   .partner-panel .sidebar-nav > .sidebar-mobile-menu-group + .sidebar-mobile-menu-group {
-    margin-block-start: 8px;
+    margin-block-start: 12px;
   }
 
   .partner-panel .sidebar-mobile-menu-heading {
+    --mobile-menu-heading-color: #7cc0f5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 6px 14px 2px;
-    color: var(--store-nav-text);
-    font-size: 12px;
+    color: var(--mobile-menu-heading-color);
+    font-size: 14px;
     font-weight: 700;
+  }
+
+  .partner-panel[data-panel-theme="white"] .sidebar-mobile-menu-heading {
+    --mobile-menu-heading-color: #145ca0;
+  }
+
+  .partner-panel .sidebar-mobile-menu-heading::after {
+    content: '';
+    flex: 1;
+    border-block-start: 1px solid currentColor;
+    opacity: .35;
   }
 }

@@ -1,0 +1,24 @@
+.cadastros-scope .cadastros-title-mobile {
+  display: none;
+}
+
+@media (width < 768px) {
+  .cadastros-scope .cadastros-title-mobile {
+    display: inline;
+  }
+
+  .cadastros-scope .cadastros-title-desktop {
+    display: none;
+  }
+
+  .partner-panel .cadastros-scope .product-list-toolbar {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .partner-panel .cadastros-scope .product-list-toolbar .export-btn-group {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
