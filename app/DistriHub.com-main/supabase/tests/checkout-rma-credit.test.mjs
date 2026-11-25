@@ -14,6 +14,7 @@ test('checkout credit is atomic, retry-safe, shared with invoice credits, and ne
    CREATE TABLE partner_invoice_receipts(user_id uuid,invoice_id uuid,branch_id uuid,customer_id uuid,customer_name text,invoice_number text,amount numeric,occurred_at timestamptz);`);
   await db.exec(await read('../migrations/20261010200046_add_rma_customer_credits.sql'));
   await db.exec(await read('../migrations/20261020220000_use_rma_credit_at_checkout.sql'));
+  await db.exec(await read('../migrations/20261125163916_pdv_sale_observations.sql'));
   const [owner,other,branch,otherBranch,customer,otherCustomer,product,origin,rma]=Array.from({length:9},()=>randomUUID());
   await db.query('INSERT INTO auth.users VALUES($1),($2)',[owner,other]);
   await db.query("INSERT INTO partner_profiles(id,account_name,business_name) VALUES($1,'Owner','Test'),($2,'Other','Test')",[owner,other]);
@@ -28,7 +29,12 @@ test('checkout credit is atomic, retry-safe, shared with invoice credits, and ne
   await db.query('SELECT grant_partner_rma_credit($1,100)',[rma]);
   const request=(credit=50)=>({id:randomUUID(),customer_id:customer,customer_name:'Customer',branch_id:branch,items:[{product_id:product,name:'Product',quantity:1,unit_price:100}],total:100,freight_fee:0,payment_method:'misto',payment_splits:[{method:'credito_rma',amount:credit},...(credit===100?[]:[{method:'pix',amount:100-credit}])],status:'concluida',origin:'pdv',customer_type:'varejo',delivery_type:'balcao'});
   const execute=(sale,creditId=rma)=>db.query('SELECT execute_partner_sale_with_rma_credit($1,$2,NULL,NULL,NULL) id',[sale,creditId]);
-  const first=request();await execute(first);await execute(first);
+  const saveObserved=(sale,creditId=null,cashSession=null) => db.query(
+    'SELECT save_pdv_sale_with_observation($1,NULL,NULL,$2,$3) id',[sale,cashSession,creditId]);
+  const first={...request(),observations:'Entregar após as 14h'};
+  await saveObserved(first,rma);await saveObserved(first,rma);
+  assert.equal((await one('SELECT observations FROM partner_sales WHERE id=$1',[first.id])).observations,first.observations);
+  await assert.rejects(saveObserved({...first,observations:'Texto diferente'},rma),/diverge/);
   assert.equal(Number((await one('SELECT stock FROM partner_products WHERE id=$1',[product])).stock),8);
   assert.equal(Number((await one('SELECT count(*) n FROM partner_rma_credit_applications')).n),1);
   const totals=(await one('SELECT partner_cash_private.totals($1) value',[session])).value;
@@ -57,15 +63,25 @@ test('checkout credit is atomic, retry-safe, shared with invoice credits, and ne
   const fullRma=randomUUID();await db.query("INSERT INTO rma_requests_v2(id,user_id,sale_id,sale_item_index,quantity,branch_id,customer_id,status) VALUES($1,$2,$3,0,1,$4,$5,'reintegrado_estoque')",[fullRma,owner,origin,branch,customer]);
   await db.query('SELECT grant_partner_rma_credit($1,100)',[fullRma]);
   const full=request(100);
-  const executeSupervised=()=>db.query('SELECT execute_partner_sale_with_rma_credit($1,$2,NULL,NULL,$3)',[full,fullRma,session]);
+  const executeSupervised=()=>saveObserved({...full,observations:'Crédito usado integralmente'},fullRma,session);
   await executeSupervised();await executeSupervised();
   assert.equal(Number((await one("SELECT amount FROM partner_cash_movements WHERE sale_id=$1 AND payment_method='credito_rma'",[full.id])).amount),100);
   assert.equal(Number((await one("SELECT count(*) n FROM partner_cash_movements WHERE sale_id=$1 AND payment_method IN ('pix','dinheiro','cartao')",[full.id])).n),0);
   assert.equal(Number((await one('SELECT sum(amount) used FROM partner_rma_credit_applications WHERE rma_id=$1',[fullRma])).used),100);
   await assert.rejects(execute(request(1),fullRma),/insuficiente/);
+  const quote={...request(),status:'pre_venda',payment_method:'pix',payment_splits:[],observations:'Separar para retirada'};
+  await saveObserved(quote);
+  await saveObserved({...quote,observations:'Retirada amanhã'});
+  assert.equal((await one('SELECT observations FROM partner_sales WHERE id=$1',[quote.id])).observations,'Retirada amanhã');
+  await saveObserved({...quote,observations:null});
+  assert.equal((await one('SELECT observations FROM partner_sales WHERE id=$1',[quote.id])).observations,null);
+  const invalidQuote={...quote,id:randomUUID(),observations:'x'.repeat(1001)};
+  await assert.rejects(saveObserved(invalidQuote),/observação/);
+  assert.equal(Number((await one('SELECT count(*) n FROM partner_sales WHERE id=$1',[invalidQuote.id])).n),0);
   await db.query("SELECT set_config('test.auth_uid',$1,false)",[other]);
   await assert.rejects(execute(request(40)),/mesmo cliente|filial|permiss/i);
   await db.exec("SET test.auth_uid=''");await assert.rejects(execute(request(40)),/autenticado|sessao|autenticacao/i);
   assert.equal((await one("SELECT has_function_privilege('anon','execute_partner_sale_with_rma_credit(jsonb,uuid,uuid,text,uuid)','EXECUTE') allowed")).allowed,false);
+  assert.equal((await one("SELECT has_function_privilege('anon','save_pdv_sale_with_observation(jsonb,uuid,text,uuid,uuid)','EXECUTE') allowed")).allowed,false);
  } finally { await db.close(); }
 });

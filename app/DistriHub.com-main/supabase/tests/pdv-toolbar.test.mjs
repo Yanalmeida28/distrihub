@@ -446,3 +446,28 @@ test('sale confirmation is emitted only after the server resolves, and never on 
     await act(async () => renderer.unmount()); renderer=null;
   }
 });
+
+test('PDV keeps an observation after a failed checkout and clears it after confirmation', async () => {
+  const attempts = [];
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(module.exports.Checkout, {
+      ...props,
+      onCreateSale: async sale => {
+        attempts.push(sale);
+        if (attempts.length === 1) throw new Error('Falha ao confirmar');
+        return { ...sale, id: 'completed-sale' };
+      },
+    }));
+  });
+  const search = renderer.root.findByProps({ 'aria-label': 'Buscar produto por nome, SKU ou código de barras' });
+  await act(async () => search.props.onChange({ target: { value: 'Produto' } }));
+  await act(async () => renderer.root.findByProps({ className: 'pdv-product-card' }).props.onClick());
+  const note = () => renderer.root.findByProps({ className: 'pdv-observations' }).findByType('textarea');
+  const submit = () => renderer.root.findByProps({ className: 'module-cancel-btn pdv-checkout-btn' }).props.onClick();
+  await act(async () => note().props.onChange({ target: { value: '  Separar para retirada  ' } }));
+  await act(async () => submit());
+  assert.equal(note().props.value, '  Separar para retirada  ');
+  await act(async () => submit());
+  assert.deepEqual(attempts.map(sale => sale.observations), ['Separar para retirada', 'Separar para retirada']);
+  assert.equal(note().props.value, '');
+});

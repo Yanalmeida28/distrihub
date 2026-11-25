@@ -67,6 +67,16 @@ type SalePayload = Omit<
   payment_method?: string | null;
 };
 
+function observationSaleArgs(sale: PartnerSale, operatorId?: string | null, operatorPin?: string | null) {
+  const rpcSale = { ...sale };
+  delete rpcSale.draft_scope;
+  delete rpcSale.draft_backup_id;
+  return {
+    p_sale: rpcSale, p_operator_id: operatorId ?? null, p_pin: operatorPin ?? null,
+    p_cash_session_id: sale.cash_session_id ?? null, p_rma_id: sale.rma_credit_id ?? null,
+  };
+}
+
 type CustomerPayload = Omit<
   PartnerCustomer,
   'id' | 'user_id' | 'created_at' | 'updated_at'
@@ -1748,7 +1758,9 @@ read('sales', (signal) => fetchAllPages((from, to) => client
           try {
             const rpcSale = { ...ns };
             delete rpcSale.draft_backup_id;
-            const { data: confirmedId, error: rpcError } = await supabase.rpc(ns.rma_credit_id ? 'execute_partner_sale_with_rma_credit' : ns.cash_session_id ? 'supervised_execute_partner_sale_mutation' : 'execute_partner_sale_mutation', ns.rma_credit_id ? {
+            const { data: confirmedId, error: rpcError } = ns.observations
+              ? await supabase.rpc('save_pdv_sale_with_observation', observationSaleArgs(ns, operatorId, operatorPin))
+              : await supabase.rpc(ns.rma_credit_id ? 'execute_partner_sale_with_rma_credit' : ns.cash_session_id ? 'supervised_execute_partner_sale_mutation' : 'execute_partner_sale_mutation', ns.rma_credit_id ? {
               p_sale: rpcSale, p_rma_id: ns.rma_credit_id, p_operator_id: operatorId ?? null, p_pin: operatorPin ?? null, p_cash_session_id: ns.cash_session_id ?? null,
             } : {
               ...(ns.cash_session_id ? { p_cash_session_id: ns.cash_session_id } : {}),
@@ -1824,7 +1836,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
     [createSale],
   );
 
-  const updatePreSale = useCallback(async (id: string, edits: Pick<PartnerSale, 'customer_id' | 'customer_name' | 'items' | 'total' | 'customer_type' | 'delivery_type'> & Partial<Pick<PartnerSale, 'freight_fee' | 'salesperson_id' | 'payment_method' | 'branch_id'>>, operatorId?: string | null, operatorPin?: string | null) => {
+  const updatePreSale = useCallback(async (id: string, edits: Pick<PartnerSale, 'customer_id' | 'customer_name' | 'items' | 'total' | 'customer_type' | 'delivery_type'> & Partial<Pick<PartnerSale, 'freight_fee' | 'salesperson_id' | 'payment_method' | 'branch_id' | 'observations'>>, operatorId?: string | null, operatorPin?: string | null) => {
     if (saleInFlight.current) throw new Error('Aguarde a operação em andamento.');
     saleInFlight.current = true;
     try {
@@ -1838,10 +1850,13 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       const updated = { ...saved, customer_id: edits.customer_id, customer_name: edits.customer_name,
         items: edits.items, total, freight_fee: edits.freight_fee ?? 0, customer_type: edits.customer_type,
         delivery_type: edits.delivery_type, salesperson_id: edits.salesperson_id ?? null,
+        observations: edits.observations === undefined ? saved.observations : edits.observations,
         // Split payments belong to finalization, never to a pending quote.
         payment_method: edits.payment_method === 'misto' ? saved.payment_method : edits.payment_method ?? saved.payment_method };
       if (isSupabaseConfigured && supabase) {
-        const { data: confirmedId, error } = await supabase.rpc('execute_partner_sale_mutation', {
+        const { data: confirmedId, error } = (updated.observations ?? null) !== (saved.observations ?? null)
+          ? await supabase.rpc('save_pdv_sale_with_observation', observationSaleArgs(updated, operatorId, operatorPin))
+          : await supabase.rpc('execute_partner_sale_mutation', {
           p_salesperson_id: operatorId ?? null, p_pin: operatorPin ?? null,
           p_commercial_salesperson_id: updated.salesperson_id, p_sale_id: id,
           p_customer_id: updated.customer_id, p_customer_name: updated.customer_name,
@@ -1943,7 +1958,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
       operatorPin?: string | null,
       paymentSplits?: SalePayment[],
       cashSessionId?: string | null,
-      edits?: Pick<PartnerSale, 'customer_id' | 'customer_name' | 'items' | 'total' | 'customer_type' | 'delivery_type'> & Partial<Pick<PartnerSale, 'freight_fee' | 'salesperson_id'>>,
+      edits?: Pick<PartnerSale, 'customer_id' | 'customer_name' | 'items' | 'total' | 'customer_type' | 'delivery_type'> & Partial<Pick<PartnerSale, 'freight_fee' | 'salesperson_id' | 'observations'>>,
     ) => {
       if (saleInFlight.current) throw new Error('Aguarde a operação em andamento.');
       saleInFlight.current = true;
@@ -1969,12 +1984,14 @@ read('sales', (signal) => fetchAllPages((from, to) => client
           items: edits.items, total: edits.total, customer_type: edits.customer_type,
           delivery_type: edits.delivery_type, freight_fee: edits.freight_fee ?? 0,
           salesperson_id: edits.salesperson_id ?? null,
+          observations: edits.observations === undefined ? savedSale.observations : edits.observations,
         } : savedSale;
         const quoteChanged = edits && (
           sale.customer_id !== savedSale.customer_id || sale.customer_name !== savedSale.customer_name
           || sale.total !== savedSale.total || (sale.freight_fee ?? 0) !== (savedSale.freight_fee ?? 0)
           || sale.customer_type !== savedSale.customer_type || sale.delivery_type !== savedSale.delivery_type
           || sale.salesperson_id !== savedSale.salesperson_id
+          || (sale.observations ?? null) !== (savedSale.observations ?? null)
           || JSON.stringify(sale.items) !== JSON.stringify(savedSale.items)
         );
 
@@ -2002,6 +2019,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
             persisted.customer_id === sale.customer_id && persisted.customer_name === sale.customer_name
             && persisted.total === sale.total && (persisted.freight_fee ?? 0) === (sale.freight_fee ?? 0)
             && persisted.customer_type === sale.customer_type && persisted.delivery_type === sale.delivery_type
+            && (persisted.observations ?? null) === (sale.observations ?? null)
             && JSON.stringify(persisted.items) === JSON.stringify(sale.items)
             && JSON.stringify(persisted.payment_splits ?? []) === JSON.stringify(parts)
           ))) return;
@@ -2016,7 +2034,9 @@ read('sales', (signal) => fetchAllPages((from, to) => client
           if (quoteChanged) {
             // Persist the edited quote before finalizing: the finalization RPC must
             // match its authoritative price snapshot and must reuse the same sale ID.
-            const { data: confirmedId, error } = await supabase.rpc('execute_partner_sale_mutation', {
+            const { data: confirmedId, error } = (sale.observations ?? null) !== (savedSale.observations ?? null)
+              ? await supabase.rpc('save_pdv_sale_with_observation', observationSaleArgs(sale, effectiveOperatorId, effectiveOperatorPin))
+              : await supabase.rpc('execute_partner_sale_mutation', {
               p_salesperson_id: effectiveOperatorId, p_pin: effectiveOperatorPin,
               p_commercial_salesperson_id: sale.salesperson_id, p_sale_id: id,
               p_customer_id: sale.customer_id, p_customer_name: sale.customer_name,

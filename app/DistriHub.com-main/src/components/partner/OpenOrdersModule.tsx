@@ -453,6 +453,7 @@ export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, produc
                     </td>
                     <td data-label="Cliente">
                       <strong>{s.customer_name ?? '—'}</strong>
+                      {s.observations && <small className="sale-observations">Obs. {s.observations}</small>}
                       <small className="open-order-secondary">{s.items.length} {s.items.length === 1 ? 'item' : 'itens'}</small>
                       <span className="rma-status-badge" data-tone={st.tone} style={{ color: st.color, borderColor: st.color, backgroundColor: `${st.color}18` }}>{st.label}</span>
                     </td>

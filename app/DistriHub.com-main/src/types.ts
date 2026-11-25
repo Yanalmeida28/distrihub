@@ -258,6 +258,7 @@ export interface SaleItem {
 export interface SalePayment { method: 'dinheiro' | 'pix' | 'cartao' | 'credito_rma'; amount: number; }
 
 export interface PartnerSale {
+  observations?: string | null;
   /** Credit source retained in the immutable browser retry; allocations are stored in the RMA ledger. */
   rma_credit_id?: string | null;
   /** Browser-only provenance for clearing the exact confirmed checkout draft. */

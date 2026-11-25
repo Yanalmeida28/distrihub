@@ -3375,7 +3375,6 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   .partner-panel .pdv-workspace-checkout { padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
   .partner-panel .pdv-mobile-actions { display: flex; gap: 6px; position: fixed; left: 12px; right: 12px; bottom: 0; z-index: 20; padding: 10px 8px calc(10px + env(safe-area-inset-bottom)); border: 1px solid var(--dh-border); border-radius: 12px 12px 0 0; background: var(--dh-surface); box-shadow: 0 -4px 20px #0003; }
   .partner-panel .pdv-mobile-actions button { display: flex; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 52px; padding: 5px; border: 1px solid var(--dh-border); border-radius: 8px; background: var(--dh-blue-soft); color: var(--dh-text); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; }
-  .partner-panel .pdv-mobile-actions button:disabled { opacity: .5; }
   .partner-panel .pdv-mobile-actions .pdv-mobile-review { flex-grow: 1.4; }
   .partner-panel .pdv-mobile-actions strong { font-size: 14px; }
   .partner-panel .pdv-mobile-actions button:focus-visible { outline: 3px solid var(--dh-blue); outline-offset: 2px; }
@@ -4211,23 +4210,52 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
   color: inherit;
 }
 
-.partner-panel .pdv-checkout-actions .pdv-checkout-btn.module-cancel-btn:not(:disabled) {
-  background: var(--dh-surface);
+.partner-panel .pdv-checkout-actions .pdv-checkout-btn.module-cancel-btn:not(:disabled),
+.partner-panel .pdv-mobile-actions button:not(.pdv-mobile-review):not(:disabled) {
+  background: var(--dh-blue-soft);
   border-color: var(--dh-blue);
-  color: var(--dh-accent-text);
+  color: var(--dh-text);
 }
 
-.partner-panel .pdv-checkout-actions .pdv-checkout-btn.module-cancel-btn:hover:not(:disabled) {
+.partner-panel .pdv-checkout-actions .pdv-checkout-btn.module-cancel-btn:hover:not(:disabled),
+.partner-panel .pdv-mobile-actions button:not(.pdv-mobile-review):hover:not(:disabled) {
   background: var(--dh-blue-soft-strong);
 }
 
-.partner-panel .pdv-checkout-actions .pdv-checkout-btn:disabled {
-  background: var(--dh-surface) !important;
+.partner-panel .pdv-mobile-actions button:not(.pdv-mobile-review):not(:disabled) svg {
+  color: var(--dh-accent-text);
+}
+
+.partner-panel .pdv-checkout-actions .pdv-checkout-btn:disabled,
+.partner-panel .pdv-mobile-actions button:disabled {
+  background: color-mix(in srgb, var(--dh-text-secondary) 8%, var(--dh-surface)) !important;
   border-color: var(--dh-border) !important;
   color: var(--dh-text-secondary) !important;
+  opacity: 1;
+}
+
+.partner-panel .pdv-mobile-actions .pdv-mobile-review:disabled strong {
+  color: inherit;
 }
 
 .partner-panel .pdv-search-bar:focus-within {
   outline: 2px solid var(--dh-blue);
   outline-offset: 2px;
+}
+
+.partner-panel .pdv-observations {
+  min-width: 0;
+}
+
+.partner-panel .pdv-observations textarea {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+
+.partner-panel .sale-observations {
+  display: block;
+  margin-block: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

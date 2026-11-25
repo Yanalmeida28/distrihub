@@ -6,7 +6,7 @@ import {
   X, ClipboardList, Lock as LockIcon,
 } from 'lucide-react';
 import type { IScannerControls } from '@zxing/browser';
-import type { DeliveryType, PartnerProduct, PartnerCustomer, PartnerSale, SalePayment, PartnerSalesperson, SaleItem, SalespersonRole, RmaRequest } from '../../types';
+import type { DeliveryType, PartnerProduct, PartnerCustomer, PartnerSale, SalePayment, PartnerSalesperson, SalespersonRole, RmaRequest } from '../../types';
 import { SalePriceInput } from './SalePriceInput';
 import { money } from '../../utils';
 import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentError, billedSaleError, pdvErrorMessage, pdvTotal, saleChargeTotal, validSalePrice, type CustomerCredit, customerPriceTable, productTablePrice, type PriceTable } from '../../lib/pdv';
@@ -342,6 +342,7 @@ type Props = {
     items: { product_id: string; name: string; quantity: number; unit_price: number }[];
     total: number;
     freight_fee?: number;
+    observations?: string | null;
     customer_type: ClientType;
     delivery_type: DeliveryType;
     imei?: string;
@@ -356,6 +357,7 @@ type Props = {
     items: { product_id: string; name: string; quantity: number; unit_price: number }[];
     total: number;
     freight_fee?: number;
+    observations?: string | null;
     customer_type: ClientType;
     delivery_type: DeliveryType;
     payment_method?: string | null;
@@ -551,7 +553,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   selectedBranchId: string | null;
   canCheckout: boolean;
   receiptDetails?: ReceiptDetails;
-  onCreateSale: (sale: { customer_id: string | null; customer_name: string; items: SaleItem[]; total: number; freight_fee?: number; customer_type: ClientType; delivery_type: DeliveryType; imei?: string; serial_number?: string; payment_method?: string; payment_splits?: SalePayment[]; rma_credit_id?: string | null; salesperson_id?: string | null; draft_scope?: string; draft_backup_id?: string; branch_id?: string | null }) => Promise<PartnerSale>;
+  onCreateSale: Props['onCreateSale'];
 }) {
   const draftScope = useSessionDraftScope();
   const [search, setSearch] = useSessionDraftState('checkout:product-search', '');
@@ -634,6 +636,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   const [paymentDraft, setPaymentDraft] = useSessionDraftState('checkout:split-payments', rescuedSale ? splitPaymentDraft(rescuedSale.payment_splits) : { ...emptySplitPaymentDraft });
   const [rmaCreditId, setRmaCreditId] = useSessionDraftState('checkout:rma-credit-id', '');
   const [rmaCreditAmount, setRmaCreditAmount] = useSessionDraftState('checkout:rma-credit-amount', '');
+  const [observations, setObservations] = useSessionDraftState('checkout:observations', rescuedSale?.observations ?? '');
   const [deliveryType, setDeliveryType] = useSessionDraftState<DeliveryType>('checkout:delivery-type', rescuedSale?.delivery_type ?? 'balcao');
   const [freightFee, setFreightFee] = useSessionDraftState<number | string>('checkout:freight-fee', rescuedSale?.freight_fee ?? 0, undefined, value => typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value)));
   const freightAmount = freightFee === '' ? 0 : Number(freightFee);
@@ -829,6 +832,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
       await onSavePreSale({ customer_id: customerId || null, customer_name: customerName || customer?.name || (clientType === 'atacado' ? 'Cliente Atacado' : 'Cliente Varejo'),
         items: cartRef.current, total: pdvTotal(cartRef.current), freight_fee: freightAmount,
         customer_type: clientType, delivery_type: deliveryType, payment_method: paymentMethod,
+        observations: observations.trim() || null,
         salesperson_id: salespersonId || null, branch_id: selectedBranchId });
       clearConfirmedPdvDraft(draftScope, 'checkout');
       if (checkoutMounted.current) onPreSaleSaved?.();
@@ -853,9 +857,10 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
         customer_name: customerName || customer?.name || (clientType === 'atacado' ? 'Cliente Atacado' : 'Cliente Varejo'),
         items: cartRef.current, total: pdvTotal(cartRef.current), freight_fee: freightAmount,
         customer_type: clientType, delivery_type: deliveryType,
+        observations: observations.trim() || null,
         salesperson_id: salespersonId || null, branch_id: selectedBranchId,
       });
-      updateCart([], true); setFreightFee(0); setCustomerId(''); setCustomerName(''); setSalespersonId('');
+      updateCart([], true); setObservations(''); setFreightFee(0); setCustomerId(''); setCustomerName(''); setSalespersonId('');
       setClientType('varejo'); setPriceTable('varejo'); setPaymentMethod('pix');
       setPaymentDraft({ ...emptySplitPaymentDraft }); setRmaCreditId(''); setRmaCreditAmount('');
       setDeliveryType('balcao'); setSearch(''); setVisibleProductCount(PRODUCT_PAGE_SIZE);
@@ -910,6 +915,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
         total: checkoutTotal,
         freight_fee: freightAmount,
         customer_type: clientType,
+        observations: observations.trim() || null,
         delivery_type: deliveryType,
         payment_method: rmaCreditId ? 'misto' : paymentMethod,
         rma_credit_id: rmaCreditId || null,
@@ -917,7 +923,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
         salesperson_id: salespersonId || null,
         branch_id: selectedBranchId,
       });
-      updateCart([], true); setFreightFee(0); setCustomerId(''); setCustomerName(''); setSalespersonId('');
+      updateCart([], true); setObservations(''); setFreightFee(0); setCustomerId(''); setCustomerName(''); setSalespersonId('');
       setCompleted(true);
       onSaleConfirmed?.(confirmedSale);
       setClientType('varejo');
@@ -1206,6 +1212,10 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                   )}
                 </div>
               </div>
+              <label className="pdv-observations">
+                Observação da venda (opcional)
+                <textarea rows={2} maxLength={1000} value={observations} onChange={event => setObservations(event.target.value)} />
+              </label>
               {!rescuedSale && customerId && <section className="b2b-credit-summary" aria-label="Crédito de devolução na compra">
                 <strong>Crédito de devolução</strong>
                 <label>Saldo do cliente<select aria-label="Crédito RMA para a compra" value={rmaCreditId} disabled={cartLocked || !canCheckout} onChange={event => {

@@ -107,7 +107,7 @@ export function saleRequestKey(sale: Partial<PartnerSale>): string {
     sale.imei ?? null, sale.serial_number ?? null, sale.payment_method ?? null,
     sale.branch_id, sale.salesperson_id ?? null, sale.customer_type ?? 'varejo',
     sale.delivery_type ?? 'balcao', sale.origin ?? 'pdv', sale.status ?? 'concluida',
-    sale.cash_session_id ?? null, sale.rma_credit_id ?? null,
+    sale.cash_session_id ?? null, sale.rma_credit_id ?? null, sale.observations ?? null,
   ]);
 }
 
@@ -162,6 +162,7 @@ export class PdvSaleAttemptStore {
       draft_backup_id: sale.draft_backup_id,
       cash_session_id: sale.cash_session_id,
       rma_credit_id: sale.rma_credit_id,
+      observations: sale.observations,
     };
   }
   complete(id: string): void {

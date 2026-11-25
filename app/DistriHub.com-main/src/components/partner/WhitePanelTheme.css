@@ -65,7 +65,7 @@ body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popove
   color: inherit;
 }
 
-.partner-panel[data-panel-theme="white"] :is(.module-submit-btn, .module-save-btn):disabled {
+.partner-panel[data-panel-theme="white"] :is(.module-submit-btn, .module-save-btn):disabled:not(.pdv-checkout-btn) {
   background: var(--panel-theme-raised) !important;
   border-color: var(--dh-border) !important;
   color: var(--dh-text-secondary) !important;

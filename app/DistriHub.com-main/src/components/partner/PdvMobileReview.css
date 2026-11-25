@@ -37,11 +37,4 @@
   .partner-panel .pdv-checkout-layout[data-empty-cart="true"] .pdv-cart-table .empty-row {
     padding-block: 8px;
   }
-
-  .partner-panel .pdv-checkout-layout .pdv-checkout-btn:disabled {
-    background: var(--dh-surface) !important;
-    border-color: var(--dh-border) !important;
-    color: var(--dh-text-secondary) !important;
-    opacity: .65;
-  }
 }

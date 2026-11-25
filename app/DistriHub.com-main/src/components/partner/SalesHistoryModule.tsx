@@ -224,7 +224,7 @@ function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = 
               ) : (
                 displayedSales.map((s) => (
                   <tr key={s.id} className={s.status === 'cancelada' ? 'cancelled-row' : ''}>
-                    <td data-label="Cliente"><strong>{s.customer_name ?? '—'}</strong><small className="sales-history-id" title={s.id}>#{(s.sale_number ? String(s.sale_number).padStart(6, '0') : s.id.slice(0, 8))}</small></td>
+                    <td data-label="Cliente"><strong>{s.customer_name ?? '—'}</strong>{s.observations && <small className="sale-observations">Obs. {s.observations}</small>}<small className="sales-history-id" title={s.id}>#{(s.sale_number ? String(s.sale_number).padStart(6, '0') : s.id.slice(0, 8))}</small></td>
                     <td data-label="Itens">
                       {s.items.length} {s.items.length === 1 ? 'item' : 'itens'}
                       {s.items.length > 0 && <details style={{ marginTop: '6px' }}>
