@@ -8,6 +8,7 @@ import './components/partner/OpenOrdersMobile.css';
 import './components/partner/RoutinesMobile.css';
 import './components/partner/ManagementMobile.css';
 import './components/partner/BlueGlassTheme.css';
+import './components/partner/WhiteMobileTheme.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
