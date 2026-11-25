@@ -1,0 +1,55 @@
+.partner-panel[data-panel-theme="blue-glass"] :is(.cash-card, .pdv-cart-panel, .pdv-cart-main, .support-center-form, .support-center-list, .support-center-thread),
+.personalization-panel-preview[data-panel-theme="blue-glass"] .personalization-preview-card {
+  background: var(--panel-theme-card) !important;
+  border-color: var(--panel-theme-border);
+  border-radius: var(--panel-glass-radius);
+}
+
+.partner-panel[data-panel-theme="blue-glass"] :is(.report-card, .orders-summary-card),
+.personalization-panel-preview[data-panel-theme="blue-glass"] .personalization-preview-card {
+  backdrop-filter: blur(14px);
+}
+
+.partner-panel[data-panel-theme="blue-glass"] .sidebar-nav-item.active {
+  background: var(--dh-blue-soft-strong);
+  color: var(--panel-theme-accent);
+}
+
+.partner-panel[data-panel-theme="blue-glass"] .sidebar-nav-item.active::before {
+  left: 0;
+  background: var(--dh-blue);
+  opacity: 1;
+}
+
+.partner-panel[data-panel-theme="blue-glass"] :is(.module-submit-btn, .module-save-btn, .support-center .btn-primary, .pdv-mobile-review):not(:disabled):not(.danger) {
+  background: var(--dh-blue) !important;
+  border-color: var(--dh-blue) !important;
+  color: var(--dh-on-primary) !important;
+}
+
+.partner-panel[data-panel-theme="blue-glass"] :is(.module-submit-btn, .module-save-btn, .support-center .btn-primary, .pdv-mobile-review):hover:not(:disabled):not(.danger) {
+  background: var(--dh-blue-hover) !important;
+  border-color: var(--dh-blue-hover) !important;
+}
+
+.partner-panel[data-panel-theme="blue-glass"] .rma-status-badge.stock-ok { --stock-tone: var(--panel-theme-success); }
+.partner-panel[data-panel-theme="blue-glass"] .rma-status-badge.stock-low { --stock-tone: var(--panel-theme-warning); }
+.partner-panel[data-panel-theme="blue-glass"] .rma-status-badge.stock-empty { --stock-tone: var(--panel-theme-danger); }
+
+.partner-panel[data-panel-theme="blue-glass"] .rma-status-badge:is(.stock-ok, .stock-low, .stock-empty) {
+  background: color-mix(in srgb, var(--stock-tone) 13%, transparent) !important;
+  border-color: color-mix(in srgb, var(--stock-tone) 30%, transparent) !important;
+  color: var(--stock-tone) !important;
+}
+
+.partner-panel[data-panel-theme="blue-glass"] :is(.module-submit-btn, .module-save-btn, .pdv-checkout-btn):disabled {
+  background: var(--dh-surface) !important;
+  border-color: var(--dh-border) !important;
+  color: var(--dh-text-secondary) !important;
+}
+
+.personalization-panel-preview[data-panel-theme="blue-glass"] button {
+  background: var(--dh-blue);
+  border-color: var(--dh-blue);
+  color: var(--dh-on-primary);
+}

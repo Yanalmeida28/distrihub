@@ -1243,9 +1243,9 @@ select option:hover, select option:checked { background: var(--panel-theme-borde
 .partner-panel .catalog-submodule-card,
 .partner-panel .pdv-product-card,
 .partner-panel .customer-profile-summary {
-  background: var(--dh-surface) !important;
+  background: var(--panel-glass-card, var(--dh-surface)) !important;
   border: 1px solid var(--dh-border) !important;
-  border-radius: var(--dh-radius);
+  border-radius: var(--panel-glass-radius, var(--dh-radius));
   box-shadow: var(--dh-shadow);
 }
 .partner-panel .partner-card strong,
@@ -4059,20 +4059,33 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
 .partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context > span { flex: 1 1 220px; max-width: 100%; overflow-wrap: anywhere; }
 .partner-panel .pdv-workspace .pdv-cash-context > button { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 44px; height: auto; white-space: normal; overflow-wrap: anywhere; }
 
-[data-panel-theme="blue-glass"] {
-  --panel-theme-background: #164766;
-  --panel-theme-surface: #225a78;
-  --panel-theme-raised: #2c6482;
-  --panel-theme-border: #6591aa;
-  --panel-theme-text: #f3fbff;
-  --panel-theme-secondary: #d5ebf6;
-  --panel-theme-accent: #97e4ff;
-  --panel-theme-canvas: linear-gradient(145deg, #164766, #25658a);
-  --panel-theme-card: linear-gradient(145deg, rgb(229 248 255 / 17%), rgb(229 248 255 / 7%));
+:is(.partner-panel, .personalization-panel-preview)[data-panel-theme="blue-glass"] {
+  --panel-theme-background: #091724;
+  --panel-theme-canvas: radial-gradient(ellipse at top, #102b43, var(--panel-theme-background) 55%);
+  --panel-theme-surface: #102638;
+  --panel-theme-raised: #17354d;
+  --panel-theme-border: rgb(255 255 255 / 12%);
+  --panel-theme-card: rgb(255 255 255 / 5%);
+  --panel-theme-text: #e8f1fb;
+  --panel-theme-secondary: #9db3c8;
+  --panel-theme-accent: #7cc0f5;
+  --panel-theme-success: #5eead4;
+  --panel-theme-warning: #fbbf24;
+  --panel-theme-danger: #fca5a5;
+  --panel-glass-action: #3b9bed;
+  --panel-glass-on-action: #04121f;
+  --panel-glass-radius: 18px;
+  --panel-glass-card: var(--panel-theme-card);
   --panel-theme-color-scheme: dark;
-  --panel-theme-success: #9af0b6;
-  --panel-theme-warning: #ffdc86;
-  --panel-theme-danger: #ffbcc7;
+  --dh-blue: var(--panel-glass-action) !important;
+  --dh-blue-hover: color-mix(in srgb, var(--panel-glass-action) 85%, black) !important;
+  --dh-on-primary: var(--panel-glass-on-action) !important;
+  --dh-on-primary-hover: var(--panel-glass-on-action) !important;
+  --dh-blue-soft: color-mix(in srgb, var(--panel-glass-action) 8%, transparent) !important;
+  --dh-blue-soft-strong: color-mix(in srgb, var(--panel-glass-action) 15%, transparent) !important;
+  --dh-blue-border: color-mix(in srgb, var(--panel-glass-action) 30%, transparent) !important;
+  --dh-accent-text: var(--panel-theme-accent) !important;
+  --dh-danger-bg: color-mix(in srgb, var(--panel-theme-danger) 13%, transparent);
 }
 
 [data-panel-theme="white"] {

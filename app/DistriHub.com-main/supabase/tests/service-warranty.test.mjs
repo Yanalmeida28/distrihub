@@ -76,9 +76,10 @@ test('failed service-term save retains the draft and shows an error until a succ
 
 test('personalization preserves independent panel, receipt and catalog choices when saved',async()=>{
   let submitted;
-  await act(async()=>{renderer=TestRenderer.create(React.createElement(Component,{settings,onUpdate:async value=>{submitted=value;}}));});
+  await act(async()=>{renderer=TestRenderer.create(React.createElement(Component,{settings:{...settings, primary_color:'#199863', nav_color:'#14532d'},onUpdate:async value=>{submitted=value;}}));});
   const change=async(label,value)=>act(async()=>renderer.root.findByProps({'aria-label':label}).props.onChange({target:{value}}));
-  await act(async()=>renderer.root.findByProps({'aria-label':'Aplicar tema Verde'}).props.onClick());
+  assert.equal(renderer.root.findByProps({'aria-label':'Aparência do painel'}).props.hidden,false);
+  assert.equal(renderer.root.findAllByProps({'aria-label':'Identidade visual'}).length,0);
   await change('Largura do papel do cupom','58');
   await change('Fonte do cupom','14');
   await change('Tema do painel','white');

@@ -3,7 +3,7 @@ import { Check, ImagePlus, Palette, Printer, Upload, Wand2 } from 'lucide-react'
 import type { PartnerBranch, PartnerCustomer, StoreSettings, StorePersonalization } from '../../types';
 import { printSale, type ReceiptDetails } from '../../lib/salePrint';
 import { CatalogShareLinks } from './CatalogShareLinks';
-import { normalizeColor, storeTheme } from '../../lib/storeTheme';
+import { storeTheme } from '../../lib/storeTheme';
 import { receiptPreferences, panelPreferences, panelStyle, catalogPreferences, catalogWhatsappUrl } from '../../lib/personalization';
 
 type WhiteLabelModuleProps = {
@@ -14,15 +14,12 @@ type WhiteLabelModuleProps = {
   branches?: Pick<PartnerBranch, 'id' | 'name' | 'is_active'>[];
 };
 
-const presetColors = ['#3193e5', '#2563eb', '#199863', '#0f766e', '#7c3aed', '#a21caf', '#be185d', '#e3829b', '#c2410c', '#e6a06d', '#ca8a04', '#5fd0d1', '#475569', '#97aabc'];
-const navigationColors = ['#0f2747', '#0f172a', '#1e293b', '#14532d', '#134e4a', '#3b0764', '#4c0519', '#ffffff'];
-
 export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist, receiptDetails, branches = [], selectedBranchId }: WhiteLabelModuleProps) {
   const catalogBranch = branches.find(branch => branch.id === selectedBranchId && branch.is_active);
   const [settings, setSettings] = useState(initialSettings);
   const catalogHref = settings.catalog_slug && (!selectedBranchId || catalogBranch)
     ? '/catalogo?loja=' + encodeURIComponent(settings.catalog_slug) + (catalogBranch ? '&unidade=' + encodeURIComponent(catalogBranch.id) : '') : '';
-  const [activeTab, setActiveTab] = useState<'visual' | 'painel' | 'cupom' | 'catalogo' | 'pdv'>('visual');
+  const [activeTab, setActiveTab] = useState<'painel' | 'cupom' | 'catalogo' | 'pdv'>('painel');
   const receiptFrame = useRef<HTMLIFrameElement>(null);
   const renderReceiptPreview = useCallback(() => {
     const frame = receiptFrame.current?.contentWindow;
@@ -44,11 +41,8 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
     onUpdate({ personalization: { ...settings.personalization, [group]: value } });
   }
   function restoreSection() {
-    if (activeTab === 'visual') onUpdate({ primary_color: '#3193e5', nav_color: '#0f2747' });
-    else {
-      const group = activeTab === 'painel' ? 'panel' : activeTab === 'cupom' ? 'receipt' : activeTab === 'catalogo' ? 'catalog' : 'pdv';
-      updatePreference(group, {});
-    }
+    const group = activeTab === 'painel' ? 'panel' : activeTab === 'cupom' ? 'receipt' : activeTab === 'catalogo' ? 'catalog' : 'pdv';
+    updatePreference(group, {});
   }
   const [dirty, setDirty] = useState(false);
   useEffect(() => {
@@ -109,14 +103,14 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
         <span className="module-icon"><Wand2 size={20} /></span>
         <div>
           <h3>Personalização da Loja</h3>
-          <p>Configure a identidade visual, o PDV e as opções de impressão</p>
+          <p>Ajuste o painel, o catálogo, o PDV e a impressão</p>
           <p>As configurações visuais são compartilhadas por todas as filiais da empresa. Os links de catálogo abaixo selecionam os produtos de cada unidade.</p>
         </div>
       </div>
 
       <label className="personalization-text-field">Fuso do dia comercial<select aria-label="Fuso do dia comercial" value={settings.personalization?.business_time_zone ?? ''} onChange={e => updatePreference('business_time_zone', e.target.value || undefined)}><option value="">Manter comportamento atual</option><option value="America/Manaus">Manaus (America/Manaus)</option><option value="America/Sao_Paulo">Brasília (America/Sao_Paulo)</option></select></label>
       <nav className="personalization-tabs" aria-label="Seções de personalização">
-        {([{ id: 'visual', label: 'Identidade visual' }, { id: 'painel', label: 'Painel' }, { id: 'cupom', label: 'Cupom e termos' }, { id: 'catalogo', label: 'Catálogo' }, { id: 'pdv', label: 'PDV' }] as const).map(tab => (
+        {([{ id: 'painel', label: 'Painel' }, { id: 'cupom', label: 'Cupom e termos' }, { id: 'catalogo', label: 'Catálogo' }, { id: 'pdv', label: 'PDV' }] as const).map(tab => (
           <button key={tab.id} type="button" className={activeTab === tab.id ? 'active' : ''} aria-pressed={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>{tab.label}</button>
         ))}
       </nav>
@@ -146,114 +140,6 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
           </div>
           <p className="otp-description">As opções são independentes e podem ficar ativadas ao mesmo tempo. A câmera abre pelo botão no campo de busca do PDV, solicita permissão e usa a câmera traseira; requer acesso ao site por HTTPS. Cadastre o código no SKU do produto.</p>
         </div>
-      </section>
-      <section hidden={activeTab !== 'visual'} aria-label="Identidade visual">
-      <div className="module-card">
-        <div className="module-card-title"><Palette size={16} /> Temas prontos</div>
-        <p className="otp-description">Escolha uma combinação e ajuste as cores abaixo.</p>
-        <div className="personalization-presets">
-          {[{ name: 'Azul profissional', primary: '#2563eb', nav: '#0f2747' }, { name: 'Verde', primary: '#199863', nav: '#14532d' }, { name: 'Roxo', primary: '#7c3aed', nav: '#3b0764' }, { name: 'Rosa', primary: '#be185d', nav: '#4c0519' }, { name: 'Laranja', primary: '#c2410c', nav: '#431407' }, { name: 'Neutro', primary: '#475569', nav: '#0f172a' }].map(theme => (
-            <button type="button" key={theme.name} aria-label={`Aplicar tema ${theme.name}`} aria-pressed={normalizeColor(settings.primary_color) === theme.primary && normalizeColor(settings.nav_color) === theme.nav} onClick={() => onUpdate({ primary_color: theme.primary, nav_color: theme.nav })}>
-              <span style={{ background: theme.nav }} /><span style={{ background: theme.primary }} />{theme.name}
-            </button>
-          ))}
-        </div>
-      </div>
-      {/* Section 1: Identidade Visual & Tema */}
-      <div className="section-divider">
-        <span className="section-divider-label">Identidade Visual & Tema</span>
-      </div>
-
-      <div className="module-grid two-col">
-        <div className="module-card">
-          <div className="module-card-title"><ImagePlus size={16} /> Logotipo da Loja</div>
-          <div className="upload-area">
-            {logoPreview ? (
-              <div className="upload-preview">
-                <img src={logoPreview} alt="Logo" />
-                <button onClick={() => { onUpdate({ logo_url: null }); }}>Remover</button>
-              </div>
-            ) : (
-              <label className="upload-placeholder">
-                <Upload size={28} />
-                <span>Clique para enviar o logotipo</span>
-                <small>PNG, JPG ou WebP • até 2MB</small>
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoChange} hidden />
-              </label>
-            )}
-          </div>
-        </div>
-
-        <div className="module-card">
-          <div className="module-card-title"><ImagePlus size={16} /> Banner do Catálogo Público</div>
-          <div className="upload-area">
-            {bannerPreview ? (
-              <div className="upload-preview banner">
-                <img src={bannerPreview} alt="Banner" />
-                <button onClick={() => { onUpdate({ banner_url: null }); }}>Remover</button>
-              </div>
-            ) : (
-              <label className="upload-placeholder">
-                <Upload size={28} />
-                <span>Enviar banner promocional</span>
-                <small>Recomendado: 1200x300px · PNG, JPG ou WebP até 2 MB</small>
-                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBannerChange} hidden />
-              </label>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="module-card">
-        <div className="module-card-title"><Palette size={16} /> Cores do Tema</div>
-        <div className="color-picker-row">
-          <div className="color-field">
-            <label>Cor Primária</label>
-            <div className="color-input-wrap">
-              <input aria-label="Cor primária" type="color" value={normalizeColor(settings.primary_color)} onChange={(e) => onUpdate({ primary_color: e.target.value })} />
-              <span>{settings.primary_color}</span>
-            </div>
-          </div>
-          <div className="color-field">
-            <label>Cor da Barra de Navegação</label>
-            <div className="color-input-wrap">
-              <input aria-label="Cor da barra de navegação" type="color" value={normalizeColor(settings.nav_color, '#0f2747')} onChange={(e) => onUpdate({ nav_color: e.target.value })} />
-              <span>{settings.nav_color}</span>
-            </div>
-          </div>
-        </div>
-        <div className="preset-colors">
-          <span>Cor primária:</span>
-          {presetColors.map((color) => (
-            <button
-              key={color}
-              type="button"
-              className="preset-swatch"
-              aria-pressed={normalizeColor(settings.primary_color) === color}
-              style={{ background: color }}
-              onClick={() => onUpdate({ primary_color: color })}
-              aria-label={`Aplicar cor ${color}`}
-            />
-          ))}
-        </div>
-        <div className="preset-colors">
-          <span>Barra de navegação:</span>
-          {navigationColors.map(color => (
-            <button key={color} type="button" className="preset-swatch" style={{ background: color }}
-              aria-label={`Aplicar cor de navegação ${color}`} aria-pressed={normalizeColor(settings.nav_color, '#0f2747') === color}
-              onClick={() => onUpdate({ nav_color: color })} />
-          ))}
-        </div>
-        <div className="store-theme-preview" style={storeTheme(settings.primary_color, settings.nav_color) as React.CSSProperties}>
-          <div className="store-theme-preview-nav">Sua loja · Navegação</div>
-          <div className="store-theme-preview-content">
-            <span className="store-theme-preview-tab">Aba selecionada</span>
-            <span className="store-theme-preview-action">Botão principal</span>
-          </div>
-        </div>
-        <p className="store-theme-help">A cor primária personaliza botões, abas e destaques do painel. A cor de navegação altera o menu principal e o cabeçalho do catálogo. Confira a prévia e clique em Salvar para aplicar. As cores de sucesso, alerta e erro são preservadas.</p>
-      </div>
-
       </section>
       <section hidden={activeTab !== 'painel'} aria-label="Aparência do painel">
         <div className="module-card">
@@ -350,6 +236,46 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
 
       </section>
       <section hidden={activeTab !== 'catalogo'} aria-label="Personalização do catálogo">
+      <div className="module-grid two-col">
+        <div className="module-card">
+          <div className="module-card-title"><ImagePlus size={16} /> Logotipo da Loja</div>
+          <div className="upload-area">
+            {logoPreview ? (
+              <div className="upload-preview">
+                <img src={logoPreview} alt="Logo" />
+                <button onClick={() => { onUpdate({ logo_url: null }); }}>Remover</button>
+              </div>
+            ) : (
+              <label className="upload-placeholder">
+                <Upload size={28} />
+                <span>Clique para enviar o logotipo</span>
+                <small>PNG, JPG ou WebP • até 2MB</small>
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoChange} hidden />
+              </label>
+            )}
+          </div>
+        </div>
+
+        <div className="module-card">
+          <div className="module-card-title"><ImagePlus size={16} /> Banner do Catálogo Público</div>
+          <div className="upload-area">
+            {bannerPreview ? (
+              <div className="upload-preview banner">
+                <img src={bannerPreview} alt="Banner" />
+                <button onClick={() => { onUpdate({ banner_url: null }); }}>Remover</button>
+              </div>
+            ) : (
+              <label className="upload-placeholder">
+                <Upload size={28} />
+                <span>Enviar banner promocional</span>
+                <small>Recomendado: 1200x300px · PNG, JPG ou WebP até 2 MB</small>
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleBannerChange} hidden />
+              </label>
+            )}
+          </div>
+        </div>
+      </div>
+
         <CatalogShareLinks slug={settings.catalog_slug ?? ''} branches={branches} selectedBranchId={selectedBranchId} />
         <div className="module-card"><h4>Link e disponibilidade do catálogo</h4><label className="print-toggle-item"><input type="checkbox" checked={settings.catalog_enabled} onChange={e => onUpdate({ catalog_enabled: e.target.checked })} /> Ativar catálogo público</label><label className="personalization-text-field">Nome base no link (compartilhado entre filiais)<input maxLength={40} value={settings.catalog_slug ?? ''} onChange={e => onUpdate({ catalog_slug: e.target.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9-]/g, '') || null })} /></label>{catalogHref && <a href={catalogHref} target="_blank" rel="noopener noreferrer">{catalogBranch ? `Abrir catálogo: ${catalogBranch.name}` : 'Abrir catálogo geral'}</a>}<p>Salve as alterações antes de compartilhar o link.</p></div>
         <div className="module-card">
@@ -384,8 +310,8 @@ export function WhiteLabelModule({ settings: initialSettings, onUpdate: persist,
         />
       </div>
 
-      {error && <p role="alert" className="otp-error-msg">{error}</p>}
       {reading && <p role="status">Preparando imagem...</p>}
+      {error && <p role="alert" className="otp-error-msg">{error}</p>}
       <div className="personalization-savebar"><span role="status">{dirty ? 'Alterações ainda não salvas' : saved ? 'Personalização salva' : 'As alterações serão aplicadas ao salvar'}</span><button type="button" className="rma-advance-btn" onClick={restoreSection}>Restaurar padrões desta seção</button>
       <button className="module-save-btn" onClick={handleSave}>
         {saving ? 'Salvando...' : saved ? <><Check size={16} /> Salvo!</> : 'Salvar personalização'}
