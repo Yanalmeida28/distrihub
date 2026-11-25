@@ -1,6 +1,22 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PendingPhoto } from './operationAttempts';
-import type { ServiceOrderPhoto } from '../types';
+import type { ServiceOrderPhoto, ServiceOrderStatus } from '../types';
+
+export const serviceOrderStatusLabels: Record<ServiceOrderStatus, string> = {
+  aberta: 'Aberta',
+  em_analise: 'Em análise',
+  aguardando_aprovacao: 'Aguardando aprovação',
+  aprovada: 'Aprovada',
+  em_andamento: 'Em andamento',
+  em_reparo: 'Em reparo',
+  aguardando_peca: 'Aguardando peça',
+  aguardando_cliente: 'Aguardando cliente',
+  pronta: 'Pronta',
+  finalizada: 'Finalizada',
+  entregue: 'Entregue',
+  cancelada: 'Cancelada',
+};
+
 export type ServiceOrderPayload = {
   branch_id: string; customer_id: string | null; segment: string; equipment_type: string;
   manual_customer?: { name: string; email: string; address: string; phone: string };

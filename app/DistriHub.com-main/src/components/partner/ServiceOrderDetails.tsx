@@ -120,8 +120,8 @@ function ServiceOrderDetailsContent({ order, customers, onClose, onChanged, prin
       setMessage('OS cancelada. As peças baixadas foram devolvidas ao estoque.');
     });
   }
-  return <section className="module-card service-order-details">
-    <div className="module-header"><div><h3>OS #{order.id.slice(0, 8)}</h3><p>{order.equipment_type} · {order.equipment_identification || order.serial_number}</p></div><button type="button" className="rma-advance-btn" disabled={busy} onClick={onClose}>Fechar detalhes</button></div>
+  return <section className="module-card service-order-details" aria-label="Detalhes da ordem de serviço">
+    <div className="module-header"><div><h3>OS #{order.os_number || order.id.slice(0, 8)}</h3><p>{order.equipment_type} · {order.equipment_identification || order.serial_number}</p></div><button type="button" className="rma-advance-btn" disabled={busy} onClick={onClose}>Fechar detalhes</button></div>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
     {loading && <p role="status">Carregando detalhes da OS...</p>}
     {!terminal && !cancellationOpen && <button type="button" className="rma-advance-btn" disabled={busy || loading} onClick={() => setCancellationOpen(true)}>Cancelar OS</button>}

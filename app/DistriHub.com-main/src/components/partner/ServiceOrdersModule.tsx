@@ -18,12 +18,13 @@ import type {
   PartnerCustomer,
   PartnerProduct,
   ServiceOrder,
+  ServiceOrderStatus,
 } from '../../types';
 
 import { supabase } from '../../lib/supabase';
 import { useSessionDraftState } from '../../hooks/useSessionDraft';
 import { OperationAttempts, pendingPhotos, type OperationAttempt } from '../../lib/operationAttempts';
-import { ServiceOrderRejected, createServiceOrder, servicePartPrice, uploadServicePhotos, type ServiceOrderPayload } from '../../lib/serviceOrders';
+import { ServiceOrderRejected, createServiceOrder, serviceOrderStatusLabels, servicePartPrice, uploadServicePhotos, type ServiceOrderPayload } from '../../lib/serviceOrders';
 import { ServiceOrderDetails } from './ServiceOrderDetails';
 
 type Props = {
@@ -67,11 +68,11 @@ const money = (value: number) =>
     currency: 'BRL',
   });
 
-const inputDarkStyle: React.CSSProperties = {
+const orderInputStyle: React.CSSProperties = {
   width: '100%',
-  backgroundColor: '#102638',
-  color: '#edf5fc',
-  border: '1px solid #29465f',
+  backgroundColor: 'var(--dh-surface)',
+  color: 'var(--dh-text)',
+  border: '1px solid var(--dh-border)',
   borderRadius: 8,
   padding: '10px 12px',
   fontSize: 14,
@@ -79,11 +80,11 @@ const inputDarkStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-const labelDarkStyle: React.CSSProperties = {
+const orderLabelStyle: React.CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 8,
-  color: '#edf5fc',
+  color: 'var(--dh-text)',
   fontWeight: 600,
   fontSize: 14,
 };
@@ -110,6 +111,7 @@ function ServiceOrdersContent({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<ServiceOrderStatus | ''>('');
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [readVersion, setReadVersion] = useState(0);
@@ -294,13 +296,15 @@ function ServiceOrdersContent({
     return () => { active = false; };
   }, [userId, selectedBranchId, isActive, readVersion]);
 
-  const filteredOrders = orders.filter((order) =>
-    `${order.customer_name ?? ''} ${
-      order.equipment_identification ?? ''
-    } ${order.serial_number ?? ''}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  const searchTerm = search.trim().toLocaleLowerCase('pt-BR').replace(/^(os\s+)?#?/, '');
+  const filteredOrders = orders.filter(order =>
+    (!statusFilter || order.status === statusFilter) &&
+    [order.os_number, order.id, order.customer_name, order.equipment_type, order.equipment_identification, order.serial_number, order.imei]
+      .some(value => value?.toLocaleLowerCase('pt-BR').includes(searchTerm))
   );
+  const terminalStatuses = ['cancelada', 'finalizada', 'entregue'];
+  const readyCount = orders.filter(order => order.status === 'pronta').length;
+  const activeCount = orders.filter(order => order.status !== 'pronta' && !terminalStatuses.includes(order.status)).length;
 
   function addProduct(product: PartnerProduct) {
     if (saveLock.current || photoLock.current) return;
@@ -541,54 +545,27 @@ function ServiceOrdersContent({
   }
 
   return (
-    <section
-      className="service-orders-module"
-      style={{
-        padding: 24,
-        maxWidth: 1280,
-        margin: '0 auto',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 16,
-          flexWrap: 'wrap',
-          marginBottom: 22,
-        }}
-      >
-        <div>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 26,
-            }}
-          >
-            Ordens de Serviço
-          </h1>
-
-          <p
-            style={{
-              opacity: 0.7,
-              margin: '6px 0',
-            }}
-          >
-            OS multi-segmento, vistoria de entrada e
-            controle de peças por filial.
-          </p>
+    <section className="service-orders-module">
+      <header className="service-orders-header">
+        <div className="service-orders-heading">
+          <span className="module-icon" aria-hidden="true"><ClipboardList size={22} /></span>
+          <div>
+            <h1>Ordens de Serviço</h1>
+            {branch && <p>{branch.name}</p>}
+          </div>
         </div>
-
-        <button
-          className="partner-primary-btn"
-          disabled={!selectedBranchId}
-          onClick={() => setOpen(true)}
-        >
-          <Plus size={18} />
-          Nova OS
+        <button type="button" className="partner-primary-btn" disabled={!selectedBranchId} onClick={() => setOpen(true)}>
+          <Plus size={18} aria-hidden="true" /> Nova OS
         </button>
-      </div>
+      </header>
+
+      {selectedBranchId && !loadingOrders && !loadError && orders.length > 0 && (
+        <dl className="service-orders-summary">
+          <div className="partner-card"><dt>Em atendimento</dt><dd>{activeCount}</dd></div>
+          <div className="partner-card"><dt>Prontas</dt><dd>{readyCount}</dd></div>
+          <div className="partner-card"><dt>Total de OS</dt><dd>{orders.length}</dd></div>
+        </dl>
+      )}
 
       {warrantyTerms?.trim() && (
         <details className="module-card service-order-warranty">
@@ -605,8 +582,7 @@ function ServiceOrdersContent({
             marginBottom: 18,
           }}
         >
-          Selecione uma filial para abrir uma OS e
-          consumir o estoque correto.
+          Selecione uma filial para visualizar ou abrir uma OS.
         </div>
       )}
 
@@ -617,6 +593,7 @@ function ServiceOrdersContent({
       {open && (
         <div
           className="partner-card service-order-form"
+          aria-label="Nova ordem de serviço"
           style={{
             padding: 22,
             marginBottom: 24,
@@ -639,13 +616,15 @@ function ServiceOrdersContent({
               <small>
                 Filial: {branch?.name ?? 'Não selecionada'}
               </small>
-              <p role="note" style={{ margin: '8px 0 0', color: '#adc2d6', fontSize: 12 }}>
+              <p role="note" style={{ margin: '8px 0 0', color: 'var(--dh-text-secondary)', fontSize: 12 }}>
                 Ao salvar, os dados e anexos da tentativa são preservados neste navegador até a confirmação.
               </p>
             </div>
 
             <button
+              type="button"
               className="partner-icon-btn"
+              aria-label="Fechar formulário de nova OS"
               disabled={saving || !!pendingAttempt}
               onClick={resetForm}
             >
@@ -662,17 +641,17 @@ function ServiceOrdersContent({
               marginTop: 22,
             }}
           >
-            <label style={labelDarkStyle}>
-              <span style={{ color: '#edf5fc' }}>Cliente</span>
+            <label style={orderLabelStyle}>
+              <span style={{ color: 'var(--dh-text)' }}>Cliente</span>
               <select
                 value={customerId}
                 onChange={(event) => setCustomerId(event.target.value)}
-                style={{ ...inputDarkStyle, WebkitAppearance: 'none', appearance: 'none' }}
+                style={{ ...orderInputStyle, WebkitAppearance: 'none', appearance: 'none' }}
               >
-                <option value="" style={{ backgroundColor: '#102638', color: '#edf5fc' }}>Sem cliente</option>
-                <option value={manualCustomerOption} style={{ backgroundColor: '#102638', color: '#edf5fc' }}>Informar cliente manualmente</option>
+                <option value="" style={{ backgroundColor: 'var(--dh-surface)', color: 'var(--dh-text)' }}>Sem cliente</option>
+                <option value={manualCustomerOption} style={{ backgroundColor: 'var(--dh-surface)', color: 'var(--dh-text)' }}>Informar cliente manualmente</option>
                 {branchCustomers.map((item) => (
-                  <option key={item.id} value={item.id} style={{ backgroundColor: '#102638', color: '#edf5fc' }}>
+                  <option key={item.id} value={item.id} style={{ backgroundColor: 'var(--dh-surface)', color: 'var(--dh-text)' }}>
                     {item.name}
                   </option>
                 ))}
@@ -681,25 +660,25 @@ function ServiceOrdersContent({
             {customerId === manualCustomerOption && (
               <section
                 aria-label="Dados do cliente manual"
-                style={{ gridColumn: '1 / -1', padding: 14, borderRadius: 10, backgroundColor: '#102638', border: '1px solid #29465f' }}
+                style={{ gridColumn: '1 / -1', padding: 14, borderRadius: 10, backgroundColor: 'var(--dh-surface)', border: '1px solid var(--dh-border)' }}
               >
-                <h3 style={{ margin: '0 0 12px', color: '#edf5fc', fontSize: 15 }}>Dados do cliente</h3>
+                <h3 style={{ margin: '0 0 12px', color: 'var(--dh-text)', fontSize: 15 }}>Dados do cliente</h3>
                 <div className="service-order-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-                  <label style={labelDarkStyle}>
+                  <label style={orderLabelStyle}>
                     Nome *
-                    <input required maxLength={200} value={manualCustomerName} onChange={event => setManualCustomerName(event.target.value)} style={inputDarkStyle} autoComplete="name" />
+                    <input required maxLength={200} value={manualCustomerName} onChange={event => setManualCustomerName(event.target.value)} style={orderInputStyle} autoComplete="name" />
                   </label>
-                  <label style={labelDarkStyle}>
+                  <label style={orderLabelStyle}>
                     E-mail
-                    <input type="email" maxLength={320} value={manualCustomerEmail} onChange={event => setManualCustomerEmail(event.target.value)} style={inputDarkStyle} autoComplete="email" />
+                    <input type="email" maxLength={320} value={manualCustomerEmail} onChange={event => setManualCustomerEmail(event.target.value)} style={orderInputStyle} autoComplete="email" />
                   </label>
-                  <label style={labelDarkStyle}>
+                  <label style={orderLabelStyle}>
                     Endereço
-                    <input maxLength={1000} value={manualCustomerAddress} onChange={event => setManualCustomerAddress(event.target.value)} style={inputDarkStyle} autoComplete="street-address" />
+                    <input maxLength={1000} value={manualCustomerAddress} onChange={event => setManualCustomerAddress(event.target.value)} style={orderInputStyle} autoComplete="street-address" />
                   </label>
-                  <label style={labelDarkStyle}>
+                  <label style={orderLabelStyle}>
                     Telefone
-                    <input type="tel" maxLength={50} value={manualCustomerPhone} onChange={event => setManualCustomerPhone(event.target.value)} style={inputDarkStyle} autoComplete="tel" />
+                    <input type="tel" maxLength={50} value={manualCustomerPhone} onChange={event => setManualCustomerPhone(event.target.value)} style={orderInputStyle} autoComplete="tel" />
                   </label>
                 </div>
               </section>
@@ -707,10 +686,10 @@ function ServiceOrdersContent({
             {selectedCustomer && (
               <section
                 aria-label="Dados do cliente"
-                style={{ gridColumn: '1 / -1', padding: 14, borderRadius: 10, backgroundColor: '#102638', border: '1px solid #29465f' }}
+                style={{ gridColumn: '1 / -1', padding: 14, borderRadius: 10, backgroundColor: 'var(--dh-surface)', border: '1px solid var(--dh-border)' }}
               >
-                <h3 style={{ margin: '0 0 10px', color: '#edf5fc', fontSize: 15 }}>Dados do cliente</h3>
-                <div className="service-order-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, color: '#edf5fc', fontSize: 13 }}>
+                <h3 style={{ margin: '0 0 10px', color: 'var(--dh-text)', fontSize: 15 }}>Dados do cliente</h3>
+                <div className="service-order-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, color: 'var(--dh-text)', fontSize: 13 }}>
                   <p style={{ margin: 0 }}><strong>Nome:</strong> {selectedCustomer.name}</p>
                   <p style={{ margin: 0 }}><strong>E-mail:</strong> {selectedCustomer.email || 'Não informado'}</p>
                   <p style={{ margin: 0 }}><strong>Endereço:</strong> {customerAddress || 'Não informado'}</p>
@@ -719,40 +698,40 @@ function ServiceOrdersContent({
               </section>
             )}
 
-            <label style={labelDarkStyle}>
-              <span style={{ color: '#edf5fc' }}>Tipo de equipamento</span>
+            <label style={orderLabelStyle}>
+              <span style={{ color: 'var(--dh-text)' }}>Tipo de equipamento</span>
               <input
                 value={equipmentType}
                 onChange={(event) => setEquipmentType(event.target.value)}
                 placeholder="Ex.: notebook, TV, celular, eletrodoméstico..."
-                style={inputDarkStyle}
+                style={orderInputStyle}
                 className="dark-os-input"
               />
             </label>
 
-            <label style={labelDarkStyle}>
-              <span style={{ color: '#edf5fc' }}>Identificação do Equipamento</span>
+            <label style={orderLabelStyle}>
+              <span style={{ color: 'var(--dh-text)' }}>Identificação do Equipamento</span>
               <input
                 value={identification}
                 onChange={(event) => setIdentification(event.target.value)}
                 placeholder="Modelo, patrimônio, placa, etiqueta..."
-                style={{ ...inputDarkStyle }}
+                style={{ ...orderInputStyle }}
               />
             </label>
 
-            <label style={labelDarkStyle}>
-              <span style={{ color: '#edf5fc' }}>Nº de Série</span>
+            <label style={orderLabelStyle}>
+              <span style={{ color: 'var(--dh-text)' }}>Nº de Série</span>
               <input
                 value={serial}
                 onChange={(event) => setSerial(event.target.value)}
                 placeholder="Opcional"
-                style={{ ...inputDarkStyle }}
+                style={{ ...orderInputStyle }}
               />
             </label>
           </div>
 
-          <div className="service-order-section" style={{ marginTop: 24, padding: 18, borderRadius: 14, backgroundColor: '#102638', border: '1px solid #29465f' }}>
-            <h3 style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8, color: '#edf5fc' }}>
+          <div className="service-order-section" style={{ marginTop: 24, padding: 18, borderRadius: 14, backgroundColor: 'var(--dh-surface)', border: '1px solid var(--dh-border)' }}>
+            <h3 style={{ margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--dh-text)' }}>
               <ClipboardList size={18} />
               Laudo e Vistoria de Entrada
             </h3>
@@ -765,67 +744,67 @@ function ServiceOrdersContent({
                 gap: 16,
               }}
             >
-              <label style={labelDarkStyle}>
-                <span style={{ color: '#edf5fc' }}>Acessórios Deixados</span>
+              <label style={orderLabelStyle}>
+                <span style={{ color: 'var(--dh-text)' }}>Acessórios Deixados</span>
                 <textarea
                   value={accessories}
                   onChange={(event) => setAccessories(event.target.value)}
                   rows={4}
                   placeholder="Cabos, fontes, controles, capas..."
-                  style={{ ...inputDarkStyle, minHeight: 110, resize: 'vertical' }}
+                  style={{ ...orderInputStyle, minHeight: 110, resize: 'vertical' }}
                 />
               </label>
 
-              <label style={labelDarkStyle}>
-                <span style={{ color: '#edf5fc' }}>Estado físico</span>
+              <label style={orderLabelStyle}>
+                <span style={{ color: 'var(--dh-text)' }}>Estado físico</span>
                 <textarea
                   value={condition}
                   onChange={(event) => setCondition(event.target.value)}
                   rows={4}
                   placeholder="Riscos, trincas, amassados, desgaste..."
-                  style={{ ...inputDarkStyle, minHeight: 110, resize: 'vertical' }}
+                  style={{ ...orderInputStyle, minHeight: 110, resize: 'vertical' }}
                 />
               </label>
 
-              <label style={labelDarkStyle}>
-                <span style={{ color: '#edf5fc' }}>Avarias identificadas</span>
+              <label style={orderLabelStyle}>
+                <span style={{ color: 'var(--dh-text)' }}>Avarias identificadas</span>
                 <textarea
                   value={damage}
                   onChange={(event) => setDamage(event.target.value)}
                   rows={4}
                   placeholder="Registre o que já existia na entrada."
-                  style={{ ...inputDarkStyle, minHeight: 110, resize: 'vertical' }}
+                  style={{ ...orderInputStyle, minHeight: 110, resize: 'vertical' }}
                 />
               </label>
 
-              <label style={labelDarkStyle}>
-                <span style={{ color: '#edf5fc' }}>Observações</span>
+              <label style={orderLabelStyle}>
+                <span style={{ color: 'var(--dh-text)' }}>Observações</span>
                 <textarea
                   value={notes}
                   onChange={(event) => setNotes(event.target.value)}
                   rows={4}
                   placeholder="Sintomas, testes, observações do cliente..."
-                  style={{ ...inputDarkStyle, minHeight: 110, resize: 'vertical' }}
+                  style={{ ...orderInputStyle, minHeight: 110, resize: 'vertical' }}
                 />
               </label>
             </div>
           </div>
 
-          <div className="service-order-section" style={{ marginTop: 18, padding: 18, borderRadius: 14, backgroundColor: '#102638', border: '1px solid #29465f' }}>
+          <div className="service-order-section" style={{ marginTop: 18, padding: 18, borderRadius: 14, backgroundColor: 'var(--dh-surface)', border: '1px solid var(--dh-border)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
               <div>
-                <h3 style={{ margin: 0, color: '#edf5fc' }}>Checklist de entrada</h3>
-                <small style={{ color: '#adc2d6' }}>Registre cada resultado antes do reparo. Use Com defeito para avarias ou sinais de umidade. Se não foi possível avaliar, escolha Não testado.</small>
+                <h3 style={{ margin: 0, color: 'var(--dh-text)' }}>Checklist de entrada</h3>
+                <small style={{ color: 'var(--dh-text-secondary)' }}>Registre cada resultado antes do reparo. Use Com defeito para avarias ou sinais de umidade. Se não foi possível avaliar, escolha Não testado.</small>
               </div>
-              <span style={{ padding: '5px 9px', borderRadius: 999, background: checklistComplete ? '#12382d' : '#102638', color: checklistComplete ? '#4ade80' : '#fbbf24', fontSize: 11, fontWeight: 700 }}>
+              <span style={{ padding: '5px 9px', borderRadius: 999, background: checklistComplete ? 'var(--dh-success-bg)' : 'var(--dh-surface)', color: checklistComplete ? 'var(--dh-success)' : 'var(--dh-warning)', fontSize: 11, fontWeight: 700 }}>
                 {checklistComplete ? 'Completo' : 'Obrigatório'}
               </span>
             </div>
             <div className="service-order-fields" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))', gap: 10, marginTop: 14 }}>
               {checklistLabels.map(([key, label]) => (
-                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 11, border: '1px solid #29465f', borderRadius: 9, color: '#edf5fc', fontSize: 13, cursor: 'pointer' }}>
+                <label key={key} style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 11, border: '1px solid var(--dh-border)', borderRadius: 9, color: 'var(--dh-text)', fontSize: 13, cursor: 'pointer' }}>
                   {label}
-                  <select aria-label={`Entrada: ${label}`} style={{ ...inputDarkStyle, minWidth: 0 }} value={validChecklistResult(preRepairChecklist[key]) ? preRepairChecklist[key] : ''} onChange={(event) => { if (!saveLock.current) setPreRepairChecklist((current) => ({ ...current, [key]: event.target.value as Checklist[string] })); }}>
+                  <select aria-label={`Entrada: ${label}`} style={{ ...orderInputStyle, minWidth: 0 }} value={validChecklistResult(preRepairChecklist[key]) ? preRepairChecklist[key] : ''} onChange={(event) => { if (!saveLock.current) setPreRepairChecklist((current) => ({ ...current, [key]: event.target.value as Checklist[string] })); }}>
                     <option value="">Selecione</option>{checklistResults.map(value => <option key={value} value={value}>{value}</option>)}
                   </select>
                 </label>
@@ -833,12 +812,12 @@ function ServiceOrdersContent({
             </div>
             <button type="button" className="rma-advance-btn" onClick={() => { if (!saveLock.current) setPreRepairChecklist(current => Object.fromEntries(checklistLabels.map(([key]) => [key, validChecklistResult(current[key]) ? current[key] : 'Não testado']))); }}>Marcar pendentes como não testados</button>
             {possibleRecurrence && (
-              <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: '#102638', border: '1px solid #29465f', color: '#fbbf24', fontSize: 12 }}>
+              <div style={{ marginTop: 12, padding: 11, borderRadius: 9, background: 'var(--dh-surface)', border: '1px solid var(--dh-border)', color: 'var(--dh-warning)', fontSize: 12 }}>
                 Possível reincidência: já existe uma OS com a mesma identificação ou número de série nesta filial. Verifique a garantia antes de prosseguir.
               </div>
             )}
             {presentedWarranty.trim() && <details style={{ marginTop: 14 }}><summary>Termo de garantia desta OS</summary><p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{presentedWarranty}</p></details>}
-            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 14, color: '#edf5fc', fontSize: 12, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 14, color: 'var(--dh-text)', fontSize: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={customerAcknowledged} onChange={(event) => setCustomerAcknowledged(event.target.checked)} />
               Cliente informado e de acordo com as condições registradas, acessórios, avarias de entrada e termo de garantia apresentado.
             </label>
@@ -846,7 +825,7 @@ function ServiceOrdersContent({
 
           <div style={{ marginTop: 22 }}>
             {photoError && (
-              <div role="alert" style={{ marginBottom: 12, padding: 11, borderRadius: 9, background: '#102638', border: '1px solid #29465f', color: '#fda4af', fontSize: 12 }}>
+              <div role="alert" style={{ marginBottom: 12, padding: 11, borderRadius: 9, background: 'var(--dh-surface)', border: '1px solid var(--dh-border)', color: 'var(--dh-danger)', fontSize: 12 }}>
                 {photoError}
               </div>
             )}
@@ -864,8 +843,8 @@ function ServiceOrdersContent({
                 style={{
                   padding: 18,
                   borderRadius: 14,
-                  backgroundColor: '#102638',
-                  border: '1px solid #29465f',
+                  backgroundColor: 'var(--dh-surface)',
+                  border: '1px solid var(--dh-border)',
                 }}
               >
                 <div
@@ -881,7 +860,7 @@ function ServiceOrdersContent({
                     <Camera size={18} />
                     Fotos de entrada
                   </h3>
-                  <small style={{ color: '#adc2d6' }}>Compressão WebP automática, até 300 KB</small>
+                  <small style={{ color: 'var(--dh-text-secondary)' }}>Compressão WebP automática, até 300 KB</small>
 
                   <button
                     className="partner-secondary-btn"
@@ -931,7 +910,7 @@ function ServiceOrdersContent({
                   <div
                     style={{
                       padding: 20,
-                      border: '1px dashed #29465f',
+                      border: '1px dashed var(--dh-border)',
                       borderRadius: 10,
                       opacity: 0.65,
                     }}
@@ -946,8 +925,8 @@ function ServiceOrdersContent({
                 style={{
                   padding: 18,
                   borderRadius: 14,
-                  backgroundColor: '#102638',
-                  border: '1px solid #29465f',
+                  backgroundColor: 'var(--dh-surface)',
+                  border: '1px solid var(--dh-border)',
                 }}
               >
                 <div
@@ -963,7 +942,7 @@ function ServiceOrdersContent({
                     <Package size={18} />
                     Fotos de saída
                   </h3>
-                  <small style={{ color: '#adc2d6' }}>Use na conclusão da OS</small>
+                  <small style={{ color: 'var(--dh-text-secondary)' }}>Use na conclusão da OS</small>
 
                   <button
                     className="partner-secondary-btn"
@@ -1013,7 +992,7 @@ function ServiceOrdersContent({
                   <div
                     style={{
                       padding: 20,
-                      border: '1px dashed #29465f',
+                      border: '1px dashed var(--dh-border)',
                       borderRadius: 10,
                       opacity: 0.65,
                     }}
@@ -1041,13 +1020,13 @@ function ServiceOrdersContent({
               }}
             >
               <div>
-                <label style={labelDarkStyle}>
-                  <span style={{ color: '#edf5fc' }}>Buscar no estoque da filial</span>
+                <label style={orderLabelStyle}>
+                  <span style={{ color: 'var(--dh-text)' }}>Buscar no estoque da filial</span>
                   <input
                     value={productSearch}
                     onChange={(event) => setProductSearch(event.target.value)}
                     placeholder="Digite o nome ou SKU da peça"
-                    style={{ ...inputDarkStyle }}
+                    style={{ ...orderInputStyle }}
                   />
                 </label>
 
@@ -1079,9 +1058,9 @@ function ServiceOrdersContent({
                         padding: 10,
                         marginTop: 7,
                         borderRadius: 9,
-                        backgroundColor: '#102638',
-                        border: '1px solid #29465f',
-                        color: '#edf5fc',
+                        backgroundColor: 'var(--dh-surface)',
+                        border: '1px solid var(--dh-border)',
+                        color: 'var(--dh-text)',
                       }}
                     >
                       <b>{product.name}</b>
@@ -1101,9 +1080,9 @@ function ServiceOrdersContent({
                 <section aria-label="Peça manual ou de terceiros" style={{ marginTop: 18 }}>
                   <h4>Peça manual / comprada de terceiros</h4>
                   <p>Inclua a peça e o valor cobrado no orçamento, sem movimentar o estoque da loja.</p>
-                  <label style={labelDarkStyle}>Descrição da peça<input aria-label="Descrição da peça manual" maxLength={200} value={manualName} onChange={event => setManualName(event.target.value)} style={inputDarkStyle} /></label>
-                  <label style={labelDarkStyle}>Quantidade<input aria-label="Quantidade da peça manual" type="number" min={1} max={999} step={1} value={manualQuantity} onChange={event => setManualQuantity(event.target.value)} style={inputDarkStyle} /></label>
-                  <label style={labelDarkStyle}>Preço unitário cobrado (R$)<input aria-label="Preço da peça manual" inputMode="decimal" placeholder="Ex.: 150,00" value={manualPrice} onChange={event => setManualPrice(event.target.value)} style={inputDarkStyle} /></label>
+                  <label style={orderLabelStyle}>Descrição da peça<input aria-label="Descrição da peça manual" maxLength={200} value={manualName} onChange={event => setManualName(event.target.value)} style={orderInputStyle} /></label>
+                  <label style={orderLabelStyle}>Quantidade<input aria-label="Quantidade da peça manual" type="number" min={1} max={999} step={1} value={manualQuantity} onChange={event => setManualQuantity(event.target.value)} style={orderInputStyle} /></label>
+                  <label style={orderLabelStyle}>Preço unitário cobrado (R$)<input aria-label="Preço da peça manual" inputMode="decimal" placeholder="Ex.: 150,00" value={manualPrice} onChange={event => setManualPrice(event.target.value)} style={orderInputStyle} /></label>
                   <button type="button" className="partner-primary-btn" onClick={addManualPart}>Adicionar peça manual</button>
                 </section>
               </div>
@@ -1164,7 +1143,7 @@ function ServiceOrdersContent({
                             )
                           );
                         }}
-                        style={{ ...inputDarkStyle }}
+                        style={{ ...orderInputStyle }}
                       /></label>
 
                       <label className="service-order-item-field"><span>Preço unitário</span><input
@@ -1187,7 +1166,7 @@ function ServiceOrdersContent({
                             )
                           );
                         }}
-                        style={{ ...inputDarkStyle }}
+                        style={{ ...orderInputStyle }}
                       /></label>
 
                       <button
@@ -1227,15 +1206,15 @@ function ServiceOrdersContent({
               flexWrap: 'wrap',
             }}
           >
-            <label style={labelDarkStyle}>
-              <span style={{ color: '#edf5fc' }}>Mão de obra</span>
+            <label style={orderLabelStyle}>
+              <span style={{ color: 'var(--dh-text)' }}>Mão de obra</span>
               <input
                 type="number"
                 min={0}
                 step="0.01"
                 value={labor}
                 onChange={(event) => setLabor(event.target.value)}
-                style={{ ...inputDarkStyle }}
+                style={{ ...orderInputStyle }}
               />
             </label>
 
@@ -1263,90 +1242,56 @@ function ServiceOrdersContent({
         </div>
       )}
 
-      <div
-        className="partner-card service-order-list"
-        style={{
-          padding: 18,
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-          }}
-        >
-          <Search size={18} />
-
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Pesquisar OS"
-            style={{
-              flex: 1,
-              backgroundColor: '#102638',
-              color: '#edf5fc',
-              border: '1px solid #29465f',
-              borderRadius: 10,
-              padding: '10px 12px',
-            }}
-          />
+      {selectedBranchId && <section className="partner-card service-order-list" aria-label="Lista de ordens de serviço">
+        <div className="service-order-filters">
+          <label>
+            Buscar OS
+            <span className="service-order-search">
+              <Search size={18} aria-hidden="true" />
+              <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Número, cliente ou equipamento" />
+            </span>
+          </label>
+          <label>Situação
+            <select aria-label="Filtrar OS por situação" value={statusFilter} onChange={event => setStatusFilter(event.target.value as ServiceOrderStatus | '')}>
+              <option value="">Todas as situações</option>
+              {Object.entries(serviceOrderStatusLabels).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+          {(search || statusFilter) && <button type="button" className="partner-secondary-btn" onClick={() => { setSearch(''); setStatusFilter(''); }}>Limpar filtros</button>}
         </div>
 
-        {loadingOrders || loadError ? null : filteredOrders.length > 0 ? (
-          filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="service-order-list-row"
-              style={{
-                padding: 14,
-                borderTop:
-                  '1px solid rgba(127,127,127,.15)',
-                display: 'flex',
-                justifyContent:
-                  'space-between',
-              }}
-            >
-              <span>
-                <b>
-                  OS #{order.id.slice(0, 8)}
-                </b>{' '}
-                ·{' '}
-                {order.customer_name ||
-                  'Sem cliente'}
-
-                <br />
-
-                <small>
-                  {order.equipment_type ||
-                    'Equipamento'}{' '}
-                  ·{' '}
-                  {order.equipment_identification ||
-                    order.serial_number ||
-                    'Sem identificação'}
-                </small>
-              </span>
-
-              <div><b>{money(order.total)}</b><p>{order.status}</p>
-                <button type="button" className="rma-advance-btn" disabled={saving || preparingPhotos} onClick={() => { if (!saveLock.current && !photoLock.current) { setCancelRequestedId(null); setDetails(order); } }}>Abrir OS</button>
-                {!['cancelada', 'finalizada', 'entregue'].includes(order.status) && <button type="button" className="rma-advance-btn" disabled={saving || preparingPhotos} aria-label={`Cancelar OS #${order.id.slice(0, 8)}`} onClick={() => { if (!saveLock.current && !photoLock.current) { setCancelRequestedId(order.id); setDetails(order); } }}>Cancelar OS</button>}
-              </div>
-            </div>
-          ))
+        {!loadingOrders && !loadError && (filteredOrders.length > 0 ? (
+          <ul className="service-order-results">
+            {filteredOrders.map(order => {
+              const reference = order.os_number || order.id.slice(0, 8);
+              const equipment = [order.equipment_type, order.equipment_identification || order.serial_number].filter(Boolean).join(' · ');
+              return (
+                <li key={order.id} className="service-order-list-row">
+                  <div className="service-order-identity">
+                    <small>OS #{reference}</small>
+                    <strong>{order.customer_name || 'Sem cliente'}</strong>
+                    {equipment && <small>{equipment}</small>}
+                  </div>
+                  <span className="service-order-status" data-status={order.status}>{serviceOrderStatusLabels[order.status] ?? order.status}</span>
+                  <strong className="service-order-total">{money(Number(order.total))}</strong>
+                  <div className="service-order-actions">
+                    <button type="button" className="module-action-btn" disabled={saving || preparingPhotos} onClick={() => { if (!saveLock.current && !photoLock.current) { setCancelRequestedId(null); setDetails(order); } }}>Abrir OS</button>
+                    {!terminalStatuses.includes(order.status) && <button type="button" className="partner-secondary-btn" disabled={saving || preparingPhotos} aria-label={`Cancelar OS #${order.id.slice(0, 8)}`} onClick={() => { if (!saveLock.current && !photoLock.current) { setCancelRequestedId(order.id); setDetails(order); } }}>Cancelar OS</button>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
-          <div
-            style={{
-              padding: 35,
-              textAlign: 'center',
-              opacity: 0.6,
-            }}
-          >
-            <p>
-              Nenhuma OS encontrada.
-            </p>
+          <div className="service-order-empty">
+            <ClipboardList size={24} aria-hidden="true" />
+            <p>Nenhuma OS encontrada.</p>
+            <small>{searchTerm || statusFilter ? 'Altere a busca ou limpe os filtros.' : 'Use Nova OS para registrar o primeiro atendimento desta filial.'}</small>
           </div>
-        )}
-      </div>
+        ))}
+      </section>}
     </section>
   );
 }

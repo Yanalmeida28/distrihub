@@ -348,3 +348,21 @@ test('exit checklist is saved by the authorized workflow, restores separately, a
  assert.equal(view.root.findByProps({'aria-label':'Saída: Touch'}).props.value,'Funcionando');
  const reason=view.root.findByType('textarea');assert.equal(reason.props.value,'');
 });
+
+test('OS list finds the registered number and filters by readable situation', async () => {
+  const h = await harness({
+    orders: [{ ...orderA, os_number: '00124', status: 'pronta' }, { ...orderB, os_number: '00125' }],
+  });
+  const rows = () => view.root.findAllByProps({ className: 'service-order-list-row' });
+  const search = () => view.root.findByProps({ placeholder: 'Número, cliente ou equipamento' });
+  const status = () => view.root.findByProps({ 'aria-label': 'Filtrar OS por situação' });
+  assert.equal(rows().length, 2);
+  await act(async () => search().props.onChange({ target: { value: 'OS #00124' } }));
+  assert.equal(rows().length, 1);
+  assert.deepEqual(rows()[0].findByProps({ className: 'service-order-status' }).children, ['Pronta']);
+  await act(async () => status().props.onChange({ target: { value: 'aberta' } }));
+  assert.equal(rows().length, 0);
+  await act(async () => button('Limpar filtros').props.onClick());
+  assert.equal(rows().length, 2);
+  assert.equal(h.queries.length, 1);
+});

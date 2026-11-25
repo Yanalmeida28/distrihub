@@ -3085,7 +3085,7 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
 }
 .service-orders-module, .service-orders-module label, .service-order-fields > *, .service-order-parts-layout > * { min-width: 0; }
 .service-order-item-field { display: grid; gap: 4px; min-width: 0; font-size: 11px; color: var(--dh-text-secondary); }
-.service-order-item-row > span, .service-order-list-row > span { min-width: 0; overflow-wrap: anywhere; }
+.service-order-item-row > span { min-width: 0; overflow-wrap: anywhere; }
 @media screen and (max-width: 900px) {
   .partner-panel .service-orders-module { padding: 8px 0 !important; width: 100%; }
   .partner-panel .service-order-form, .partner-panel .service-order-list { padding: 14px !important; }
@@ -3098,9 +3098,6 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   .partner-panel .service-order-item-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; padding: 10px; border: 1px solid var(--dh-border); border-radius: 8px; }
   .partner-panel .service-order-item-row > span { grid-column: 1 / -1; }
   .partner-panel .service-order-item-row > button { grid-column: 2; justify-self: end; min-width: 44px; }
-  .partner-panel .service-order-list-row { gap: 8px; flex-wrap: wrap; padding: 12px 0 !important; }
-  .partner-panel .service-order-list-row > span { flex: 1 1 180px; }
-  .partner-panel .service-order-list-row > b { flex-shrink: 0; }
 }
 @media screen and (max-width: 768px) {
   .partner-panel .cadastros-scope .customer-list-wrap { min-width: 0; border: 0; background: transparent; overflow: visible !important; }
@@ -4258,4 +4255,75 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
   margin-block: 4px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* Ordens de Serviço */
+.service-orders-module { display: grid; gap: 16px; max-width: 1280px; margin-inline: auto; }
+.service-orders-header, .service-orders-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.service-orders-header { justify-content: space-between; flex-wrap: wrap; }
+.service-orders-heading .module-icon { display: grid; place-items: center; flex: 0 0 42px; height: 42px; }
+.service-orders-heading h1 { margin: 0; font-size: clamp(20px, 3vw, 26px); line-height: 1.2; }
+.service-orders-heading p { margin: 4px 0 0; overflow-wrap: anywhere; }
+
+.service-orders-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.service-orders-summary > div { min-width: 0; padding: 12px; }
+.service-orders-summary dt { color: var(--dh-text-secondary); font-size: 12px; font-weight: 600; }
+.service-orders-summary dd { margin: 4px 0 0; color: var(--dh-text); font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.service-orders-summary > div:nth-child(2) dd { color: var(--dh-success); }
+
+.service-order-list { padding: 16px; }
+.service-order-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+.service-order-filters > label:first-child { flex: 2 1 245px; }
+.service-order-filters > label { flex: 1 1 150px; }
+.service-order-filters :is(input, select) { width: 100%; min-width: 0; min-height: 44px; }
+.service-order-search { position: relative; }
+.service-order-search svg { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); color: var(--dh-text-secondary); pointer-events: none; }
+.partner-panel .service-order-search input { padding-inline-start: 38px; }
+
+.service-order-results { display: grid; gap: 8px; list-style: none; margin: 16px 0 0; padding: 0; }
+.service-order-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, auto) minmax(90px, auto) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--dh-border);
+  border-radius: var(--dh-radius-sm);
+  background: var(--panel-theme-card, var(--dh-surface));
+}
+.service-order-identity { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.service-order-identity small { line-height: 1.35; }
+.service-order-status {
+  --service-status-color: var(--dh-accent-text);
+  justify-self: start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--service-status-color) 28%, var(--dh-surface));
+  background: color-mix(in srgb, var(--service-status-color) 9%, var(--dh-surface));
+  color: var(--service-status-color);
+  font-size: 12px;
+  font-weight: 700;
+}
+.service-order-status:is([data-status="aguardando_cliente"], [data-status="aguardando_peca"], [data-status="aguardando_aprovacao"]) { --service-status-color: var(--dh-warning); }
+.service-order-status:is([data-status="pronta"], [data-status="finalizada"], [data-status="entregue"]) { --service-status-color: var(--dh-success); }
+.service-order-status[data-status="cancelada"] { --service-status-color: var(--dh-danger); }
+.service-order-total { justify-self: end; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.service-order-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.service-order-actions button { min-width: 0; min-height: 40px; }
+.service-order-empty { display: grid; justify-items: center; gap: 6px; padding: 28px 12px 12px; color: var(--dh-text-secondary); text-align: center; }
+.service-order-empty p { margin: 0; }
+
+.service-order-details .module-header { flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+.service-order-details :is(input, textarea, select):focus-visible,
+.service-order-form :is(input, textarea, select):focus-visible { outline: 2px solid var(--dh-blue); outline-offset: 2px; }
+
+@media (width < 940px) {
+  .service-order-list-row { grid-template-columns: minmax(0, 1fr) minmax(80px, auto); }
+  .service-order-identity { grid-column: 1 / -1; }
+  .service-order-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+@media (width < 380px) {
+  .service-orders-summary > div { padding: 8px; }
+  .service-orders-summary dt { overflow-wrap: anywhere; }
 }
