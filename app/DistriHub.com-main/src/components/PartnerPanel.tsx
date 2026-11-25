@@ -254,7 +254,7 @@ const allTabs: {
 ];
 
 const MOBILE_MENU_QUERY = '(width < 768px)';
-const mobileMenuGroups = [
+const sidebarMenuGroups = [
   { title: 'Vendas', tabs: ['pdv', 'caixa', 'pedidos', 'historico'] },
   { title: 'Operação', tabs: ['cadastros', 'os', 'entregas', 'rma', 'atendimento'] },
   { title: 'Gestão', tabs: ['financeiro', 'fiscal', 'relatorios', 'administrativo', 'white-label', 'configuracoes'] },
@@ -1651,7 +1651,7 @@ export function PartnerPanel({
 
   function renderNavTab({ id, label, icon: Icon }: (typeof visibleTabs)[number]) {
     const title = mobileMenu ? mobileMenuLabels[id] ?? label : label;
-    const selected = !helpOpen && activeTab === id && !(mobileMenu && accessLocked);
+    const selected = !helpOpen && activeTab === id && !accessLocked;
     return (
       <button
         key={id}
@@ -1660,7 +1660,7 @@ export function PartnerPanel({
         onFocus={() => preloadTab(id)}
         onTouchStart={() => preloadTab(id)}
         aria-label={title}
-        aria-current={mobileMenu && selected ? 'page' : undefined}
+        aria-current={selected ? 'page' : undefined}
         className={`sidebar-nav-item ${selected ? 'active' : ''}`}
         onClick={() => handleTabClick(id)}
       >
@@ -1890,7 +1890,7 @@ export function PartnerPanel({
         {branchAccessError && <p role="alert">{branchAccessError}</p>}
 
         <nav className="sidebar-nav">
-          {mobileMenu ? mobileMenuGroups.map(({ title, tabs }) => {
+          {sidebarMenuGroups.map(({ title, tabs }) => {
             const buttons = tabs.flatMap(id => {
               const tab = visibleTabs.find(item => item.id === id);
               return tab ? [renderNavTab(tab)] : [];
@@ -1902,7 +1902,7 @@ export function PartnerPanel({
               {buttons}
               {isSupport && supportActions}
             </div>;
-          }) : <>{visibleTabs.map(renderNavTab)}{supportActions}</>}
+          })}
           <span role="status" className="sidebar-sync-status">
             {partner.syncError
               ? `Falha ao sincronizar: ${partner.syncError}`

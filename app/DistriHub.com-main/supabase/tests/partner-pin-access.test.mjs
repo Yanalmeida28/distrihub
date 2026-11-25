@@ -77,7 +77,7 @@ test('PIN authorizes the server-assigned branch directly without choosing a bran
   assert.equal(h.calls.some(call => call.verifier), false);
 });
 
-test('the real PartnerPanel preserves desktop navigation and groups the mobile menu across PIN and permission changes', async () => {
+test('the real PartnerPanel groups desktop and mobile navigation across PIN and permission changes', async () => {
   const calls = [], exports = {};
   const device = { ready: false, error: null, retry() {} };
   let modulesAllowed = true;
@@ -131,10 +131,14 @@ test('the real PartnerPanel preserves desktop navigation and groups the mobile m
     const labels = container => container.findAllByType('button').map(button => button.props['aria-label']);
     const groupLabels = () => nav().findAllByProps({ role: 'group' }).map(group => [group.props['aria-label'], labels(group)]);
     const title = () => renderer.root.findByProps({ className: 'sidebar-mobile-title' }).children.filter(item => typeof item === 'string').join('');
-    const desktopLabels = ['Cadastros', 'PDV & Vendas', 'Caixa', 'Pedidos em Aberto', 'Ordens de Serviço', 'Histórico', 'Suporte', 'Nota Fiscal', 'Administrativo', 'Gestão de Entregas', 'Financeiro', 'RMA & Devoluções', 'Relatórios & CRM', 'Personalização', 'Configurações', 'Ajuda', 'Sincronizar'];
+    const desktopGroups = [
+      ['Vendas', ['PDV & Vendas', 'Caixa', 'Pedidos em Aberto', 'Histórico']],
+      ['Operação', ['Cadastros', 'Ordens de Serviço', 'Gestão de Entregas', 'RMA & Devoluções']],
+      ['Gestão', ['Financeiro', 'Nota Fiscal', 'Relatórios & CRM', 'Administrativo', 'Personalização', 'Configurações']],
+      ['Apoio', ['Suporte', 'Ajuda', 'Sincronizar']],
+    ];
     const resize = async next => act(async () => { width = next; for (const listener of [...mediaListeners]) listener(); });
-    assert.deepEqual(labels(nav()), desktopLabels);
-    assert.deepEqual(groupLabels(), []);
+    assert.deepEqual(groupLabels(), desktopGroups);
     assert.equal(renderer.root.findAllByProps({ className: 'partner-panel sidebar-layout' }).length, 1);
     assert.equal(renderer.root.findAllByType('form').length, 0);
     for (const label of ['Financeiro', 'Cadastros', 'PDV & Vendas']) {
@@ -178,7 +182,7 @@ test('the real PartnerPanel preserves desktop navigation and groups the mobile m
 
     await act(async () => renderer.update(React.createElement(exports.PartnerPanel, lockedProps)));
     await resize(768);
-    assert.deepEqual(labels(nav()), desktopLabels);
+    assert.deepEqual(groupLabels(), desktopGroups);
     await resize(390);
     const mobileGroups = [
       ['Vendas', ['PDV & Vendas', 'Caixa', 'Pedidos em Aberto', 'Histórico']],
@@ -209,8 +213,7 @@ test('the real PartnerPanel preserves desktop navigation and groups the mobile m
     assert.equal(renderer.root.findByProps({ 'aria-label': 'Menu' }).props['aria-expanded'], false);
     assert.equal(title(), 'Suporte');
     await resize(1280);
-    assert.deepEqual(groupLabels(), []);
-    assert.deepEqual(labels(nav()), ['Cadastros', 'Suporte', 'Ajuda', 'Sincronizar']);
+    assert.deepEqual(groupLabels(), [['Operação', ['Cadastros']], ['Apoio', ['Suporte', 'Ajuda', 'Sincronizar']]]);
   } finally { await act(async () => renderer.unmount()); }
 });
 

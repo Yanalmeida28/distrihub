@@ -23,8 +23,29 @@
   }
 }
 
-.partner-panel .cadastros-scope :is(.cadastros-more, .cadastros-mobile-search, .cadastros-export-toggle) {
+.partner-panel .cadastros-scope :is(.cadastros-secondary-tab, .cadastros-mobile-search, .cadastros-export-toggle) {
   display: none;
+}
+
+
+.partner-panel .cadastros-scope .cadastros-more {
+  display: block;
+  width: min(220px, 100%);
+  padding-inline: 8px;
+  color: var(--dh-text);
+  background: var(--dh-surface);
+  border: 1px solid var(--dh-border);
+  border-radius: var(--dh-radius-sm);
+}
+
+.partner-panel .cadastros-scope .cadastros-more:has(option:checked:not([value=""])) {
+  color: var(--dh-accent-text);
+}
+
+@media (width < 768px) {
+  .partner-panel .cadastros-scope .cadastros-more {
+    width: 84px;
+  }
 }
 
 .cadastros-product-exports {
@@ -33,19 +54,9 @@
 
 @media (width < 768px) {
   .partner-panel .cadastros-main > .module-header,
-  .partner-panel .cadastros-scope :is(.cadastros-secondary-tab, .cadastros-desktop-search),
+  .partner-panel .cadastros-scope .cadastros-desktop-search,
   .partner-panel .cadastros-product-exports[data-mobile-open="false"] {
     display: none;
-  }
-
-  .partner-panel .cadastros-scope .cadastros-more {
-    display: block;
-    width: 84px;
-    padding-inline: 8px;
-    color: var(--dh-text);
-    background: var(--dh-surface);
-    border: 1px solid var(--dh-border);
-    border-radius: var(--dh-radius-sm);
   }
 
   .partner-panel .cadastros-scope .product-list-toolbar .cadastros-mobile-search {

@@ -3187,7 +3187,7 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   .partner-panel .partner-sidebar.open { visibility: visible; }
   .partner-panel .sidebar-header { position: relative; padding-top: calc(20px + env(safe-area-inset-top)); }
   .partner-panel .sidebar-brand { padding-right: 32px; }
-  .partner-panel .sidebar-mobile-close { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 8px; display: grid; place-items: center; width: 44px; height: 44px; color: #fff; background: var(--panel-theme-raised, #173b58); border-radius: 8px; }
+  .partner-panel .sidebar-mobile-close { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 8px; display: grid; place-items: center; width: 44px; height: 44px; color: var(--panel-theme-text, #fff); background: var(--panel-theme-raised, #173b58); border-radius: 8px; }
   .partner-panel input:not([type="checkbox"]):not([type="radio"]),
   .partner-panel select, .partner-panel textarea { font-size: max(16px, var(--personalized-font-size, 16px)) !important; min-height: 44px !important; max-width: 100%; min-width: 0; }
   .partner-panel button:not(.pdv-product-card), .partner-panel summary { min-height: 44px; }
@@ -4080,23 +4080,6 @@ body:has(.partner-panel[data-panel-theme="blue-glass"]) > :is(.product-actions-p
   --dh-blue-border: color-mix(in srgb, var(--panel-glass-action) 30%, transparent) !important;
   --dh-accent-text: var(--panel-theme-accent) !important;
   --dh-danger-bg: color-mix(in srgb, var(--panel-theme-danger) 13%, transparent);
-}
-
-[data-panel-theme="white"],
-body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popover, .sale-actions-menu) {
-  --panel-theme-background: #f4f8fd;
-  --panel-theme-surface: #fff;
-  --panel-theme-raised: #e4effb;
-  --panel-theme-border: #aebfd3;
-  --panel-theme-text: #172e4c;
-  --panel-theme-secondary: #415c78;
-  --panel-theme-accent: #145ca0;
-  --panel-theme-canvas: #f4f8fd;
-  --panel-theme-card: linear-gradient(145deg, #fff, #f1f7ff);
-  --panel-theme-color-scheme: light;
-  --panel-theme-success: #166534;
-  --panel-theme-warning: #8a4008;
-  --panel-theme-danger: #9f1239;
 }
 
 :is(.partner-panel, .personalization-panel-preview):is([data-panel-theme="blue-glass"], [data-panel-theme="white"]) {
