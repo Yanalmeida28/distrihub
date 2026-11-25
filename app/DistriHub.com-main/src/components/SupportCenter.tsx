@@ -139,7 +139,7 @@ export function SupportCenter({ admin = false, active = true, branchId, branchNa
         <div className="module-header"><Headphones size={21} aria-hidden="true" /><div><h2 id="support-center-title">{admin ? 'Fila de chamados' : 'Central de Suporte'}</h2><p>{admin ? 'Acompanhe os chamados das empresas.' : 'Abra um chamado e acompanhe as respostas da equipe.'}</p></div></div>
         {!admin && <div className="support-center-actions">
           {onHelp && <button className="btn-secondary" type="button" onClick={onHelp}><BookOpen size={16} aria-hidden="true" /> Ajuda rápida</button>}
-          <button className="btn-primary" type="button" aria-expanded={creating} onClick={() => setCreating(value => !value)}><Plus size={16} aria-hidden="true" /> {creating ? 'Fechar formulário' : 'Abrir chamado'}</button>
+          <button className="module-action-btn" type="button" aria-expanded={creating} onClick={() => setCreating(value => !value)}><Plus size={16} aria-hidden="true" /> {creating ? 'Fechar formulário' : 'Abrir chamado'}</button>
         </div>}
       </header>
       {error && <p role="alert">{error} <button type="button" className="btn-secondary" onClick={() => { setError(''); refresh(value => value + 1); }}>Atualizar</button></p>}
