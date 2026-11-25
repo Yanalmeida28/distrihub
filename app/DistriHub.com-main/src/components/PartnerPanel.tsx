@@ -98,6 +98,7 @@ const CatalogOrdersModule = lazy(loadCatalogOrdersModule);
 
 import type {
   StoreSettings,
+  PanelPreferences,
   BusinessSegment,
   SalespersonRole,
   PartnerProduct,
@@ -113,6 +114,8 @@ import type {
 
 type PartnerPanelProps = {
   accessLocked?: boolean;
+  cachedPanelPreferences?: Partial<PanelPreferences>;
+  onPanelPreferencesLoaded?: (appearance: { scope: string; preferences?: Partial<PanelPreferences> }) => void;
   onBack: () => void;
   pinOperator: PinOperator | null;
   onRequestAccess: (mode: 'employee' | 'owner') => void;
@@ -319,6 +322,8 @@ const logisticaBlockedTabs: Tab[] = [
 
 export function PartnerPanel({
   accessLocked = false,
+  cachedPanelPreferences,
+  onPanelPreferencesLoaded,
   onBack,
   pinOperator,
   onRequestAccess,
@@ -390,6 +395,16 @@ export function PartnerPanel({
   const [cadastroDataScope, setCadastroDataScope] = useState('produtos');
   const deviceSession = useDeviceHeartbeat(identity?.companyUserId, identity?.salespersonId ? identity.branchId : selectedBranchId || null);
   const partner = usePartnerData(deviceSession.ready ? identity : null, identity?.salespersonId ? identity.branchId : selectedBranchId || null, activeTab === 'cadastros' || (activeTab === 'administrativo' && adminDataScope === 'cadastros') ? 'cadastros:' + cadastroDataScope : activeTab === 'relatorios' || (activeTab === 'administrativo' && adminDataScope === 'relatorios') ? 'relatorios:' + reportDataScope : activeTab === 'administrativo' ? 'administrativo:' + adminDataScope : activeTab);
+  const confirmedSettings = identity && partner.settings?.user_id === identity.companyUserId ? partner.settings : null;
+  const appearanceScope = identity ? `${identity.authUserId}:${identity.companyUserId}` : null;
+  const panelAppearance = confirmedSettings ? confirmedSettings.personalization?.panel : appearanceScope ? cachedPanelPreferences : undefined;
+
+  useEffect(() => {
+    if (appearanceScope && confirmedSettings) {
+      onPanelPreferencesLoaded?.({ scope: appearanceScope, preferences: confirmedSettings.personalization?.panel });
+    }
+  }, [appearanceScope, confirmedSettings, onPanelPreferencesLoaded]);
+
   const saas = useSaasSubscription(identity?.companyUserId);
   const [pdvRevision, setPdvRevision] = useState(0);
   const [preSaleToCheckout, setPreSaleToCheckout] = useState<PartnerSale | null>(null);
@@ -1676,7 +1691,7 @@ export function PartnerPanel({
   const mobileHeaderTitle = accessLocked ? 'Selecionar operador' : helpOpen ? 'Ajuda' : headerTab && (mobileMenuLabels[headerTab.id] ?? headerTab.label);
 
   return (
-    <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-panel-theme={storeSettings.personalization?.panel?.theme ?? storeSettings.personalization?.panel?.financial_theme} data-personalized-panel={storeSettings.personalization?.panel ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(storeSettings.personalization?.panel ? panelStyle(storeSettings.personalization.panel) : {}) } as React.CSSProperties}>
+    <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-panel-theme={panelAppearance?.theme ?? panelAppearance?.financial_theme} data-personalized-panel={panelAppearance ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(panelAppearance ? panelStyle(panelAppearance) : {}) } as React.CSSProperties}>
       <div className="sidebar-mobile-bar">
         <button
           className="sidebar-toggle"

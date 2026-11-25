@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Lock, ShieldAlert, Eye, KeyRound, Mail, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import type { BusinessSegment } from './types';
+import type { BusinessSegment, PanelPreferences } from './types';
 import { readWithJwtRecovery, useAuth } from './hooks/useAuth';
 import { useSuperAdminAuth } from './hooks/useSuperAdminAuth';
 import { HubHome } from './components/HubHome';
@@ -46,6 +46,7 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const sessionUserId = auth.user?.id ?? null;
 
+  const [panelAppearance, setPanelAppearance] = useState<{ scope: string; preferences?: Partial<PanelPreferences> }>();
   const accountScope = auth.identity ? `${auth.identity.authUserId}:${auth.identity.companyUserId}` : null;
   const { signOut } = auth;
   const handleSwitchAccount = useCallback(async () => {
@@ -215,6 +216,8 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
           {(pinOperator, onRequestAccess, accessLocked, onSelectOperatorBranch) => <PartnerPanel
             key={`${auth.user?.id}:${accessLocked ? 'locked' : pinOperator?.id ?? 'owner'}:${pinOperator?.branchId ?? 'all'}`}
             accessLocked={accessLocked}
+            cachedPanelPreferences={accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : undefined}
+            onPanelPreferencesLoaded={setPanelAppearance}
             pinOperator={pinOperator}
             onRequestAccess={onRequestAccess}
             onSelectOperatorBranch={onSelectOperatorBranch}
