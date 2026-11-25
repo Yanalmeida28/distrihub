@@ -24,6 +24,8 @@ function component(rpc){
     if(name==='../lib/supabase')return {supabase:{rpc},isSupabaseConfigured:true};
     if(name==='../lib/personalization')return personalizationHelpers;
     if(name==='../lib/storeTheme')return theme;
+    if(name==='./PublicCatalogPage.css')return {};
+    if(name==='../utils')return {money:new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'})};
     if(name==='./PublicCatalogCheckout')return {PublicCatalogCheckout:()=>null};
     return require(name);
   }});

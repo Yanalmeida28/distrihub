@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ShoppingCart, Store, MessageCircle, Image as ImageIcon } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
+import { ShoppingCart, Store, MessageCircle, Search, Image as ImageIcon } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { contrastText, normalizeColor } from '../lib/storeTheme';
 import type { PartnerProduct } from '../types';
 import { catalogPreferences, catalogWhatsappUrl } from '../lib/personalization';
 import { PublicCatalogCheckout, type CatalogCartItem } from './PublicCatalogCheckout';
 
-const DEFAULT_CATALOG = {
-  name: 'DistriHub',
-  description: 'Catálogo público da loja.',
-};
+import { money } from '../utils';
+import './PublicCatalogPage.css';
 
 type PublicCatalogPageProps = {
   slug: string;
@@ -138,100 +137,115 @@ export function PublicCatalogPage({ slug, branchSlug, fixedBranchId, userId = nu
     });
   }
   const whatsappUrl = preferences.show_whatsapp ? catalogWhatsappUrl(preferences.whatsapp_phone) : null;
-  const summary = useMemo(() => ({
-    title: primaryBrandName,
-    address: branch?.address ?? DEFAULT_CATALOG.description,
-  }), [branch, primaryBrandName]);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartQuantities = new Map(cart.map(item => [item.id, item.quantity]));
+  const brand = normalizeColor(settings?.primary_color, '#1673c9');
+  const nav = normalizeColor(settings?.nav_color, '#0b1927');
+  const palette = {
+    '--catalog-action': brand,
+    '--catalog-on-action': contrastText(brand),
+    '--catalog-nav': nav,
+    '--catalog-on-nav': contrastText(nav),
+    '--catalog-banner-height': `${preferences.banner_height}px`,
+  } as CSSProperties;
 
-  if (loading) {
-    return <div style={{ padding: 32, textAlign: 'center' }}>Carregando catálogo...</div>;
-  }
-
-  if (error && !settings) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', fontFamily: 'sans-serif' }}>
-        <h2>Catálogo indisponível</h2>
-        <p>{error}</p>
-        <button type="button" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button>
-      </div>
-    );
+  if (loading || (error && !settings)) {
+    return <div className="public-storefront">
+      <main className="public-catalog-shell public-catalog-state">
+        {loading ? <p role="status">Carregando catálogo...</p> : <>
+          <h1>Catálogo indisponível</h1>
+          <p role="alert">{error}</p>
+          <button className="public-catalog-action" type="button" onClick={() => setRetry(value => value + 1)}>Tentar novamente</button>
+        </>}
+      </main>
+    </div>;
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#102638', color: '#edf5fc', fontFamily: 'sans-serif' }}>
-      <header style={{ background: normalizeColor(settings?.nav_color, '#0b1927'), color: contrastText(normalizeColor(settings?.nav_color, '#0b1927')), padding: '20px 24px' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {logoUrl ? <img src={logoUrl} alt={summary.title} style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover' }} /> : <Store size={26} />}
+    <div className="public-storefront" style={palette} data-compact={preferences.card_size === 'compact'} data-has-cart={cartCount > 0}>
+      <header className="public-catalog-header">
+        <div className="public-catalog-shell public-catalog-header-inner">
+          <div className="public-catalog-brand">
+            <div className="public-catalog-logo">
+              {logoUrl ? <img src={logoUrl} alt="" /> : <Store size={24} aria-hidden="true" />}
+            </div>
             <div>
-              <strong style={{ display: 'block', fontSize: 22 }}>{summary.title}</strong>
-              <small>{branch ? branch.name : 'Catálogo público'}</small>
+              <h1>{primaryBrandName}</h1>
+              <small>{branch?.name ?? 'Catálogo'}</small>
             </div>
           </div>
-          <div style={{ opacity: 0.9, fontSize: 13 }}>{settings?.business_hours ?? 'Atendimento conforme disponibilidade da loja'}</div>
-          <a href="#pedido" className="public-order-link">Seu pedido ({cart.reduce((sum, item) => sum + item.quantity, 0)})</a>
+          <a href="#pedido" className="public-order-link"><ShoppingCart size={19} aria-hidden="true" /> Seu pedido ({cartCount})</a>
         </div>
       </header>
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 20px 48px' }}>
-        {settings?.banner_url && (
-          <div style={{ marginBottom: 24, borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 24px rgba(15,23,42,0.08)' }}>
-            <img src={settings.banner_url} alt="Banner da loja" style={{ width: '100%', height: preferences.banner_height, objectFit: 'cover', display: 'block' }} />
-          </div>
-        )}
+      <main className="public-catalog-shell public-catalog-content">
+        {settings?.banner_url && <img className="public-catalog-banner" src={settings.banner_url} alt="Banner da loja" />}
+        {preferences.welcome_message && <p className="public-catalog-welcome">{preferences.welcome_message}</p>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 24 }}>
-          <div style={{ background: '#102638', borderRadius: 16, padding: 18, boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>Identidade da loja</strong>
-            <div style={{ fontSize: 14, color: '#adc2d6' }}>{summary.address}</div>
+        <section aria-labelledby="catalog-products-title">
+          <div className="public-catalog-products-heading">
+            <h2 id="catalog-products-title">Produtos</h2>
+            <span>{total} {total === 1 ? 'produto' : 'produtos'}</span>
           </div>
-          <div style={{ background: '#102638', borderRadius: 16, padding: 18, boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>Produtos ativos</strong>
-            <div style={{ fontSize: 14, color: '#adc2d6' }}>{total} produtos nesta seleção</div>
-          </div>
-        </div>
 
-        {preferences.welcome_message && <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', padding: '16px 20px', background: '#102638', borderRadius: 12 }}>{preferences.welcome_message}</p>}
-        <div className="public-catalog-filters"><label>Buscar produto<input type="search" value={search} onChange={e => setSearch(e.target.value)} /></label>{!fixedBranchId && !branchSlug && !branch && branches.length > 1 && <label>Filial<select disabled={checkoutBlocked} value={selectedBranch} onChange={e => { setSelectedBranch(e.target.value); setRequestedBranch(e.target.value); setOffset(0); setCart([]); }}>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>}</div>
-        {error && <div role="alert"><p>{error}</p><button type="button" disabled={productsLoading} onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></div>}
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${preferences.card_size === 'compact' ? 220 : 280}px), 1fr))`, gap: preferences.card_size === 'compact' ? 12 : 20 }}>
-          {visibleProducts.map((product) => (
-            <article key={product.id} style={{ background: '#102638', borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
-              <div style={{ position: 'relative', background: '#132f4d', minHeight: 180 }}>
-                {product.image_url ? (
-                  <img src={product.image_url} alt={product.name} style={{ width: '100%', height: 180, objectFit: 'cover', display: 'block' }} />
-                ) : (
-                  <div style={{ width: '100%', height: 180, display: 'grid', placeItems: 'center', color: '#adc2d6' }}><ImageIcon size={36} /></div>
-                )}
-                <span style={{ position: 'absolute', top: 12, left: 12, background: '#0f172a', color: '#fff', fontSize: 11, borderRadius: 999, padding: '6px 10px' }}>
-                  {product.category ?? 'Produto'}
-                </span>
-              </div>
-              <div style={{ padding: 18 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
-                  <strong style={{ fontSize: 18 }}>{product.name}</strong>
-                  {preferences.show_sku && <span style={{ fontSize: 12, color: '#adc2d6' }}>SKU {product.sku ?? 'N/A'}</span>}
+          <div className="public-catalog-filters">
+            <label>Buscar produto<span className="public-catalog-search">
+              <Search size={18} aria-hidden="true" />
+              <input type="search" placeholder={preferences.show_sku ? "Nome do produto ou SKU" : "Nome do produto"} value={search} onChange={e => setSearch(e.target.value)} />
+            </span></label>
+            {!fixedBranchId && !branchSlug && !branch && branches.length > 1 && <label>Filial
+              <select disabled={checkoutBlocked} value={selectedBranch} onChange={e => { setSelectedBranch(e.target.value); setRequestedBranch(e.target.value); setOffset(0); setCart([]); }}>
+                {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+              </select>
+            </label>}
+          </div>
+
+          {error && <div className="public-catalog-state" role="alert"><p>{error}</p><button type="button" className="public-catalog-action" disabled={productsLoading} onClick={() => setRetry(value => value + 1)}>Tentar novamente</button></div>}
+
+          <div className="public-catalog-grid" aria-busy={productsLoading}>
+            {visibleProducts.map(product => {
+              const price = Number(product.sale_price ?? 0);
+              const quantity = cartQuantities.get(product.id) ?? 0;
+              return <article key={product.id} className="public-product-card">
+                <div className="public-product-image">
+                  {product.image_url ? <img src={product.image_url} alt={product.name} loading="lazy" decoding="async" /> : <ImageIcon size={28} aria-hidden="true" />}
+                  {product.category && <span className="public-product-category">{product.category}</span>}
                 </div>
-                <p style={{ color: '#adc2d6', minHeight: 48, margin: '8px 0 14px' }}>{product.category ?? 'Produto da loja'}</p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <strong style={{ color: '#edf5fc', fontSize: 22 }}>R$ {Number(product.sale_price ?? 0).toFixed(2).replace('.', ',')}</strong>
-                  {preferences.show_stock && <span style={{ color: product.available !== false ? '#adc2d6' : '#fda4af', fontSize: 12, fontWeight: 700 }}>
-                    {product.available !== false ? 'Disponível' : 'Indisponível'}
-                  </span>}
+                <div className="public-product-details">
+                  <h3>{product.name}</h3>
+                  {preferences.show_sku && product.sku && <span className="public-product-sku">SKU {product.sku}</span>}
+                  <div className="public-product-summary">
+                    <strong>{price > 0 ? money.format(price) : 'Consulte a loja'}</strong>
+                    {preferences.show_stock && <span className="public-product-stock" data-unavailable={product.available === false}>
+                      {product.available === false ? 'Indisponível' : 'Disponível'}
+                    </span>}
+                    {quantity > 0 && <span className="public-product-quantity">{quantity} no pedido</span>}
+                  </div>
+                  <button className="public-catalog-action" type="button" disabled={checkoutBlocked || product.available === false || price <= 0} onClick={() => addProduct(product)}>
+                    <ShoppingCart size={16} aria-hidden="true" /> Adicionar ao pedido
+                  </button>
                 </div>
-                <button type="button" disabled={checkoutBlocked || product.available === false || Number(product.sale_price) <= 0} onClick={() => addProduct(product)} style={{ width: '100%', border: 'none', background: normalizeColor(settings?.primary_color), color: contrastText(normalizeColor(settings?.primary_color)), borderRadius: 10, padding: '12px 14px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                  <ShoppingCart size={16} /> Adicionar ao pedido
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-        {productsLoading && <p role="status">Carregando produtos...</p>}
-        {!productsLoading && !error && !visibleProducts.length && <p>Nenhum produto nesta seleção.</p>}
-        {!error && nextOffset !== null && <button type="button" disabled={productsLoading} onClick={() => setOffset(nextOffset)}>Carregar mais produtos</button>}
+              </article>;
+            })}
+          </div>
+          {productsLoading && <p className="public-catalog-state" role="status">Carregando produtos...</p>}
+          {!productsLoading && !error && !visibleProducts.length && <p className="public-catalog-state">Nenhum produto nesta seleção.</p>}
+          {!error && nextOffset !== null && <button className="public-catalog-more" type="button" disabled={productsLoading} onClick={() => setOffset(nextOffset)}>Carregar mais produtos</button>}
+        </section>
         <div id="pedido"><PublicCatalogCheckout branchSlug={branchSlug} key={`${userId}:${slug}:${selectedBranch}`} slug={settings?.catalog_slug ?? slug} branchId={selectedBranch} cart={cart} userId={userId} onSignIn={onSignIn} onQuantity={(id, amount) => { if (!Number.isSafeInteger(amount) || amount < 0) return; setCart(previous => previous.flatMap(item => item.id !== id ? [item] : amount === 0 ? [] : [{ ...item, quantity: amount }])); }} onBlockedChange={onCheckoutBlocked} onComplete={(items) => setCart(previous => previous.flatMap(item => { const quantity = item.quantity - (items.find(sent => sent.id === item.id)?.quantity ?? 0); return quantity > 0 ? [{ ...item, quantity }] : []; }))} /></div>
       </main>
-      {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" style={{ position: 'fixed', right: 20, bottom: 20, display: 'flex', gap: 8, alignItems: 'center', background: '#15803d', color: '#fff', padding: '12px 18px', borderRadius: 24, boxShadow: '0 4px 16px #0003' }}><MessageCircle size={20} /> Falar com a loja</a>}
+      {(branch?.address || settings?.business_hours || whatsappUrl) && <footer className="public-catalog-shell public-catalog-footer">
+        <div>
+          {branch?.address && <p>{branch.address}</p>}
+          {settings?.business_hours && <p>{settings.business_hours}</p>}
+        </div>
+        {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"><MessageCircle size={20} aria-hidden="true" /> Falar com a loja</a>}
+      </footer>}
+      {cartCount > 0 && <div className="public-catalog-mobile-order">
+        <a href="#pedido" className="public-catalog-action">
+          <ShoppingCart size={19} aria-hidden="true" /> Seu pedido ({cartCount})
+        </a>
+      </div>}
     </div>
   );
 }

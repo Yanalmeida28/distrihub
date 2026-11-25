@@ -6,6 +6,7 @@ import { useSuperAdminAuth } from './hooks/useSuperAdminAuth';
 import { HubHome } from './components/HubHome';
 import { AppUpdateNotice } from './components/AppUpdateNotice';
 import { supabase } from './lib/supabase';
+import { panelPreferences } from './lib/personalization';
 import { PartnerAccessGate } from './components/partner/PartnerAccessGate';
 
 const PartnerPanel = lazy(() => import('./components/PartnerPanel').then((module) => ({ default: module.PartnerPanel })));
@@ -48,6 +49,29 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
 
   const [panelAppearance, setPanelAppearance] = useState<{ scope: string; preferences?: Partial<PanelPreferences> }>();
   const accountScope = auth.identity ? `${auth.identity.authUserId}:${auth.identity.companyUserId}` : null;
+  const companyUserId = auth.identity?.companyUserId;
+  const cachedPanelPreferences = accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : undefined;
+
+  useEffect(() => {
+    const client = supabase;
+    if (view !== 'partner' || !sessionUserId || !accountScope || !companyUserId || !client) return;
+
+    let active = true;
+    void readWithJwtRecovery(() => client.from('partner_store_settings')
+      .select('panel:personalization->panel')
+      .eq('user_id', companyUserId)
+      .maybeSingle(), () => active)
+      .then(({ data, error }) => {
+        if (!active || error) return;
+        const preferences = data?.panel ? panelPreferences(data.panel) : undefined;
+        // The unlocked panel may already have loaded or saved newer settings.
+        setPanelAppearance(current => current?.scope === accountScope ? current : { scope: accountScope, preferences });
+      })
+      .catch(() => { /* Theme stays at its current value if the read fails. */ });
+
+    return () => { active = false; };
+  }, [view, sessionUserId, accountScope, companyUserId]);
+
   const { signOut } = auth;
   const handleSwitchAccount = useCallback(async () => {
     await signOut();
@@ -57,6 +81,7 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
       try { sessionStorage.removeItem(`distrihub:operator-session:${accountScope}`); }
       catch { /* A new login has a different server session and cannot reuse the token. */ }
     }
+    setPanelAppearance(undefined);
     setPartnerInitialTab(undefined);
     setSuperAdminUnlocked(false);
     setSessionAccess(null);
@@ -212,11 +237,12 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
       {view === 'partner' && (
         <Suspense fallback={<LoadingScreen label="Área do parceiro" />}>
           <PartnerAccessGate key={auth.user?.id} user={auth.user} identity={auth.identity}
-            identityError={auth.error} onRetryIdentity={auth.retrySession} onSwitchAccount={handleSwitchAccount}>
+            identityError={auth.error} onRetryIdentity={auth.retrySession} onSwitchAccount={handleSwitchAccount}
+            panelTheme={cachedPanelPreferences?.theme ?? cachedPanelPreferences?.financial_theme}>
           {(pinOperator, onRequestAccess, accessLocked, onSelectOperatorBranch) => <PartnerPanel
             key={`${auth.user?.id}:${accessLocked ? 'locked' : pinOperator?.id ?? 'owner'}:${pinOperator?.branchId ?? 'all'}`}
             accessLocked={accessLocked}
-            cachedPanelPreferences={accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : undefined}
+            cachedPanelPreferences={cachedPanelPreferences}
             onPanelPreferencesLoaded={setPanelAppearance}
             pinOperator={pinOperator}
             onRequestAccess={onRequestAccess}

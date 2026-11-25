@@ -397,7 +397,7 @@ export function PartnerPanel({
   const partner = usePartnerData(deviceSession.ready ? identity : null, identity?.salespersonId ? identity.branchId : selectedBranchId || null, activeTab === 'cadastros' || (activeTab === 'administrativo' && adminDataScope === 'cadastros') ? 'cadastros:' + cadastroDataScope : activeTab === 'relatorios' || (activeTab === 'administrativo' && adminDataScope === 'relatorios') ? 'relatorios:' + reportDataScope : activeTab === 'administrativo' ? 'administrativo:' + adminDataScope : activeTab);
   const confirmedSettings = identity && partner.settings?.user_id === identity.companyUserId ? partner.settings : null;
   const appearanceScope = identity ? `${identity.authUserId}:${identity.companyUserId}` : null;
-  const panelAppearance = confirmedSettings ? confirmedSettings.personalization?.panel : appearanceScope ? cachedPanelPreferences : undefined;
+  const panelAppearance = confirmedSettings ? confirmedSettings.personalization?.panel : cachedPanelPreferences;
 
   useEffect(() => {
     if (appearanceScope && confirmedSettings) {

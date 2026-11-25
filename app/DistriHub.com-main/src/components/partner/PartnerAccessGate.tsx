@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { Lock, Shield, UserCheck, X } from 'lucide-react';
-import type { PartnerIdentity } from '../../types';
+import type { PanelPreferences, PartnerIdentity } from '../../types';
 import { supabase } from '../../lib/supabase';
 import { authorizeOwner, authorizePin, rememberOperatorAccess, revokeOperatorSession, type PartnerAccess, type PinOperator } from '../../lib/partnerAccess';
 import { registerOperatorUpdatePreparation } from '../../lib/appUpdateSession';
@@ -14,6 +14,7 @@ type Props = {
   user: User | null;
   identity: PartnerIdentity | null;
   identityError?: string | null;
+  panelTheme?: PanelPreferences['theme'];
   onRetryIdentity?: () => void;
   onSwitchAccount: () => Promise<void>;
   children: (operator: PinOperator | null, requestAccess: (mode: Mode) => void, accessLocked: boolean, selectBranch: (id: string) => Promise<void>) => ReactNode;
@@ -21,7 +22,7 @@ type Props = {
 
 // Render the actual panel immediately, with operational access locked until
 // confirmed. A saved operator selection is never an authorization.
-export function PartnerAccessGate({ user, identity, identityError, onRetryIdentity, onSwitchAccount, children }: Props) {
+export function PartnerAccessGate({ user, identity, identityError, panelTheme, onRetryIdentity, onSwitchAccount, children }: Props) {
   const scope = identity ? `${identity.authUserId}:${identity.companyUserId}` : '';
   const [authorized, setAuthorized] = useState<{ scope: string; access: PartnerAccess } | null>(null);
   const [mode, setMode] = useState<Mode | null>(null);
@@ -131,8 +132,8 @@ export function PartnerAccessGate({ user, identity, identityError, onRetryIdenti
     {identityError && onRetryIdentity && <button type="button" className="module-submit-btn" onClick={onRetryIdentity}>Tentar novamente</button>}
   </div>;
   return <>
-    {!current && restoring ? <div className="partner-panel"><p role="status">Retomando seu operador…</p></div> :
-    !current && restoreError ? <div className="partner-panel">
+    {!current && restoring ? <div className="partner-panel" data-panel-theme={panelTheme}><p role="status">Retomando seu operador…</p></div> :
+    !current && restoreError ? <div className="partner-panel" data-panel-theme={panelTheme}>
       <p role="alert">Não foi possível retomar seu operador. Confira a conexão e tente novamente. Se o acesso expirou ou foi alterado, confirme o PIN.</p>
       <button type="button" className="module-submit-btn" onClick={() => setRestoreRevision(value => value + 1)}>Retomar operador</button>
       <button type="button" className="rma-advance-btn" onClick={() => requestAccess('employee')}>Trocar operador por PIN</button>
