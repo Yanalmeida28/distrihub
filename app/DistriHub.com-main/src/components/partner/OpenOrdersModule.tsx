@@ -37,17 +37,17 @@ type Props = {
 
 const cashierRoles: SalespersonRole[] = ['administrador', 'gerente', 'caixa', 'vendedor'];
 
-const statusLabels: Record<string, { label: string; color: string }> = {
-  aberta: { label: 'ABERTO', color: '#7bc8ff' },
-  pre_venda: { label: 'ABERTO', color: '#7bc8ff' },
-  concluida: { label: 'CONCLUÍDO', color: '#4ade80' },
-  cancelada: { label: 'CANCELADO', color: '#fda4af' },
+const statusLabels: Record<string, { label: string; color: string; tone: string }> = {
+  aberta: { label: 'ABERTO', color: '#7bc8ff', tone: 'info' },
+  pre_venda: { label: 'ABERTO', color: '#7bc8ff', tone: 'info' },
+  concluida: { label: 'CONCLUÍDO', color: '#4ade80', tone: 'success' },
+  cancelada: { label: 'CANCELADO', color: '#fda4af', tone: 'danger' },
 };
 
-const payStatusLabels: Record<string, { label: string; color: string }> = {
-  pago: { label: 'Pago', color: '#4ade80' },
-  pendente: { label: 'Pendente', color: '#fbbf24' },
-  cancelado: { label: 'Cancelado', color: '#fda4af' },
+const payStatusLabels: Record<string, { label: string; color: string; tone: string }> = {
+  pago: { label: 'Pago', color: '#4ade80', tone: 'success' },
+  pendente: { label: 'Pendente', color: '#fbbf24', tone: 'warning' },
+  cancelado: { label: 'Cancelado', color: '#fda4af', tone: 'danger' },
 };
 
 export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
@@ -335,15 +335,15 @@ export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, produc
 
       <div className="orders-summary" data-all-pending={pendingCount === displayedOrders.length} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Pedidos em aberto</small>
+          <small>Pedidos em aberto</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{displayedOrders.length}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Valor total</small>
+          <small>Valor total</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{money.format(totalAmount)}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Pendentes</small>
+          <small>Pendentes</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{pendingCount}</strong>
         </div>
       </div>
@@ -442,8 +442,8 @@ export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, produc
               <tr><td colSpan={5} className="empty-row">Nenhum pedido em aberto.</td></tr>
             ) : (
               displayedOrders.map((s) => {
-                const st = statusLabels[s.status] ?? { label: s.status, color: '#7f97a9' };
-                const pst = payStatusLabels[s.payment_status] ?? { label: s.payment_status, color: '#7f97a9' };
+                const st = statusLabels[s.status] ?? { label: s.status, color: '#7f97a9', tone: 'neutral' };
+                const pst = payStatusLabels[s.payment_status] ?? { label: s.payment_status, color: '#7f97a9', tone: 'neutral' };
                 return (
                   <tr key={s.id}>
                     <td data-label="Pedido">
@@ -454,11 +454,11 @@ export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, produc
                     <td data-label="Cliente">
                       <strong>{s.customer_name ?? '—'}</strong>
                       <small className="open-order-secondary">{s.items.length} {s.items.length === 1 ? 'item' : 'itens'}</small>
-                      <span className="rma-status-badge" style={{ color: st.color, borderColor: st.color, backgroundColor: `${st.color}18` }}>{st.label}</span>
+                      <span className="rma-status-badge" data-tone={st.tone} style={{ color: st.color, borderColor: st.color, backgroundColor: `${st.color}18` }}>{st.label}</span>
                     </td>
                     <td data-label="Pagamento">
                       <small className="open-order-secondary">{s.payment_method ?? 'A definir'}</small>
-                      <span className="rma-status-badge" style={{ color: pst.color, borderColor: pst.color, backgroundColor: `${pst.color}18` }}>{pst.label}</span>
+                      <span className="rma-status-badge" data-tone={pst.tone} style={{ color: pst.color, borderColor: pst.color, backgroundColor: `${pst.color}18` }}>{pst.label}</span>
                       {s.online_payment && <small className="open-order-secondary">Pagamento online</small>}
                     </td>
                     <td data-label="Total"><strong>{money.format(saleChargeTotal(s))}</strong>{s.freight_fee ? <small>Frete: {money.format(s.freight_fee)}</small> : null}</td>

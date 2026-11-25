@@ -210,7 +210,7 @@ function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], sel
 
       <div className="financial-dashboard">
         <div className="fin-card">
-          <div className="wallet-icon" style={{ color: '#e6a06d', background: 'rgba(230,160,109,.12)' }}>
+          <div className="wallet-icon" data-tone="warning" style={{ color: '#e6a06d', background: 'rgba(230,160,109,.12)' }}>
             <Clock size={22} />
           </div>
           <div>
@@ -219,7 +219,7 @@ function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], sel
           </div>
         </div>
         <div className="fin-card">
-          <div className="wallet-icon" style={{ color: '#55adf1', background: 'rgba(85,173,241,.12)' }}>
+          <div className="wallet-icon" data-tone="info" style={{ color: '#55adf1', background: 'rgba(85,173,241,.12)' }}>
             <Navigation size={22} />
           </div>
           <div>
@@ -228,7 +228,7 @@ function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], sel
           </div>
         </div>
         <div className="fin-card">
-          <div className="wallet-icon" style={{ color: '#5bbc87', background: 'rgba(80,211,148,.12)' }}>
+          <div className="wallet-icon" data-tone="success" style={{ color: '#5bbc87', background: 'rgba(80,211,148,.12)' }}>
             <Check size={22} />
           </div>
           <div>
@@ -237,7 +237,7 @@ function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], sel
           </div>
         </div>
         <div className="fin-card">
-          <div className="wallet-icon" style={{ color: '#e3829b', background: 'rgba(227,130,155,.12)' }}>
+          <div className="wallet-icon" data-tone="danger" style={{ color: '#e3829b', background: 'rgba(227,130,155,.12)' }}>
             <X size={22} />
           </div>
           <div>
@@ -249,15 +249,15 @@ function DeliveryScreen({ sales: fallbackSales, salespeople, customers = [], sel
 
       <div className="orders-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', margin: '18px 0 12px' }}>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Valor total em rota</small>
+          <small>Valor total em rota</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{money.format(totalValue)}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Entregas atribuídas</small>
+          <small>Entregas atribuídas</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{assignedCount}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Fila ativa</small>
+          <small>Fila ativa</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{deliveries.filter(d => d.status === 'pendente' || d.status === 'em_rota').length}</strong>
         </div>
       </div>

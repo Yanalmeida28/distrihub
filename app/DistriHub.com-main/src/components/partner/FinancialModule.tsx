@@ -207,15 +207,15 @@ function FinancialScreen({ invoices, creditLimit, creditUsed, onPayInvoice, rmaR
 
       <div className="orders-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', margin: '18px 0 12px' }}>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Total faturado</small>
+          <small>Total faturado</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{money.format(totalInvoiced)}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Liquidado (recebimentos + créditos)</small>
+          <small>Liquidado (recebimentos + créditos)</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{money.format(totalPaid)}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Vencidas</small>
+          <small>Vencidas</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{overdueCount}</strong>
         </div>
       </div>

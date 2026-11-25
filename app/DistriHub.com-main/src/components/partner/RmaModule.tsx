@@ -27,6 +27,13 @@ type RmaModuleProps = {
   onDelete: (id: string) => Promise<void>;
 };
 
+const rmaStatusTones = {
+  aguardando_troca: 'warning',
+  retornou_fornecedor: 'info',
+  reintegrado_estoque: 'success',
+  credito_gerado: 'success',
+} as const;
+
 const deleteAllowedRoles: SalespersonRole[] = ['administrador', 'gerente'];
 
 function errorMessage(error: unknown, fallback: string) {
@@ -589,7 +596,7 @@ export function RmaModule({
                       </td>
                       <td data-label="Lote/Pedido">{saleReference(rma)}</td>
                       <td data-label="Status">
-                        <span className="rma-status-badge" style={{ color: rmaStatusColors[rma.status], borderColor: rmaStatusColors[rma.status] }}>
+                        <span className="rma-status-badge" data-tone={rmaStatusTones[rma.status]} style={{ color: rmaStatusColors[rma.status], borderColor: rmaStatusColors[rma.status] }}>
                           {rmaStatusLabels[rma.status]}
                         </span>
                       </td>

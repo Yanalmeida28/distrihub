@@ -187,3 +187,12 @@
   .atendimento-chat[data-mobile="thread"] > :not(.atendimento-thread),
   .atendimento-chat[data-mobile="customer"] > :not(.atendimento-details) { display: none; }
 }
+
+.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="white"]) .atendimento-messages li {
+  background: var(--panel-theme-raised);
+  color: var(--dh-text);
+}
+
+.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="white"]) .atendimento-messages li[data-outgoing] {
+  background: color-mix(in srgb, var(--panel-theme-accent) 15%, var(--dh-surface));
+}

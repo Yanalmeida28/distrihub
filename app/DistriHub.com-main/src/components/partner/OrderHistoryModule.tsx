@@ -5,14 +5,14 @@ import { money } from '../../utils';
 
 type Props = { orders?: B2BOrder[]; salesHistory?: ReactNode };
 
-const statusMap: Record<string, { label: string; color: string }> = {
-  pendente: { label: 'Pendente', color: '#e6a06d' },
-  pago: { label: 'Pago', color: '#5bbc87' },
-  concluido: { label: 'Concluído', color: '#5bbc87' },
-  cancelado: { label: 'Cancelado', color: '#e3829b' },
-  em_producao: { label: 'Em produção', color: '#7eb1ff' },
-  enviado: { label: 'Enviado', color: '#62d0ff' },
-  entregue: { label: 'Entregue', color: '#3fbf8d' },
+const statusMap: Record<string, { label: string; color: string; tone: string }> = {
+  pendente: { label: 'Pendente', color: '#e6a06d', tone: 'warning' },
+  pago: { label: 'Pago', color: '#5bbc87', tone: 'success' },
+  concluido: { label: 'Concluído', color: '#5bbc87', tone: 'success' },
+  cancelado: { label: 'Cancelado', color: '#e3829b', tone: 'danger' },
+  em_producao: { label: 'Em produção', color: '#7eb1ff', tone: 'info' },
+  enviado: { label: 'Enviado', color: '#62d0ff', tone: 'info' },
+  entregue: { label: 'Entregue', color: '#3fbf8d', tone: 'success' },
 };
 
 const paymentMap: Record<string, string> = {
@@ -101,15 +101,15 @@ export function OrderHistoryModule({ orders = [], salesHistory }: Props) {
 
       <div className="orders-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '16px' }}>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Pedidos</small>
+          <small>Pedidos</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{filteredOrders.length}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Valor total</small>
+          <small>Valor total</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{money.format(totalValue)}</strong>
         </div>
         <div className="orders-summary-card" style={{ padding: '14px 16px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', background: '#0f1f2c' }}>
-          <small style={{ color: '#8ba3b5' }}>Pendentes</small>
+          <small>Pendentes</small>
           <strong style={{ display: 'block', fontSize: '22px', marginTop: '6px' }}>{pendingCount}</strong>
         </div>
       </div>
@@ -132,7 +132,7 @@ export function OrderHistoryModule({ orders = [], salesHistory }: Props) {
             ) : filteredOrders.map((order, index) => {
               if (!order) return null;
               const statusKey = order.status ? String(order.status) : '';
-              const mappedStatus = statusMap[statusKey] ?? { label: statusKey || 'Pendente', color: '#7f97a9' };
+              const mappedStatus = statusMap[statusKey] ?? { label: statusKey || 'Pendente', color: '#7f97a9', tone: 'neutral' };
               const mappedPayment = paymentMap[order.payment_method ?? ''] ?? order.payment_method ?? '—';
               const orderIdStr = order.id ? String(order.id) : '';
               const displayId = orderIdStr ? (orderIdStr.length > 8 ? orderIdStr.slice(0, 8) : orderIdStr) : '—';
@@ -157,7 +157,7 @@ export function OrderHistoryModule({ orders = [], salesHistory }: Props) {
                   <td data-label="Total">{money.format(Number(order.total) || 0)}</td>
                   <td data-label="Pagamento">{mappedPayment}</td>
                   <td data-label="Status">
-                    <span className="rma-status-badge" style={{ color: mappedStatus.color, borderColor: mappedStatus.color }}>
+                    <span className="rma-status-badge" data-tone={mappedStatus.tone} style={{ color: mappedStatus.color, borderColor: mappedStatus.color }}>
                       {mappedStatus.label}
                     </span>
                   </td>

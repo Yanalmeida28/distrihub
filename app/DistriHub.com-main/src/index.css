@@ -4059,7 +4059,8 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
 .partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context > span { flex: 1 1 220px; max-width: 100%; overflow-wrap: anywhere; }
 .partner-panel .pdv-workspace .pdv-cash-context > button { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 44px; height: auto; white-space: normal; overflow-wrap: anywhere; }
 
-:is(.partner-panel, .personalization-panel-preview)[data-panel-theme="blue-glass"] {
+:is(.partner-panel, .personalization-panel-preview)[data-panel-theme="blue-glass"],
+body:has(.partner-panel[data-panel-theme="blue-glass"]) > :is(.product-actions-popover, .sale-actions-menu) {
   --panel-theme-background: #091724;
   --panel-theme-canvas: radial-gradient(ellipse at top, #102b43, var(--panel-theme-background) 55%);
   --panel-theme-surface: #102638;
@@ -4088,7 +4089,8 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   --dh-danger-bg: color-mix(in srgb, var(--panel-theme-danger) 13%, transparent);
 }
 
-[data-panel-theme="white"] {
+[data-panel-theme="white"],
+body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popover, .sale-actions-menu) {
   --panel-theme-background: #f4f8fd;
   --panel-theme-surface: #fff;
   --panel-theme-raised: #e4effb;
@@ -4156,4 +4158,21 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   .partner-panel[data-panel-theme="white"] .product-list-table tbody tr:has(.product-identity):hover > td :is(strong, small) {
     color: var(--panel-theme-text) !important;
   }
+}
+
+body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="white"])) > .sale-actions-menu button svg {
+  color: var(--panel-theme-accent);
+}
+
+body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="white"])) > :is(.product-actions-popover, .sale-actions-menu) button:is(.danger, .sale-actions-danger) {
+  color: var(--panel-theme-danger);
+  background: color-mix(in srgb, var(--panel-theme-danger) 13%, var(--panel-theme-surface));
+}
+
+body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="white"])) > .sale-actions-menu button.sale-actions-danger svg {
+  color: inherit;
+}
+
+.partner-panel .orders-summary-card > small {
+  color: var(--dh-text-secondary);
 }
