@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import ts from '../../node_modules/typescript/lib/typescript.js';
+import { personalizationHelpers } from './fixtures/personalization_helpers.mjs';
 
 const require = createRequire(import.meta.url);
 const source = await readFile(new URL('../../src/App.tsx', import.meta.url), 'utf8');
@@ -18,11 +19,12 @@ const cashExports = {};
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/lib/checkoutCash.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, { exports: cashExports });
-async function harness({ user = { id: 'owner' }, master = false, permissionError = null, loading = false, recovery = false, clockFailures = 0, legacy = false, signoutError = false } = {}) {
+async function harness({ user = { id: 'owner' }, master = false, permissionError = null, loading = false, recovery = false, clockFailures = 0, legacy = false, signoutError = false, identity = null, theme = undefined } = {}) {
   let auth, renderer, signouts = 0, checks = 0;
+  const themeReads = [];
   const stored = new Map(legacy ? [['distrihub:operator-selection:owner:owner', JSON.stringify({ branchId: 'a', operatorId: 'employee' })]] : []);
   const storage = { getItem: key => stored.get(key) ?? null, removeItem: key => stored.delete(key) };
-  function partner({ onBack, onRequestAccess }) { return React.createElement('button', { onClick: onBack, onDoubleClick: () => onRequestAccess('owner'), 'data-panel': 'partner' }, 'Sair do app'); }
+  function partner({ onBack, onRequestAccess, accessLocked, cachedPanelPreferences }) { return React.createElement('button', { onClick: onBack, onDoubleClick: () => onRequestAccess('owner'), 'data-panel': 'partner', 'data-locked': accessLocked, 'data-theme': cachedPanelPreferences?.theme }, 'Sair do app'); }
   function admin({ onBack }) { return React.createElement('button', { onClick: onBack, 'data-panel': 'master' }, 'Sair do app'); }
   function login(props) { return React.createElement('div', { 'data-panel': 'login', 'data-recovery': props.recoveryMode }); }
   const dependencies = {
@@ -35,8 +37,17 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
     './components/PartnerPanel': { PartnerPanel: partner },
     './components/AdminPanel': { AdminPanel: admin },
     './components/AuthScreen': { AuthScreen: login },
-    './components/partner/PartnerAccessGate': { PartnerAccessGate: props => props.children(null, props.onSwitchAccount) },
-    './lib/supabase': { supabase: { async rpc() { checks++; return clockFailures-- > 0 ? { data: null, error: { code: 'PGRST303', message: 'JWT issued at future' } } : { data: master, error: permissionError }; } } },
+    './components/partner/PartnerAccessGate': { PartnerAccessGate: props => props.children(null, props.onSwitchAccount, true) },
+    './lib/personalization': personalizationHelpers,
+    './lib/supabase': { supabase: {
+      async rpc() { checks++; return clockFailures-- > 0 ? { data: null, error: { code: 'PGRST303', message: 'JWT issued at future' } } : { data: master, error: permissionError }; },
+      from(table) {
+        return { select(columns) { return { eq(key, company) { return { async maybeSingle() {
+          themeReads.push({ table, columns, key, company });
+          return { data: theme ? { panel: { theme } } : null, error: null };
+        } }; } }; } };
+      },
+    } },
     './lib/b2bOrder': {},
     './lib/checkoutCash': cashExports,
   };
@@ -44,10 +55,10 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
   }).outputText, { exports, Error, sessionStorage: storage, require: name => dependencies[name] ?? require(name) });
-  auth = { user, loading, passwordRecovery: recovery, profile: null, identity: null,
+  auth = { user, loading, passwordRecovery: recovery, profile: null, identity,
     async signOut() { signouts++; if (signoutError) throw new Error('Logout failed'); auth = { ...auth, user: null }; renderer.update(React.createElement(exports.default)); } };
   await act(async () => { renderer = TestRenderer.create(React.createElement(exports.default)); });
-  return { renderer, stored, get signouts() { return signouts; }, get checks() { return checks; },
+  return { renderer, stored, themeReads, get signouts() { return signouts; }, get checks() { return checks; },
     recoverClock() { clockFailures = 0; },
     async update(changes) { auth = { ...auth, ...changes }; await act(async () => renderer.update(React.createElement(exports.default))); },
     async close() { await act(async () => renderer.unmount()); } };
@@ -70,6 +81,17 @@ test('update notice only mounts inside an authenticated panel, never on landing,
     assert.equal(blocked.renderer.root.findAllByType('aside').length,0);
     await blocked.close();
   }
+});
+
+test('the saved company theme reaches the locked panel before an operator PIN', async () => {
+  const h = await harness({ identity: { authUserId: 'owner', companyUserId: 'company' }, theme: 'white' });
+  const { props } = h.renderer.root.findByProps({ 'data-panel': 'partner' });
+  assert.equal(props['data-locked'], true);
+  assert.equal(props['data-theme'], 'white');
+  assert.deepEqual(h.themeReads.map(read => [read.table, read.columns, read.key, read.company]), [
+    ['partner_store_settings', 'panel:personalization->panel', 'user_id', 'company'],
+  ]);
+  await h.close();
 });
 
 test('switching accounts ends the current session and requires a new login', async () => {
