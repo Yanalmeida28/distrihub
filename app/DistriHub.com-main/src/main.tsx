@@ -7,6 +7,7 @@ import './components/partner/PdvMobileReview.css';
 import './components/partner/OpenOrdersMobile.css';
 import './components/partner/RoutinesMobile.css';
 import './components/partner/ManagementMobile.css';
+import './components/partner/BlueGlassMobile.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

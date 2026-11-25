@@ -1,0 +1,50 @@
+@media (width < 768px) {
+  :is(.partner-panel, .personalization-panel-preview)[data-panel-theme="blue-glass"] {
+    --panel-theme-background: #091724;
+    --panel-theme-canvas: radial-gradient(ellipse at top, #102b43, var(--panel-theme-background) 55%);
+    --panel-theme-surface: #102638;
+    --panel-theme-raised: #17354d;
+    --panel-theme-border: rgb(255 255 255 / 12%);
+    --panel-theme-card: rgb(255 255 255 / 5%);
+    --panel-theme-text: #e8f1fb;
+    --panel-theme-secondary: #9db3c8;
+    --panel-theme-accent: #7cc0f5;
+    --panel-theme-success: #5eead4;
+    --panel-theme-warning: #fbbf24;
+    --panel-theme-danger: #fca5a5;
+    --mobile-glass-action: #3b9bed;
+    --mobile-glass-on-action: #04121f;
+    --mobile-glass-radius: 18px;
+  }
+
+  .partner-panel[data-panel-theme="blue-glass"] :is(.module-card, .report-card, .cash-card, .orders-summary-card),
+  .personalization-panel-preview[data-panel-theme="blue-glass"] .personalization-preview-card {
+    background: var(--panel-theme-card) !important;
+    border: 1px solid var(--panel-theme-border);
+    border-radius: var(--mobile-glass-radius);
+  }
+
+  .partner-panel[data-panel-theme="blue-glass"] :is(.report-card, .orders-summary-card),
+  .personalization-panel-preview[data-panel-theme="blue-glass"] .personalization-preview-card {
+    backdrop-filter: blur(14px);
+  }
+
+  .partner-panel[data-panel-theme="blue-glass"] .sidebar-nav-item.active {
+    background: color-mix(in srgb, var(--mobile-glass-action) 15%, transparent);
+    color: var(--panel-theme-accent);
+  }
+
+  .partner-panel[data-panel-theme="blue-glass"] .sidebar-nav-item.active::before {
+    left: 0;
+    width: 3px;
+    background: var(--mobile-glass-action);
+    opacity: 1;
+  }
+
+  .partner-panel[data-panel-theme="blue-glass"] :is(.partner-primary-btn, .support-new-ticket):not(:disabled),
+  .personalization-panel-preview[data-panel-theme="blue-glass"] button {
+    background: var(--mobile-glass-action);
+    color: var(--mobile-glass-on-action);
+    border-color: var(--mobile-glass-action);
+  }
+}
