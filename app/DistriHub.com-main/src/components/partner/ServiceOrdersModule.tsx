@@ -3,6 +3,7 @@ import { checklistItems, checklistResults, checklistComplete as isChecklistCompl
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Camera,
+  Copy,
   ClipboardList,
   ImagePlus,
   Package,
@@ -165,6 +166,12 @@ function ServiceOrdersContent({
   const photosRef = useRef(photos); photosRef.current = photos;
   useEffect(() => () => { photosRef.current.forEach(photo => URL.revokeObjectURL(photo.preview)); }, []);
   useEffect(() => { if (!isActive) setDetails(null); }, [isActive]);
+
+  const [duplicatedFrom, setDuplicatedFrom] = useState('');
+  const orderFormRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (open && duplicatedFrom) orderFormRef.current?.scrollIntoView?.({ block: 'start' });
+  }, [open, duplicatedFrom]);
 
   const entryFileRef = useRef<HTMLInputElement>(null);
   const exitFileRef = useRef<HTMLInputElement>(null);
@@ -379,6 +386,7 @@ function ServiceOrdersContent({
     });
 
     setOpen(false);
+    setDuplicatedFrom('');
     setCustomerId('');
     setManualCustomerName('');
     setManualCustomerEmail('');
@@ -401,6 +409,33 @@ function ServiceOrdersContent({
     setExitPhotos([]);
     setPhotoError(null);
     setSaveError(null);
+  }
+
+  function duplicateOrder(order: ServiceOrder) {
+    if (open || pendingAttempt || saveLock.current || photoLock.current ||
+        order.user_id !== userId || order.branch_id !== selectedBranchId) return;
+
+    const registeredCustomer = branchCustomers.find(customer => customer.id === order.customer_id);
+    resetForm();
+    if (registeredCustomer) {
+      setCustomerId(registeredCustomer.id);
+    } else if (order.customer_name?.trim()) {
+      setCustomerId(manualCustomerOption);
+      setManualCustomerName(order.customer_name);
+      setManualCustomerEmail(order.customer_email ?? '');
+      setManualCustomerAddress(order.customer_address ?? '');
+      setManualCustomerPhone(order.customer_phone ?? '');
+    }
+    setEquipmentType(order.equipment_type ?? '');
+    setIdentification(order.equipment_identification || [order.equipment_brand, order.equipment_model].filter(Boolean).join(' '));
+    setSerial(order.serial_number || order.imei || '');
+    setAccessories(order.accessories_left ?? '');
+    setCondition(order.physical_condition ?? '');
+    setDamage(order.entry_damage ?? '');
+    const previousNotes = order.entry_notes?.split(/\[Checklist de entrada\]|Cliente ciente das condições de entrada:/)[0]?.trim();
+    setNotes(previousNotes || [order.reported_issue, order.observations].filter(Boolean).join('\n'));
+    setDuplicatedFrom(order.os_number || order.id.slice(0, 8));
+    setOpen(true);
   }
 
   async function compressPhoto(file: File): Promise<File> {
@@ -594,11 +629,13 @@ function ServiceOrdersContent({
         <div
           className="partner-card service-order-form"
           aria-label="Nova ordem de serviço"
+          ref={orderFormRef}
           style={{
             padding: 22,
             marginBottom: 24,
           }}
         >
+          {duplicatedFrom && <p role="status">Dados da OS #{duplicatedFrom} preenchidos. Revise o atendimento e faça a nova vistoria antes de salvar.</p>}
           <fieldset disabled={saving || preparingPhotos} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
           <div
             className="service-order-form-header"
@@ -1278,6 +1315,7 @@ function ServiceOrdersContent({
                   <strong className="service-order-total">{money(Number(order.total))}</strong>
                   <div className="service-order-actions">
                     <button type="button" className="module-action-btn" disabled={saving || preparingPhotos} onClick={() => { if (!saveLock.current && !photoLock.current) { setCancelRequestedId(null); setDetails(order); } }}>Abrir OS</button>
+                    <button type="button" className="partner-secondary-btn" disabled={open || !!pendingAttempt || saving || preparingPhotos} aria-label={`Duplicar OS #${reference}`} onClick={() => duplicateOrder(order)}><Copy size={15} aria-hidden="true" /> Duplicar OS</button>
                     {!terminalStatuses.includes(order.status) && <button type="button" className="partner-secondary-btn" disabled={saving || preparingPhotos} aria-label={`Cancelar OS #${order.id.slice(0, 8)}`} onClick={() => { if (!saveLock.current && !photoLock.current) { setCancelRequestedId(order.id); setDetails(order); } }}>Cancelar OS</button>}
                   </div>
                 </li>

@@ -45,6 +45,9 @@ function ServiceOrderDetailsContent({ order, customers, onClose, onChanged, prin
   const [readVersion, setReadVersion] = useState(0);
   const lock = useRef(false);
   const terminal = ['cancelada', 'finalizada', 'entregue'].includes(order.status);
+  const finalizing = status === 'finalizada';
+  const mustMarkReady = finalizing && order.status !== 'pronta';
+  const needsApproval = ['em_andamento', 'pronta', 'finalizada'].includes(status) && approval !== 'aprovado';
   const fileKey = 'service-order-details:' + order.user_id + ':' + order.id;
   const selectedCustomer = customers.find(customer => customer.id === customerId && (!customer.branch_id || customer.branch_id === order.branch_id));
   const showManualContact = !customerId && !order.customer_id;
@@ -90,6 +93,8 @@ function ServiceOrderDetailsContent({ order, customers, onClose, onChanged, prin
     await action(async () => {
       if (!supabase) throw new Error('Conexão indisponível.');
       if (!invoiceKnown) throw new Error('Confira a cobrança da OS antes de salvar. Recarregue os detalhes.');
+      if (mustMarkReady) throw new Error('Salve a OS como Pronta antes de finalizar.');
+      if (needsApproval) throw new Error('Selecione Aprovado em Aprovação do orçamento antes de salvar esta situação.');
       const hasExit = Object.values(exitChecklist).some(Boolean);
       if (status !== 'cancelada' && (hasExit || ['finalizada', 'entregue'].includes(status)) && !checklistComplete(order.equipment_type, exitChecklist)) throw new Error('Complete o checklist de saída. Para itens sem teste, selecione Não testado.');
       const savedReason = hasExit && status !== 'cancelada' ? [reason.trim(), checklistText(order.equipment_type, exitChecklist, 'saída')].filter(Boolean).join('\n\n') : reason;
@@ -98,7 +103,9 @@ function ServiceOrderDetailsContent({ order, customers, onClose, onChanged, prin
       if (error || !data) throw error ?? new Error('Situação não confirmada.');
       if (!mounted.current) return;
       if (data.id !== order.id || data.user_id !== order.user_id || data.branch_id !== order.branch_id) throw new Error('Confirmação inválida da OS. Recarregue os detalhes.');
-      onChanged(data as ServiceOrder); setMessage('Situação da OS salva.');
+      if (data.status !== status) throw new Error('A situação solicitada não foi confirmada. Recarregue os detalhes da OS e tente novamente.');
+      onChanged(data as ServiceOrder);
+      setMessage(status === 'finalizada' ? 'OS finalizada.' : 'Situação da OS salva.');
     });
   }
   async function cancelOrder(event: React.FormEvent) {
@@ -167,7 +174,12 @@ function ServiceOrderDetailsContent({ order, customers, onClose, onChanged, prin
       {invoiceId && <p>OS faturada: o cliente está vinculado à cobrança e não pode ser alterado aqui.</p>}
       <label>Responsável técnico<input maxLength={200} value={technician} onChange={e => setTechnician(e.target.value)} /></label>
       <label>Aprovação do orçamento<select value={approval} onChange={e => setApproval(e.target.value as ServiceOrderApprovalStatus)}><option value="aguardando_aprovacao">Aguardando aprovação</option><option value="aprovado">Aprovado</option><option value="reprovado">Reprovado</option></select></label>
-      <label>Situação<select value={status} onChange={e => setStatus(e.target.value as ServiceOrderStatus)}>{statuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
+      <label>Situação<select aria-describedby={mustMarkReady || needsApproval ? 'service-order-status-steps' : undefined} value={status} onChange={e => setStatus(e.target.value as ServiceOrderStatus)}>{statuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
+      {(mustMarkReady || needsApproval) && <p id="service-order-status-steps" role="status">
+        {mustMarkReady
+          ? 'Para finalizar, selecione Aprovado no orçamento, escolha Pronta e salve a situação. Depois selecione Finalizada / entregue, confira o checklist de saída e salve novamente.'
+          : 'Selecione Aprovado em Aprovação do orçamento para salvar esta situação.'}
+      </p>}
       <label>Observação / motivo<textarea required={status === 'cancelada'} minLength={status === 'cancelada' ? 5 : undefined} maxLength={4000} value={reason} onChange={e => setReason(e.target.value)} /></label>
       <h4>Checklist de saída</h4>
       <p>Confira após o reparo e antes de entregar. Os resultados são salvos junto com a situação da OS. Avarias e sinais de umidade devem ser marcados como Com defeito.</p>
