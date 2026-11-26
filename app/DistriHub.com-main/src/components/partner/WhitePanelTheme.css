@@ -1,4 +1,5 @@
-:is(.partner-panel, .personalization-panel-preview, .single-panel-modal)[data-panel-theme="white"],
+:root[data-panel-loading-theme="white"]:has(#root:empty),
+:is(.partner-panel, .personalization-panel-preview, .single-panel-modal, .super-admin-gate)[data-panel-theme="white"],
 body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popover, .sale-actions-menu) {
   --panel-theme-background: #f1f6fc;
   --panel-theme-surface: #fff;
@@ -113,3 +114,5 @@ body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popove
 .partner-panel[data-panel-theme="white"] .sidebar-operator {
   --sidebar-operator-surface: var(--panel-theme-raised);
 }
+
+:root[data-panel-loading-theme="white"]:has(#root:empty) { background: var(--panel-theme-background); }

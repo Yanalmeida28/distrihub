@@ -9,6 +9,15 @@
     />
 
     <meta name="theme-color" content="#091724" />
+    <script>
+      try {
+        const saved = JSON.parse(sessionStorage.getItem('distrihub:panel-appearance'));
+        if (saved?.preferences?.theme === 'white' && !/^\/catalogo\/?$/.test(location.pathname) &&
+            !new URLSearchParams(location.search).has('cadastro')) {
+          document.documentElement.dataset.panelLoadingTheme = 'white';
+        }
+      } catch { /* Browser storage may be unavailable. */ }
+    </script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
       name="apple-mobile-web-app-status-bar-style"
