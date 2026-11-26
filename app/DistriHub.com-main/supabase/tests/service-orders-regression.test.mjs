@@ -331,11 +331,28 @@ test('entry checklist saves defects and not-applicable results, and refuses unan
  assert.match(h.calls[0].args.p_payload.notes,/Câmera traseira: Não testado/);
 });
 
+test('finalization guides open orders to Pronta and rejects a mismatched server status', async () => {
+ const h=await harness({detail:orderA,rpc:()=>({data:{...orderA,id:'ready-os',status:'pronta'},error:null})});
+ const chooseFinal=async current=>act(async()=>view.root.findAllByType('select').find(node=>node.props.value===current).props.onChange({target:{value:'finalizada'}}));
+ const submit=async()=>act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
+ await chooseFinal('em_andamento');
+ assert.match(rendered(),/escolha Pronta/);
+ await submit();
+ assert.equal(h.calls.length,0);
+ await h.update({order:{...orderA,id:'ready-os',status:'pronta'}});
+ await chooseFinal('pronta');
+ await act(async()=>button('Marcar pendentes como não testados').props.onClick());
+ await submit();
+ assert.equal(h.calls.length,1);
+ assert.match(rendered(),/situação solicitada não foi confirmada/);
+ assert.doesNotMatch(rendered(),/OS finalizada\./);
+});
+
 test('exit checklist is saved by the authorized workflow, restores separately, and blocks incomplete delivery',async()=>{
- const mobile={...orderA,equipment_type:'Celular'};
- const h=await harness({detail:mobile});
+ const mobile={...orderA,equipment_type:'Celular',status:'pronta'};
+ const h=await harness({detail:mobile,rpc:()=>({data:{...mobile,status:'finalizada'},error:null})});
  const selects=view.root.findAllByType('select');
- const status=selects.find(node=>node.props.value==='em_andamento');
+ const status=selects.find(node=>node.props.value==='pronta');
  await act(async()=>status.props.onChange({target:{value:'finalizada'}}));
  await act(async()=>view.root.findByType('form').props.onSubmit({preventDefault(){}}));
  assert.equal(h.calls.length,0);assert.match(rendered(),/Complete o checklist/);
@@ -347,6 +364,25 @@ test('exit checklist is saved by the authorized workflow, restores separately, a
  await h.update({order:{...mobile,id:'other-os',approval_notes:h.calls[0].args.p_reason}});
  assert.equal(view.root.findByProps({'aria-label':'Saída: Touch'}).props.value,'Funcionando');
  const reason=view.root.findByType('textarea');assert.equal(reason.props.value,'');
+});
+
+test('duplicating an old OS pre-fills an editable draft and requires a new inspection', async () => {
+ const original={...orderA,os_number:'042',status:'finalizada',equipment_type:'Celular',serial_number:'123',
+  entry_notes:'Falha na carga\n\n[Checklist de entrada]\nTouch: Funcionando\n[/Checklist de entrada]\nCliente ciente das condições de entrada: sim.'};
+ const h=await harness({orders:[original],customers:[{id:'client-a',name:'Cliente Atual',branch_id:'branch-a'}]});
+ const duplicate=()=>view.root.findByProps({'aria-label':'Duplicar OS #042'});
+ assert.equal(duplicate().props.disabled,true);
+ await act(async()=>view.root.findByProps({'aria-label':'Fechar formulário de nova OS'}).props.onClick());
+ await act(async()=>duplicate().props.onClick());
+ const form=view.root.findByProps({'aria-label':'Nova ordem de serviço'});
+ assert.equal(form.findAllByType('select').some(node=>node.props.value==='client-a'),true);
+ assert.equal(form.findByProps({placeholder:'Modelo, patrimônio, placa, etiqueta...'}).props.value,'A');
+ assert.equal(form.findByProps({placeholder:'Opcional'}).props.value,'123');
+ assert.equal(form.findByProps({placeholder:'Sintomas, testes, observações do cliente...'}).props.value,'Falha na carga');
+ assert.equal(form.findByProps({'aria-label':'Entrada: Touch'}).props.value,'');
+ await act(async()=>save().props.onClick());
+ assert.equal(h.calls.length,0);
+ assert.match(rendered(),/Complete a vistoria/);
 });
 
 test('OS list finds the registered number and filters by readable situation', async () => {
