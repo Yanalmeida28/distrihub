@@ -1772,10 +1772,10 @@ export function PartnerPanel({
             borderRadius: '8px',
             background:
               isEmployeeRestricted
-                ? 'rgba(59,155,237,0.12)'
-                : '#102433',
+                ? 'var(--sidebar-operator-surface, rgba(59,155,237,.12))'
+                : 'var(--sidebar-operator-surface, #102433)',
             border:
-              '1px solid #1d3445',
+              '1px solid var(--panel-theme-border, #1d3445)',
           }}
         >
           <div
@@ -1794,7 +1794,7 @@ export function PartnerPanel({
             >
               <small
                 style={{
-                  color: '#6e8799',
+                  color: 'var(--panel-theme-secondary, #6e8799)',
                   display: 'block',
                   fontSize: '11px',
                 }}
@@ -1804,7 +1804,7 @@ export function PartnerPanel({
 
               <strong
                 style={{
-                  color: '#eaf1f6',
+                  color: 'var(--panel-theme-text, #eaf1f6)',
                   fontSize: '13px',
                   display: 'block',
                   whiteSpace:
@@ -1827,7 +1827,7 @@ export function PartnerPanel({
                     alignItems:
                       'center',
                     gap: '4px',
-                    color: '#5cb5f1',
+                    color: 'var(--panel-theme-accent, #5cb5f1)',
                     fontSize: '11px',
                     marginTop: '2px',
                   }}
@@ -1839,7 +1839,7 @@ export function PartnerPanel({
                 <span
                   style={{
                     display: 'block',
-                    color: '#889eaf',
+                    color: 'var(--panel-theme-secondary, #889eaf)',
                     fontSize: '11px',
                     marginTop: '2px',
                   }}

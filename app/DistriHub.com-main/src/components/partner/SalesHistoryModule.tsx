@@ -210,19 +210,23 @@ function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = 
     </div>
     {historyError && <p role="alert" className="otp-error-msg">{historyError}<button className="rma-advance-btn" onClick={() => setHistoryVersion(value => value + 1)}>Tentar novamente</button></p>}
     {serverMode && !currentHistory ? !historyError && <p role="status">Carregando histórico...</p> : <p>{serverMode ? currentHistory?.total ?? 0 : filteredSales.length} vendas encontradas no período. Total concluído: <strong>{money.format(serverMode ? currentHistory?.completedTotal ?? 0 : filteredSales.filter(s => s.status === 'concluida').reduce((sum, s) => sum + Number(s.total), 0))}</strong></p>}
-    {serverMode && <div className="subscription-actions"><button type="button" disabled={page === 0 || !currentHistory} onClick={() => setPage(value => value - 1)}>Anterior</button><span>Página {page + 1} · {currentHistory?.total ?? '…'} venda(s)</span><button type="button" disabled={!currentHistory || (page + 1) * 25 >= currentHistory.total} onClick={() => setPage(value => value + 1)}>Próxima</button><button type="button" onClick={() => setHistoryVersion(value => value + 1)}>Atualizar histórico</button></div>}
+    {serverMode && <div className="sales-history-pagination">
+      {currentHistory && (currentHistory.total > 0 || page > 0) && <>
+        <button className="partner-secondary-btn" type="button" disabled={page === 0} onClick={() => setPage(value => value - 1)}>Anterior</button>
+        <span>Página {page + 1}</span>
+        <button className="partner-secondary-btn" type="button" disabled={(page + 1) * 25 >= currentHistory.total} onClick={() => setPage(value => value + 1)}>Próxima</button>
+      </>}
+      <button className="partner-secondary-btn" type="button" onClick={() => setHistoryVersion(value => value + 1)}>Atualizar histórico</button>
+    </div>}
       {printError && <p className="otp-error-msg" role="alert">{printError}</p>}
       {shareNotice && <p role="status">{shareNotice}</p>}
       <div className="pdv-recent-sales sales-history-table">
         <h4>Vendas</h4>
-        <div className="stock-table-wrap sales-history-list-wrap">
+        {displayedSales.length > 0 ? <div className="stock-table-wrap sales-history-list-wrap">
           <table className="rma-table sales-history-list-table">
             <thead><tr><th>Cliente</th><th>Itens</th><th>Total</th><th>Pagamento</th><th>{traceabilityLabel}</th><th>Status</th><th>Data</th><th></th></tr></thead>
             <tbody>
-              {displayedSales.length === 0 ? (
-                <tr><td colSpan={8} className="empty-row">{serverMode && !currentHistory ? 'Aguardando consulta do historico.' : 'Nenhuma venda registrada.'}</td></tr>
-              ) : (
-                displayedSales.map((s) => (
+              {displayedSales.map((s) => (
                   <tr key={s.id} className={s.status === 'cancelada' ? 'cancelled-row' : ''}>
                     <td data-label="Cliente"><strong>{s.customer_name ?? '—'}</strong>{s.observations && <small className="sale-observations">Obs. {s.observations}</small>}<small className="sales-history-id" title={s.id}>#{(s.sale_number ? String(s.sale_number).padStart(6, '0') : s.id.slice(0, 8))}</small></td>
                     <td data-label="Itens">
@@ -257,11 +261,12 @@ function SalesHistoryContent({ timeZone, companyId, branchId = null, isActive = 
                       )}
                     </td>
                   </tr>
-                ))
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
+        </div> : (!serverMode || currentHistory) && !historyError && (
+          <p className="sales-history-empty">Nenhuma venda registrada no período.</p>
+        )}
       </div>
 
 

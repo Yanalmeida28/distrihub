@@ -140,7 +140,7 @@ export function PartnerAccessGate({ user, identity, identityError, panelTheme, o
     </div> :
     children(current?.kind === 'employee' ? current.operator : null, requestAccess, !current, selectBranch)
     }
-    {mode && <PinAccessDialog key={`${scope}:${mode}`} mode={mode}
+    {mode && <PinAccessDialog key={`${scope}:${mode}`} mode={mode} panelTheme={panelTheme}
       identity={identity} user={user} onAuthorize={allow} onSwitchAccount={onSwitchAccount}
       onClose={() => setMode(null)} />}
   </>;
@@ -148,11 +148,11 @@ export function PartnerAccessGate({ user, identity, identityError, panelTheme, o
 
 type DirectoryEntry = { id: string; name: string; active: boolean; branch_name: string | null; can_access_all_branches?: boolean };
 type DialogProps = {
-  mode: Mode; identity: PartnerIdentity; user: User;
+  mode: Mode; panelTheme?: PanelPreferences['theme']; identity: PartnerIdentity; user: User;
   onAuthorize: (access: PartnerAccess) => void | Promise<void>; onSwitchAccount: () => Promise<void>; onClose?: () => void;
 };
 
-export function PinAccessDialog({ mode, identity, user, onAuthorize, onSwitchAccount, onClose }: DialogProps) {
+export function PinAccessDialog({ mode, panelTheme, identity, user, onAuthorize, onSwitchAccount, onClose }: DialogProps) {
   const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
   const [selected, setSelected] = useState(identity.salespersonId ?? '');
   const [pin, setPin] = useState('');
@@ -226,7 +226,7 @@ export function PinAccessDialog({ mode, identity, user, onAuthorize, onSwitchAcc
   }
   const owner = mode === 'owner';
   return <div className="modal-backdrop" onClick={close}>
-    <div className="modal-content single-panel-modal" role="dialog" aria-modal="true"
+    <div className="modal-content single-panel-modal" data-panel-theme={panelTheme} role="dialog" aria-modal="true"
       aria-labelledby="operator-access-title" onClick={event => event.stopPropagation()}>
       <div className="single-panel-header"><h3 id="operator-access-title">
         {owner ? <Shield size={18} /> : <UserCheck size={18} />}{' '}

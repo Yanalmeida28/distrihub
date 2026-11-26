@@ -4327,3 +4327,21 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
   .service-orders-summary > div { padding: 8px; }
   .service-orders-summary dt { overflow-wrap: anywhere; }
 }
+
+.partner-panel .sales-history-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-block: 12px;
+}
+
+.partner-panel .sales-history-empty {
+  margin: 0;
+  padding: 20px 12px;
+  border: 1px solid var(--dh-border);
+  border-radius: var(--dh-radius);
+  background: var(--dh-surface);
+  text-align: center;
+  overflow-wrap: break-word;
+}

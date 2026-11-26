@@ -18,3 +18,16 @@
 .single-panel-modal button:disabled{opacity:.6;cursor:wait}
 .single-panel-modal .single-panel-form .otp-error-msg{color:#fda4af}
 @media(max-width:480px){.modal-content.single-panel-modal{padding:22px;border-radius:16px}.single-panel-modal .single-panel-header h3{font-size:18px}}
+
+.single-panel-modal[data-panel-theme="white"] { color-scheme: light; }
+.single-panel-modal[data-panel-theme="white"] .single-panel-confirm {
+  background: var(--dh-blue);
+  color: var(--dh-on-primary);
+}
+.single-panel-modal[data-panel-theme="white"] .single-panel-confirm:hover:not(:disabled) {
+  background: var(--dh-blue-hover);
+  color: var(--dh-on-primary-hover);
+}
+.single-panel-modal[data-panel-theme="white"] .single-panel-secondary:hover:not(:disabled) { color: var(--panel-theme-accent); }
+.single-panel-modal[data-panel-theme="white"] :is(input, select, button):focus-visible { outline-color: var(--panel-theme-accent); }
+.single-panel-modal[data-panel-theme="white"] .single-panel-form .otp-error-msg { color: var(--panel-theme-danger); }

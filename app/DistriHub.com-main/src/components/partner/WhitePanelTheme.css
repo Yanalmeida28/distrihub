@@ -1,4 +1,4 @@
-:is(.partner-panel, .personalization-panel-preview)[data-panel-theme="white"],
+:is(.partner-panel, .personalization-panel-preview, .single-panel-modal)[data-panel-theme="white"],
 body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popover, .sale-actions-menu) {
   --panel-theme-background: #f1f6fc;
   --panel-theme-surface: #fff;
@@ -108,4 +108,8 @@ body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popove
   background: color-mix(in srgb, var(--status-tone, var(--dh-text-secondary)) 9%, var(--dh-surface)) !important;
   border-color: color-mix(in srgb, var(--status-tone, var(--dh-text-secondary)) 30%, var(--dh-surface)) !important;
   color: var(--status-tone, var(--dh-text-secondary)) !important;
+}
+
+.partner-panel[data-panel-theme="white"] .sidebar-operator {
+  --sidebar-operator-surface: var(--panel-theme-raised);
 }
