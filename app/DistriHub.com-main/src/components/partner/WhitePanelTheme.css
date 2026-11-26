@@ -3,7 +3,8 @@
 body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popover, .sale-actions-menu) {
   --panel-theme-background: #f1f6fc;
   --panel-theme-surface: #fff;
-  --panel-theme-border: #aebfd3;
+  --panel-theme-border: #9fb2c8;
+  --panel-white-control-border: #738aa2;
   --panel-theme-color-scheme: light;
   --panel-theme-success: #166534;
   --panel-theme-warning: #8a4008;
@@ -74,7 +75,16 @@ body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popove
 
 .partner-panel[data-panel-theme="white"] :is(.pdv-search-bar, .pdv-receipt-btn) {
   background: var(--dh-surface);
-  border-color: var(--dh-border);
+}
+
+.partner-panel[data-panel-theme="white"] :is(input, textarea, select):not(:focus, :disabled),
+.partner-panel[data-panel-theme="white"] :is(.partner-secondary-btn, .pdv-receipt-btn, .sidebar-mobile-close, .support-center .btn-secondary):not(:hover, :focus-visible, :disabled),
+.partner-panel[data-panel-theme="white"] .pdv-search-bar {
+  border-color: var(--panel-white-control-border) !important;
+}
+
+.partner-panel[data-panel-theme="white"] .pdv-search-bar:focus-within {
+  border-color: var(--dh-blue) !important;
 }
 
 .partner-panel[data-panel-theme="white"] :is(.pdv-subtab-badge, .pdv-restricted-checkout, .pdv-continuity-notice) {

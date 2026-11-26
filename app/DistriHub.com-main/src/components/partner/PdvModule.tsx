@@ -1061,7 +1061,10 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
               </p>
             ) : (
               filtered.slice(0, visibleProductCount).map((p) => {
-                const outOfStock = !p.is_service && p.control_stock !== false && p.stock <= 0;
+                const tracksStock = !p.is_service && p.control_stock !== false;
+                const outOfStock = tracksStock && p.stock <= 0;
+                const lowStock = tracksStock && p.stock > 0 && p.stock <= (p.min_stock ?? 0);
+                const availableStockLabel = lowStock ? `${p.stock} un. · Estoque baixo` : `${p.stock} un. em estoque`;
                 const inCartQty = cart.find((i) => i.product_id === p.id)?.quantity ?? 0;
                 const justAdded = lastAddedId === p.id;
                 return (
@@ -1075,9 +1078,9 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                     <strong>{p.name}</strong>
                     {p.sku && <small>SKU: {p.sku}</small>}
                     <span>{priceTable === 'premium' && p.premium_price == null ? 'Premium não configurado' : money.format(getPriceForProduct(p, priceTable))}</span>
-                    {!p.is_service && p.control_stock !== false && (
-                      <small className={`pdv-stock${outOfStock ? ' out' : ''}`}>
-                        {outOfStock ? 'Sem estoque' : `${p.stock} un. em estoque`}
+                    {tracksStock && (
+                      <small className={`pdv-stock${outOfStock ? ' out' : lowStock ? ' low' : ''}`}>
+                        {outOfStock ? 'Sem estoque' : availableStockLabel}
                       </small>
                     )}
                     {justAdded && (
