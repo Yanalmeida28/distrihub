@@ -17,14 +17,14 @@ export function HelpModule({planId,features,plans,focusModule,allowedModules,onN
  const resources=helpResourcesFor(available);
  return <section className="help-center" aria-labelledby="help-title">
   <header className="help-header">
-   <div><p className="help-eyebrow">GUIA DO DISTRiHUB</p><h2 id="help-title"><BookOpen size={25}/> Como usar o app</h2><p>Passo a passo para trabalhar com segurança, da entrada no app à impressão da etiqueta.</p></div>
+   <div><p className="help-eyebrow">GUIA DO DISTRiHUB</p><h2 id="help-title"><BookOpen size={25}/> Como usar o app</h2><p>Consulte os guias de vendas, ordens de serviço, configurações e suporte.</p></div>
    <button type="button" className="rma-advance-btn" onClick={onBack}><ArrowLeft size={16}/> Voltar ao app</button>
   </header>
   <div className="help-controls">
    <label>Guias por plano<select aria-label="Plano dos guias de ajuda" value={viewPlan} onChange={event=>setViewPlan(event.target.value as SaasPlanId)}>
     {Object.entries(helpPlanNames).map(([id,name])=><option key={id} value={id}>{name}{id===planId?' · Plano da conta':''}</option>)}
    </select></label>
-   <label><span><Search size={15}/> O que você quer fazer?</span><input type="search" aria-label="Buscar na ajuda" placeholder="Ex.: etiqueta, PIN, abrir caixa, devolução…" value={search} onChange={event=>setSearch(event.target.value)}/></label>
+   <label><span><Search size={15}/> O que você quer fazer?</span><input type="search" aria-label="Buscar na ajuda" placeholder="Ex.: observação, ordem de serviço, tema, chamado…" value={search} onChange={event=>setSearch(event.target.value)}/></label>
   </div>
   <div className="help-plan-note">
    <strong>Você está consultando o guia {helpPlanNames[viewPlan]}.</strong>

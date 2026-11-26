@@ -4177,8 +4177,17 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
 }
 
 .partner-panel .pdv-product-search-results .pdv-product-card .pdv-stock.out {
-  color: var(--dh-danger) !important;
-  background: color-mix(in srgb, var(--dh-danger) 10%, var(--dh-surface));
+  --pdv-stock-tone: var(--dh-danger);
+}
+
+.partner-panel .pdv-product-search-results .pdv-product-card .pdv-stock.low {
+  --pdv-stock-tone: var(--dh-warning);
+  font-weight: 600;
+}
+
+.partner-panel .pdv-product-search-results .pdv-product-card .pdv-stock:is(.out, .low) {
+  color: var(--pdv-stock-tone) !important;
+  background: color-mix(in srgb, var(--pdv-stock-tone) 10%, var(--dh-surface));
   align-self: flex-start;
   padding: 2px 6px;
   border-radius: var(--dh-radius-sm);
@@ -4278,7 +4287,7 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
 .service-order-filters :is(input, select) { width: 100%; min-width: 0; min-height: 44px; }
 .service-order-search { position: relative; }
 .service-order-search svg { position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%); color: var(--dh-text-secondary); pointer-events: none; }
-.partner-panel .service-order-search input { padding-inline-start: 38px; }
+.partner-panel .service-order-search input { padding-inline-start: 38px !important; }
 
 .service-order-results { display: grid; gap: 8px; list-style: none; margin: 16px 0 0; padding: 0; }
 .service-order-list-row {

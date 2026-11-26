@@ -63,6 +63,30 @@ test('product results stay hidden until a search and clearing it preserves the c
  assert.equal(results().props.hidden,false);assert.match(JSON.stringify(results().findByProps({className:'empty-row'}).children),/Nenhum produto/);
 });
 
+test('PDV search shows low and empty stock without blocking low-stock sales', async () => {
+  const product = { ...props.products[0], min_stock: 3 };
+  const products = [
+    { ...product, id: 'low', name: 'Peça baixa', stock: 3 },
+    { ...product, id: 'empty', name: 'Peça zerada', stock: 0 },
+    { ...product, id: 'available', name: 'Peça disponível', stock: 4 },
+    { ...product, id: 'untracked', name: 'Peça sem controle', stock: 1, control_stock: false },
+    { ...product, id: 'service', name: 'Peça serviço', stock: 0, is_service: true },
+  ];
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(module.exports.Checkout, { ...props, products }));
+  });
+  const search = renderer.root.findByProps({ 'aria-label': 'Buscar produto por nome, SKU ou código de barras' });
+  await act(async () => search.props.onChange({ target: { value: 'Peça' } }));
+  const results = renderer.root.findByProps({ 'aria-label': 'Resultados da pesquisa' });
+  const low = results.findByProps({ className: 'pdv-stock low' });
+  assert.equal(low.children.join(''), '3 un. · Estoque baixo');
+  assert.equal(low.parent.props.disabled, false);
+  const empty = results.findByProps({ className: 'pdv-stock out' });
+  assert.equal(empty.children.join(''), 'Sem estoque');
+  assert.equal(empty.parent.props.disabled, true);
+  assert.equal(results.findByProps({ className: 'pdv-stock' }).children.join(''), '4 un. em estoque');
+});
+
 test('checkout places customer type and customer picker in the same layout row', async () => {
   await act(async () => { renderer = TestRenderer.create(React.createElement(module.exports.Checkout, props)); });
   const form = renderer.root.findByProps({ className: 'pdv-form' });
