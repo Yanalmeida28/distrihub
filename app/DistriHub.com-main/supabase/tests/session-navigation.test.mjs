@@ -19,11 +19,12 @@ const cashExports = {};
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/lib/checkoutCash.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, { exports: cashExports });
-async function harness({ user = { id: 'owner' }, master = false, permissionError = null, loading = false, recovery = false, clockFailures = 0, legacy = false, signoutError = false, identity = null, theme = undefined } = {}) {
+async function harness({ user = { id: 'owner' }, master = false, permissionError = null, loading = false, recovery = false, clockFailures = 0, legacy = false, signoutError = false, identity = null, theme = undefined, savedAppearance, pendingTheme } = {}) {
   let auth, renderer, signouts = 0, checks = 0;
   const themeReads = [];
   const stored = new Map(legacy ? [['distrihub:operator-selection:owner:owner', JSON.stringify({ branchId: 'a', operatorId: 'employee' })]] : []);
-  const storage = { getItem: key => stored.get(key) ?? null, removeItem: key => stored.delete(key) };
+  if (savedAppearance) stored.set('distrihub:panel-appearance', JSON.stringify(savedAppearance));
+  const storage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) };
   function partner({ onBack, onRequestAccess, accessLocked, cachedPanelPreferences }) { return React.createElement('button', { onClick: onBack, onDoubleClick: () => onRequestAccess('owner'), 'data-panel': 'partner', 'data-locked': accessLocked, 'data-theme': cachedPanelPreferences?.theme }, 'Sair do app'); }
   function admin({ onBack }) { return React.createElement('button', { onClick: onBack, 'data-panel': 'master' }, 'Sair do app'); }
   function login(props) { return React.createElement('div', { 'data-panel': 'login', 'data-recovery': props.recoveryMode }); }
@@ -44,7 +45,7 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
       from(table) {
         return { select(columns) { return { eq(key, company) { return { async maybeSingle() {
           themeReads.push({ table, columns, key, company });
-          return { data: theme ? { panel: { theme } } : null, error: null };
+          return pendingTheme ?? { data: theme ? { panel: { theme } } : null, error: null };
         } }; } }; } };
       },
     } },
@@ -265,4 +266,18 @@ test('a delayed initial session cannot overwrite login, token refresh preserves 
   await act(async () => { await assert.rejects(current.signOut(), /Não foi possível sair/); });
   assert.equal(current.user.id, 'owner'); assert.equal(current.identity.companyUserId, 'owner');
   await act(async () => renderer.unmount());
+});
+
+test('refresh uses the saved theme while restoring a session, then trusts the company setting', async () => {
+  let finishTheme;
+  const pendingTheme = new Promise(resolve => { finishTheme = resolve; });
+  const h = await harness({ loading: true, savedAppearance: { scope: 'owner:company', preferences: { theme: 'white' } }, pendingTheme });
+  assert.ok(h.renderer.root.findByProps({ className: 'super-admin-gate', 'data-panel-theme': 'white' }));
+  await h.update({ loading: false, identity: { authUserId: 'owner', companyUserId: 'company' } });
+  const partner = () => h.renderer.root.findByProps({ 'data-panel': 'partner' });
+  assert.equal(partner().props['data-theme'], 'white');
+  await act(async () => finishTheme({ data: { panel: { theme: 'blue-glass' } }, error: null }));
+  assert.equal(partner().props['data-theme'], 'blue-glass');
+  assert.equal(JSON.parse(h.stored.get('distrihub:panel-appearance')).preferences.theme, 'blue-glass');
+  await h.close();
 });

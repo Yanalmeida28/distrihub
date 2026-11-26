@@ -16,9 +16,20 @@ const PublicCatalogPage = lazy(() => import('./components/PublicCatalogPage').th
 
 type View = 'hub' | 'partner' | 'auth' | 'admin' | 'super-admin';
 
-function LoadingScreen({ label }: { label: string }) {
+type SavedPanelAppearance = { scope: string; preferences?: Partial<PanelPreferences> };
+const panelAppearanceStorageKey = 'distrihub:panel-appearance';
+
+function readSavedPanelAppearance(): SavedPanelAppearance | undefined {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(panelAppearanceStorageKey) ?? 'null');
+    if (typeof saved?.scope !== 'string') return undefined;
+    return { scope: saved.scope, preferences: saved.preferences ? panelPreferences(saved.preferences) : undefined };
+  } catch { return undefined; }
+}
+
+function LoadingScreen({ label, theme }: { label: string; theme?: PanelPreferences['theme'] }) {
   return (
-    <div className="super-admin-gate">
+    <div className="super-admin-gate" data-panel-theme={theme}>
       <div className="super-admin-gate-card">
         <div className="super-admin-gate-header">
           <h2>{label}</h2>
@@ -47,10 +58,27 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [navigationError, setNavigationError] = useState<string | null>(null);
   const sessionUserId = auth.user?.id ?? null;
 
-  const [panelAppearance, setPanelAppearance] = useState<{ scope: string; preferences?: Partial<PanelPreferences> }>();
+  const [panelAppearance, setPanelAppearance] = useState<SavedPanelAppearance>();
+  const [savedPanelAppearance, setSavedPanelAppearance] = useState(readSavedPanelAppearance);
   const accountScope = auth.identity ? `${auth.identity.authUserId}:${auth.identity.companyUserId}` : null;
   const companyUserId = auth.identity?.companyUserId;
-  const cachedPanelPreferences = accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : undefined;
+  const savedForAccount = accountScope && savedPanelAppearance?.scope === accountScope ? savedPanelAppearance.preferences : undefined;
+  const cachedPanelPreferences = accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : savedForAccount;
+  const panelTheme = accountScope && panelAppearance?.scope === accountScope
+    ? panelPreferences(panelAppearance.preferences).theme
+    : cachedPanelPreferences?.theme ?? cachedPanelPreferences?.financial_theme;
+  const startupTheme = !auth.passwordRecovery && savedPanelAppearance && (
+    !sessionUserId || (accountScope ? savedPanelAppearance.scope === accountScope : savedPanelAppearance.scope.startsWith(sessionUserId + ':'))
+  ) ? savedPanelAppearance.preferences?.theme : undefined;
+
+  useEffect(() => {
+    if (!panelAppearance || panelAppearance.scope !== accountScope) return;
+    try {
+      sessionStorage.setItem(panelAppearanceStorageKey, JSON.stringify({
+        scope: panelAppearance.scope, preferences: panelPreferences(panelAppearance.preferences),
+      }));
+    } catch { /* The active theme still works without browser storage. */ }
+  }, [accountScope, panelAppearance]);
 
   useEffect(() => {
     const client = supabase;
@@ -81,6 +109,9 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
       try { sessionStorage.removeItem(`distrihub:operator-session:${accountScope}`); }
       catch { /* A new login has a different server session and cannot reuse the token. */ }
     }
+    try { sessionStorage.removeItem(panelAppearanceStorageKey); }
+    catch { /* The session has already been terminated. */ }
+    setSavedPanelAppearance(undefined);
     setPanelAppearance(undefined);
     setPartnerInitialTab(undefined);
     setSuperAdminUnlocked(false);
@@ -197,7 +228,7 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
     </div></div>;
   }
   if (auth.loading || (sessionUserId && !auth.passwordRecovery && sessionAccess?.userId !== sessionUserId)) {
-    return <LoadingScreen label="Recuperando sua sessão" />;
+    return <LoadingScreen label="Recuperando sua sessão" theme={panelTheme ?? startupTheme} />;
   }
   if (sessionUserId && !auth.passwordRecovery && sessionAccess?.error) {
     return <div className="super-admin-gate"><div className="super-admin-gate-card">
@@ -235,10 +266,10 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
       )}
 
       {view === 'partner' && (
-        <Suspense fallback={<LoadingScreen label="Área do parceiro" />}>
+        <Suspense fallback={<LoadingScreen label="Área do parceiro" theme={panelTheme ?? startupTheme} />}>
           <PartnerAccessGate key={auth.user?.id} user={auth.user} identity={auth.identity}
             identityError={auth.error} onRetryIdentity={auth.retrySession} onSwitchAccount={handleSwitchAccount}
-            panelTheme={cachedPanelPreferences?.theme ?? cachedPanelPreferences?.financial_theme}>
+            panelTheme={panelTheme ?? (!accountScope ? startupTheme : undefined)}>
           {(pinOperator, onRequestAccess, accessLocked, onSelectOperatorBranch) => <PartnerPanel
             key={`${auth.user?.id}:${accessLocked ? 'locked' : pinOperator?.id ?? 'owner'}:${pinOperator?.branchId ?? 'all'}`}
             accessLocked={accessLocked}

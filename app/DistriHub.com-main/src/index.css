@@ -679,7 +679,7 @@ select option:hover, select option:checked { background: var(--panel-theme-borde
 
 /* ===== Super Admin Gate ===== */
 .super-admin-gate { min-height: 100vh; display: grid; place-items: center; background: var(--panel-theme-background, #091724); padding: 40px 20px; }
-.super-admin-gate-card { width: 100%; max-width: 440px; padding: 36px 32px; background: #0e1d2b; border: 1px solid var(--panel-theme-border, #1d3445); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.super-admin-gate-card { width: 100%; max-width: 440px; padding: 36px 32px; background: var(--panel-theme-surface, #0e1d2b); border: 1px solid var(--panel-theme-border, #1d3445); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
 .super-admin-gate-header { text-align: center; margin-bottom: 24px; }
 .super-admin-gate-icon { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 14px; background: rgba(227,130,155,.1); color: #e3829b; margin-bottom: 14px; }
 .super-admin-gate-header h2 { font: 700 20px Manrope; color: var(--panel-theme-text, #eaf1f6); margin-bottom: 6px; }
@@ -4048,7 +4048,7 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
 .partner-panel .pdv-workspace .pdv-subtabs > .pdv-cash-context > span { flex: 1 1 220px; max-width: 100%; overflow-wrap: anywhere; }
 .partner-panel .pdv-workspace .pdv-cash-context > button { flex: 0 1 auto; min-width: 0; max-width: 100%; min-height: 44px; height: auto; white-space: normal; overflow-wrap: anywhere; }
 
-:is(.partner-panel, .personalization-panel-preview)[data-panel-theme="blue-glass"],
+:is(.partner-panel, .personalization-panel-preview, .super-admin-gate)[data-panel-theme="blue-glass"],
 body:has(.partner-panel[data-panel-theme="blue-glass"]) > :is(.product-actions-popover, .sale-actions-menu) {
   --panel-theme-background: #091724;
   --panel-theme-canvas: radial-gradient(ellipse at top, #102b43, var(--panel-theme-background) 55%);

@@ -7,9 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       atendimento_chat:
-        description: Ativar Chat na compilação deste ambiente
-        type: boolean
-        default: false
+        description: Configuração do Chat para esta publicação
+        type: choice
+        default: repository
+        options:
+          - repository
+          - 'true'
+          - 'false'
 
 permissions:
   contents: read
@@ -91,7 +95,7 @@ jobs:
       - name: Gerar build
         run: npm run build
         env:
-          VITE_ATENDIMENTO_CHAT: ${{ inputs.atendimento_chat && 'true' || 'false' }}
+          VITE_ATENDIMENTO_CHAT: ${{ (inputs.atendimento_chat == 'true' || inputs.atendimento_chat == 'false') && inputs.atendimento_chat || vars.VITE_ATENDIMENTO_CHAT || 'false' }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 

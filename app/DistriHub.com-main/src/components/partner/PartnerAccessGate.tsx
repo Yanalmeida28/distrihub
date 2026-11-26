@@ -127,7 +127,7 @@ export function PartnerAccessGate({ user, identity, identityError, panelTheme, o
     });
   }, [identity, current, scope, mode]);
   function requestAccess(nextMode: Mode) { generation.current.value++; setRestoring(false); setRestoreError(false); setMode(nextMode); }
-  if (!identity || !user) return <div className="partner-panel"><p role="status">
+  if (!identity || !user) return <div className="partner-panel" data-panel-theme={panelTheme}><p role="status">
     {identityError || 'Validando sua sessão…'}</p>
     {identityError && onRetryIdentity && <button type="button" className="module-submit-btn" onClick={onRetryIdentity}>Tentar novamente</button>}
   </div>;
