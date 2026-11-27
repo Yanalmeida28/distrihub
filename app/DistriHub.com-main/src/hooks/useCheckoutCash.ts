@@ -54,13 +54,14 @@ export function useCheckoutCash(branchId: string, operatorId: string | null, ope
     document.addEventListener('visibilitychange', visible);
     return () => { invalidateReads(); inFlight.current = null; window.removeEventListener('focus', sync); window.removeEventListener('distrihub:cash-changed', sync); document.removeEventListener('visibilitychange', visible); };
   }, [refresh, scope, invalidateReads, isActive]);
-  const assertOpen = useCallback(async () => {
+  const assertOpen = useCallback(async (expectedSessionId?: string) => {
     const result = await refresh();
     if (context.current.branchId !== branchId || context.current.operatorId !== operatorId
       || context.current.operatorPin !== operatorPin || context.current.scope !== scope || context.current.managedSessionId !== managedSessionId || context.current.checkoutModule !== checkoutModule) {
       throw new Error('O operador ou a filial mudou durante a conferência. Confira o caixa antes de finalizar.');
     }
     if (!result.current) throw new Error(closedCashMessage(operatorName, result.others.map(session => session.operator_name)));
+    if (expectedSessionId && result.current.id !== expectedSessionId) throw new Error('O caixa original da venda não está aberto. Confira a venda pendente antes de sincronizar.');
   }, [refresh, operatorName, branchId, operatorId, operatorPin, scope, managedSessionId, checkoutModule]);
   return { ...state, refresh, assertOpen };
 }

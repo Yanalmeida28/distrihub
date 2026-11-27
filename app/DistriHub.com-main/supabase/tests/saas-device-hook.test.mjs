@@ -52,3 +52,27 @@ test('falha de rede impede operação até nova validação no servidor', async 
   offline = true; await h.tick(); assert.equal(h.current.ready, false); assert.match(h.current.error, /conexão/);
   offline = false; await h.tick(); assert.equal(h.current.ready, true);
 });
+test('uma falha de transporte mantém o mesmo terminal aberto e exige validação de outra filial', async () => {
+  let status = 200;
+  const h = await harness(async () => ({
+    status,
+    error: status === 0 ? { message: 'TypeError: Failed to fetch' } : status === 403 ? { message: 'Sessão encerrada' } : null,
+  }));
+  assert.equal(h.current.ready, true);
+  status = 0;
+  await h.tick();
+  assert.equal(h.current.ready, true);
+  assert.equal(h.current.interrupted, true);
+  await h.switchBranch('branch-2');
+  assert.equal(h.current.ready, false);
+  status = 200;
+  await h.tick();
+  assert.equal(h.current.ready, true);
+  assert.equal(h.current.interrupted, false);
+  status = 403;
+  await h.tick();
+  status = 0;
+  await h.tick();
+  assert.equal(h.current.ready, false);
+  assert.equal(h.current.error, 'Sessão encerrada');
+});

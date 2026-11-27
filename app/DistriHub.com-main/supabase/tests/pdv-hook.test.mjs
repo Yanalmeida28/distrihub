@@ -341,6 +341,48 @@ test('offline sale is refused before allocating an attempt or calling the server
  assert.equal(calls,1);assert(confirmed.id);assert.equal(h.current.pendingSale,null);
 });
 
+test('contingency synchronization keeps its original ID across a lost confirmation', async () => {
+ const id = randomUUID();
+ const ids = [];
+ let drop = true;
+ const h = await harness({rpc: async (name, args) => {
+   if (name === 'get_partner_pdv_snapshot') return {data:snapshot(),error:null};
+   ids.push(args.p_sale_id);
+   return drop ? {error:{message:'Synthetic transport interruption'}} : {data:args.p_sale_id,error:null};
+ }});
+ const sale = {...payload(), customer_id:null, customer_name:'Cliente Varejo', payment_method:'dinheiro'};
+ await act(async()=>assert.rejects(h.current.createSale(sale, null, null, id), /não confirmado/));
+ assert.equal(h.current.pendingSale.id, id);
+ await act(async()=>assert.rejects(h.current.createSale(sale, null, null, randomUUID()), /tentativa anterior/));
+ drop = false;
+ await act(async()=>assert.equal((await h.current.createSale(sale, null, null, id)).id, id));
+ assert.deepEqual(ids, [id, id]);
+ assert.equal(h.current.pendingSale, null);
+});
+
+test('a recorded contingency sale can clear the local queue, while changed prices require review', async () => {
+ const id = randomUUID();
+ const sale = {...payload(), customer_id:null, customer_name:'Cliente Varejo', payment_method:'dinheiro'};
+ let exists = true;
+ let writes = 0;
+ const h = await harness({
+   readResult: (table, fallback, _mutation, request) => table === 'partner_sales' && request.filters.some(([field, value]) => field === 'id' && value === id) && exists
+     ? {data:{...sale,id,status:'concluida'},error:null} : fallback,
+   rpc: async (name, args) => {
+     if (name === 'get_partner_pdv_snapshot') return {data:snapshot({products:[{id:'physical',sale_price:130}]}),error:null};
+     writes++;
+     return {data:args.p_sale_id,error:null};
+   },
+ });
+ let cashChecks = 0;
+ const checkCash = async () => { cashChecks++; };
+ await act(async () => assert.equal((await h.current.createSale(sale, null, null, id, checkCash)).id,id));
+ exists = false;
+ await act(async () => assert.rejects(h.current.createSale(sale, null, null, id, checkCash), /preços ou produtos mudaram/));
+ assert.equal(writes,0);
+ assert.equal(cashChecks,0);
+});
+
 test('a pending sale survives closing all tabs and keeps the original ID on explicit recovery',async()=>{
  const values=new Map();let original;
  const first=await harness({values,sessionValues:new Map(),rpc:async(_name,args)=>{original=args.p_sale_id;return {error:{message:'Synthetic network failure'}};}});

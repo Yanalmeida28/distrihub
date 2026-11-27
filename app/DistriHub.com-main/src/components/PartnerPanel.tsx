@@ -1,3 +1,4 @@
+import { OfflineTerminal, type OfflineSale } from './partner/OfflineTerminal';
 import { usePriceLists } from '../hooks/usePriceLists';
 import { PriceListsModule } from './partner/PriceListsModule';
 import { useSupportUnread } from '../hooks/useSupportUnread';
@@ -395,7 +396,11 @@ export function PartnerPanel({
   const [adminDataScope, setAdminDataScope] = useState('dashboard');
   const [reportDataScope, setReportDataScope] = useState('vendas');
   const [cadastroDataScope, setCadastroDataScope] = useState('produtos');
-  const deviceSession = useDeviceHeartbeat(identity?.companyUserId, identity?.salespersonId ? identity.branchId : selectedBranchId || null);
+  const deviceSession = useDeviceHeartbeat(
+    identity?.companyUserId,
+    identity?.salespersonId ? identity.branchId : selectedBranchId || null,
+    identity ? `${identity.authUserId}:${identity.salespersonId ?? 'owner'}` : undefined,
+  );
   const partner = usePartnerData(deviceSession.ready ? identity : null, identity?.salespersonId ? identity.branchId : selectedBranchId || null, activeTab === 'cadastros' || (activeTab === 'administrativo' && adminDataScope === 'cadastros') ? 'cadastros:' + cadastroDataScope : activeTab === 'relatorios' || (activeTab === 'administrativo' && adminDataScope === 'relatorios') ? 'relatorios:' + reportDataScope : activeTab === 'administrativo' ? 'administrativo:' + adminDataScope : activeTab);
   const confirmedSettings = identity && partner.settings?.user_id === identity.companyUserId ? partner.settings : null;
   const appearanceScope = identity ? `${identity.authUserId}:${identity.companyUserId}` : null;
@@ -1184,6 +1189,20 @@ export function PartnerPanel({
     );
   }
 
+  async function synchronizeOfflineSale(sale: OfflineSale, expectedCashId: string) {
+    if (!effectiveBranchId || !networkAvailable || deviceSession.interrupted) {
+      throw new Error('Reconecte a filial antes de sincronizar.');
+    }
+    const { operatorId, operatorPin } = getOperatorContext();
+    return partner.createSale({
+      customer_id: null, customer_name: 'Cliente Varejo', customer_type: 'varejo',
+      items: sale.items, total: sale.total, payment_method: 'dinheiro', delivery_type: 'balcao',
+      observations: 'Registro em contingencia: ' + sale.recordedAt + ' (UTC).',
+      branch_id: effectiveBranchId, cash_session_id: managedCashSession?.id ?? null,
+      salesperson_id: activeSalesperson?.id ?? null,
+    }, operatorId, operatorPin, sale.id, () => checkoutCash.assertOpen(expectedCashId));
+  }
+
   async function handleCreatePreSale(
     sale: {
       customer_id: string | null;
@@ -1923,8 +1942,8 @@ export function PartnerPanel({
 
       <div className="sidebar-main">
         <div className="sidebar-main-inner">
-          {!networkAvailable && <div className="pdv-continuity-notice" role="status">
-            <strong>Sem internet</strong>
+          {(!networkAvailable || deviceSession.interrupted) && <div className="pdv-continuity-notice" role="status">
+            <strong>{networkAvailable ? 'Aguardando reconexão ao servidor' : 'Sem internet'}</strong>
             <p>As informações já carregadas podem estar desatualizadas. Operações no servidor precisam de conexão; não considere uma venda concluída sem a confirmação.</p>
             {partner.lastSyncedAt && <small>Última atualização: {partner.lastSyncedAt.toLocaleTimeString('pt-BR')}.</small>}
           </div>}
@@ -1980,7 +1999,20 @@ export function PartnerPanel({
             )}
             {visitedTabs.has('pdv') && !blockedTabs.includes('pdv') && canUseSaasFeature(saas.subscription, 'pdv') && (
               <div hidden={activeTab !== 'pdv'}>
+              {activeTab === 'pdv' && effectiveBranchId && <OfflineTerminal
+                key={`${operatorScope}:${effectiveBranchId}:${pinOperator?.id ?? 'owner'}`}
+                scope={`${operatorScope}:${pinOperator?.id ?? identity?.salespersonId ?? 'owner'}`}
+                branchId={effectiveBranchId}
+                branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name ?? 'Filial selecionada'}
+                cashId={checkoutCash.current?.id}
+                connected={networkAvailable && !deviceSession.interrupted}
+                canPrepare={checkoutCash.status === 'open' && !partner.loading && partner.resourcesReady !== false}
+                products={filteredProducts}
+                confirmCash={checkoutCash.assertOpen}
+                syncSale={synchronizeOfflineSale}
+              />}
               {renderTab('pdv', <PdvModule
+                connectivityInterrupted={deviceSession.interrupted}
                 priceLists={priceLists.lists}
                 isActive={activeTab === 'pdv' && partner.resourcesReady !== false && !partner.loading}
                 preSaleToCheckout={preSaleToCheckout}

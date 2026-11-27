@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#091724">
+  <title>DistriHub · Contingência</title>
+  <link rel="stylesheet" href="/contingencia/style.css">
+  <script type="module" src="/contingencia/app.js"></script>
+</head>
+<body>
+  <main>
+    <header><h1>PDV em contingência</h1><a href="/">Voltar ao DistriHub</a></header>
+    <p>Vendas em dinheiro registradas aqui ficam pendentes até a sincronização no PDV.</p>
+    <form id="unlock">
+      <label>Senha local do terminal<input name="password" type="password" required minlength="8" maxlength="128" autocomplete="off"></label>
+      <button>Desbloquear</button>
+    </form>
+    <p id="message" role="status" aria-live="polite"></p>
+    <section id="workspace" hidden>
+      <div class="card"><h2>Terminal e caixa</h2><p id="terminal"></p><p id="validity"></p></div>
+      <div class="card"><h2>Produtos</h2><label>Buscar por nome, SKU ou código de barras<input id="search" type="search" autocomplete="off"></label><ul id="products"></ul></div>
+      <div class="card"><h2>Carrinho em dinheiro</h2><ul id="cart"></ul><p id="total"></p><button id="save" type="button">Registrar venda pendente</button></div>
+      <div class="card"><h2>Vendas pendentes de sincronização</h2><ul id="queue"></ul></div>
+      <button id="lock" type="button">Bloquear terminal</button>
+    </section>
+  </main>
+</body>
+</html>
