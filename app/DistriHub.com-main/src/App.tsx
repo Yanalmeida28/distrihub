@@ -18,12 +18,16 @@ type View = 'hub' | 'partner' | 'auth' | 'admin' | 'super-admin';
 
 type SavedPanelAppearance = { scope: string; preferences?: Partial<PanelPreferences> };
 const panelAppearanceStorageKey = 'distrihub:panel-appearance';
-const whiteThemePilotCompany = 'b9e98e0f-5625-452f-b7f7-48a264234822';
-const whiteThemeDeviceKey = `distrihub:device-white-theme:${whiteThemePilotCompany}`;
+const themePilotCompany = 'b9e98e0f-5625-452f-b7f7-48a264234822';
+const deviceThemeKey = `distrihub:device-white-theme:${themePilotCompany}`;
+const deviceThemeLabels = { white: 'Fundo Branco', 'blue-glass': 'Azul Vidro' } as const;
+type DeviceTheme = keyof typeof deviceThemeLabels;
 
-function readDeviceWhiteTheme(): boolean {
-  try { return localStorage.getItem(whiteThemeDeviceKey) === 'white'; }
-  catch { return false; }
+function readDeviceTheme(): DeviceTheme | undefined {
+  try {
+    const value = localStorage.getItem(deviceThemeKey);
+    return value === 'white' || value === 'blue-glass' ? value : undefined;
+  } catch { return undefined; }
 }
 
 function readSavedPanelAppearance(): SavedPanelAppearance | undefined {
@@ -69,12 +73,12 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [savedPanelAppearance, setSavedPanelAppearance] = useState(readSavedPanelAppearance);
   const accountScope = auth.identity ? `${auth.identity.authUserId}:${auth.identity.companyUserId}` : null;
   const companyUserId = auth.identity?.companyUserId;
-  const whiteThemePilot = Boolean(accountScope && companyUserId === whiteThemePilotCompany);
-  const [deviceWhiteTheme, setDeviceWhiteTheme] = useState(readDeviceWhiteTheme);
-  const [whitePreviewScope, setWhitePreviewScope] = useState<string | null>(null);
+  const themePilot = Boolean(accountScope && companyUserId === themePilotCompany);
+  const [deviceTheme, setDeviceTheme] = useState(readDeviceTheme);
+  const [themePreview, setThemePreview] = useState<{ scope: string | null; theme: DeviceTheme }>();
   const [deviceThemeError, setDeviceThemeError] = useState('');
-  const previewingWhite = whiteThemePilot && whitePreviewScope === accountScope;
-  const localPanelTheme = whiteThemePilot && (previewingWhite || deviceWhiteTheme) ? 'white' : undefined;
+  const previewTheme = themePilot && themePreview?.scope === accountScope ? themePreview.theme : undefined;
+  const localPanelTheme = themePilot ? previewTheme ?? deviceTheme : undefined;
   const savedForAccount = accountScope && savedPanelAppearance?.scope === accountScope ? savedPanelAppearance.preferences : undefined;
   const cachedPanelPreferences = accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : savedForAccount;
   const panelTheme = localPanelTheme ?? (accountScope && panelAppearance?.scope === accountScope
@@ -84,30 +88,35 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
     !sessionUserId || (accountScope ? savedPanelAppearance.scope === accountScope : savedPanelAppearance.scope.startsWith(sessionUserId + ':'))
   ) ? savedPanelAppearance.preferences?.theme : undefined;
 
-  function saveDeviceWhiteTheme(enabled: boolean) {
+  function saveDeviceTheme(theme?: DeviceTheme) {
     setDeviceThemeError('');
     try {
-      if (enabled) localStorage.setItem(whiteThemeDeviceKey, 'white');
-      else localStorage.removeItem(whiteThemeDeviceKey);
-      setDeviceWhiteTheme(enabled);
-      setWhitePreviewScope(null);
+      if (theme) localStorage.setItem(deviceThemeKey, theme);
+      else localStorage.removeItem(deviceThemeKey);
+      setDeviceTheme(theme);
+      setThemePreview(undefined);
     } catch {
       setDeviceThemeError('O navegador não permitiu salvar a preferência neste aparelho.');
     }
   }
 
-  const deviceAppearance = whiteThemePilot ? (
+  const deviceAppearance = themePilot ? (
     <section className="module-card settings-account-card" aria-labelledby="device-appearance-title">
       <h3 id="device-appearance-title">Aparência neste aparelho</h3>
-      <p>{previewingWhite ? 'Fundo Branco em teste. Você pode navegar pelo painel e voltar aqui para salvar.' :
-        deviceWhiteTheme ? 'Fundo Branco salvo neste navegador.' : 'Experimente o Fundo Branco neste navegador.'}</p>
-      <div className="otp-actions">
-        {previewingWhite ? <>
-          <button type="button" className="module-submit-btn" onClick={() => saveDeviceWhiteTheme(true)}>Salvar tema</button>
-          <button type="button" className="partner-secondary-btn" onClick={() => { setWhitePreviewScope(null); setDeviceThemeError(''); }}>Voltar ao tema anterior</button>
-        </> : deviceWhiteTheme ?
-          <button type="button" className="partner-secondary-btn" onClick={() => saveDeviceWhiteTheme(false)}>Usar tema da empresa</button> :
-          <button type="button" className="module-submit-btn" onClick={() => setWhitePreviewScope(accountScope)}>Experimentar Fundo Branco</button>}
+      <p>{previewTheme ? `${deviceThemeLabels[previewTheme]} em teste. Navegue pelo painel e volte aqui para salvar.` :
+        deviceTheme ? `${deviceThemeLabels[deviceTheme]} salvo neste navegador.` : 'Escolha um tema para experimentar neste navegador.'}</p>
+      <div className="action-row">
+        {previewTheme ? <>
+          <button type="button" className="module-submit-btn" onClick={() => saveDeviceTheme(previewTheme)}>Salvar tema</button>
+          <button type="button" className="partner-secondary-btn" onClick={() => { setThemePreview(undefined); setDeviceThemeError(''); }}>Voltar ao tema anterior</button>
+        </> : <>
+          {(Object.keys(deviceThemeLabels) as DeviceTheme[]).filter(theme => theme !== deviceTheme).map(theme =>
+            <button key={theme} type="button" className="partner-secondary-btn" onClick={() => {
+              setDeviceThemeError('');
+              setThemePreview({ scope: accountScope, theme });
+            }}>Experimentar {deviceThemeLabels[theme]}</button>)}
+          {deviceTheme && <button type="button" className="partner-secondary-btn" onClick={() => saveDeviceTheme()}>Usar tema da empresa</button>}
+        </>}
       </div>
       {deviceThemeError && <p role="alert">{deviceThemeError}</p>}
     </section>
@@ -155,7 +164,7 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
     catch { /* The session has already been terminated. */ }
     setSavedPanelAppearance(undefined);
     setPanelAppearance(undefined);
-    setWhitePreviewScope(null);
+    setThemePreview(undefined);
     setDeviceThemeError('');
     setPartnerInitialTab(undefined);
     setSuperAdminUnlocked(false);
