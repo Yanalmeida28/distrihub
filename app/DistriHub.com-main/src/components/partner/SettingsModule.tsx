@@ -22,6 +22,7 @@ type Props = {
   profile: PartnerProfile | null;
   onProfileUpdate: (profile: Partial<PartnerProfile>) => Promise<unknown>;
   branchManagement?: ReactNode;
+  deviceAppearance?: ReactNode;
   onSubscriptionChanged?: () => void;
 };
 
@@ -66,7 +67,7 @@ const planLabels: Record<string, string> = {
 };
 
 
-export function SettingsModule({ user, profile, onProfileUpdate, branchManagement, onSubscriptionChanged, canManageOwnerPassword = false, canManageAccount = true }: Props) {
+export function SettingsModule({ user, profile, onProfileUpdate, branchManagement, deviceAppearance, onSubscriptionChanged, canManageOwnerPassword = false, canManageAccount = true }: Props) {
   const saas = useSaasSubscription(profile?.id);
   const [accountName, setAccountName] = useState(profile?.account_name ?? '');
   const [whatsapp, setWhatsapp] = useState(profile?.whatsapp ?? '');
@@ -131,6 +132,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
     <div className="module-header"><span className="module-icon"><Settings size={20} /></span><div>
       <h3>Configurações do Sistema</h3><p>Configurações de impressão do seu dispositivo</p>
     </div></div>
+    {deviceAppearance}
     <PrinterSettings />
     <p>Senha da conta, assinatura, permissões da equipe e gerenciamento de filiais ficam na Área do proprietário.</p>
   </div>;
@@ -145,6 +147,7 @@ export function SettingsModule({ user, profile, onProfileUpdate, branchManagemen
         </div>
       </div>
 
+      {deviceAppearance}
       <nav className="mobile-management-only settings-mobile-links" aria-label="Ir para seção de configurações">
         <a className="rma-advance-btn" href="#settings-printing">Impressão</a>
         {branchManagement && <a className="rma-advance-btn" href="#settings-branches">Filiais</a>}

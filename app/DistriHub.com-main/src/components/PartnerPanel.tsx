@@ -118,6 +118,8 @@ import type {
 type PartnerPanelProps = {
   accessLocked?: boolean;
   cachedPanelPreferences?: Partial<PanelPreferences>;
+  localPanelTheme?: PanelPreferences['theme'];
+  deviceAppearance?: ReactNode;
   onPanelPreferencesLoaded?: (appearance: { scope: string; preferences?: Partial<PanelPreferences> }) => void;
   onBack: () => void;
   pinOperator: PinOperator | null;
@@ -327,6 +329,8 @@ export function PartnerPanel({
   accessLocked = false,
   cachedPanelPreferences,
   onPanelPreferencesLoaded,
+  localPanelTheme,
+  deviceAppearance,
   onBack,
   pinOperator,
   onRequestAccess,
@@ -1717,7 +1721,7 @@ export function PartnerPanel({
   const mobileHeaderTitle = accessLocked ? 'Selecionar operador' : helpOpen ? 'Ajuda' : headerTab && (mobileMenuLabels[headerTab.id] ?? headerTab.label);
 
   return (
-    <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-panel-theme={panelAppearance?.theme ?? panelAppearance?.financial_theme} data-personalized-panel={panelAppearance ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(panelAppearance ? panelStyle(panelAppearance) : {}) } as React.CSSProperties}>
+    <div className={`partner-panel sidebar-layout${activeTab === 'pdv' ? ' partner-pdv-mode' : ''}`} data-panel-theme={localPanelTheme ?? panelAppearance?.theme ?? panelAppearance?.financial_theme} data-personalized-panel={panelAppearance ? 'true' : undefined} style={{ ...storeTheme(storeSettings.primary_color, storeSettings.nav_color), ...(panelAppearance ? panelStyle(panelAppearance) : {}) } as React.CSSProperties}>
       <div className="sidebar-mobile-bar">
         <button
           className="sidebar-toggle"
@@ -2537,6 +2541,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'configuracoes'}>
               {renderTab('configuracoes',
               <SettingsModule
+                deviceAppearance={deviceAppearance}
                 canManageAccount={!isEmployeeRestricted && !pinOperator}
                 canManageOwnerPassword={Boolean(identity && !isEmployeeRestricted && !pinOperator)}
                 onSubscriptionChanged={() => { void saas.refresh(); }}

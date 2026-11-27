@@ -19,13 +19,17 @@ const cashExports = {};
 vm.runInNewContext(ts.transpileModule(await readFile(new URL('../../src/lib/checkoutCash.ts', import.meta.url), 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, { exports: cashExports });
-async function harness({ user = { id: 'owner' }, master = false, permissionError = null, loading = false, recovery = false, clockFailures = 0, legacy = false, signoutError = false, identity = null, theme = undefined, savedAppearance, pendingTheme } = {}) {
+async function harness({ user = { id: 'owner' }, master = false, permissionError = null, loading = false, recovery = false, clockFailures = 0, legacy = false, signoutError = false, identity = null, theme = undefined, savedAppearance, pendingTheme, deviceStorage = new Map() } = {}) {
   let auth, renderer, signouts = 0, checks = 0;
   const themeReads = [];
   const stored = new Map(legacy ? [['distrihub:operator-selection:owner:owner', JSON.stringify({ branchId: 'a', operatorId: 'employee' })]] : []);
   if (savedAppearance) stored.set('distrihub:panel-appearance', JSON.stringify(savedAppearance));
   const storage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key) };
-  function partner({ onBack, onRequestAccess, accessLocked, cachedPanelPreferences }) { return React.createElement('button', { onClick: onBack, onDoubleClick: () => onRequestAccess('owner'), 'data-panel': 'partner', 'data-locked': accessLocked, 'data-theme': cachedPanelPreferences?.theme }, 'Sair do app'); }
+  function partner({ onBack, onRequestAccess, accessLocked, cachedPanelPreferences, localPanelTheme, deviceAppearance }) {
+    return React.createElement(React.Fragment, null,
+      React.createElement('button', { onClick: onBack, onDoubleClick: () => onRequestAccess('owner'), 'data-panel': 'partner', 'data-locked': accessLocked, 'data-theme': localPanelTheme ?? cachedPanelPreferences?.theme }, 'Sair do app'),
+      deviceAppearance);
+  }
   function admin({ onBack }) { return React.createElement('button', { onClick: onBack, 'data-panel': 'master' }, 'Sair do app'); }
   function login(props) { return React.createElement('div', { 'data-panel': 'login', 'data-recovery': props.recoveryMode }); }
   const dependencies = {
@@ -55,7 +59,9 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
   const exports = {};
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2020 },
-  }).outputText, { exports, Error, sessionStorage: storage, require: name => dependencies[name] ?? require(name) });
+  }).outputText, { exports, Error, sessionStorage: storage, localStorage: {
+    getItem: key => deviceStorage.get(key) ?? null, setItem: (key, value) => deviceStorage.set(key, value), removeItem: key => deviceStorage.delete(key),
+  }, require: name => dependencies[name] ?? require(name) });
   auth = { user, loading, passwordRecovery: recovery, profile: null, identity,
     async signOut() { signouts++; if (signoutError) throw new Error('Logout failed'); auth = { ...auth, user: null }; renderer.update(React.createElement(exports.default)); } };
   await act(async () => { renderer = TestRenderer.create(React.createElement(exports.default)); });
@@ -64,6 +70,32 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
     async update(changes) { auth = { ...auth, ...changes }; await act(async () => renderer.update(React.createElement(exports.default))); },
     async close() { await act(async () => renderer.unmount()); } };
 }
+
+test('AAziz can preview and save the white theme in this browser only', async () => {
+  const id = 'b9e98e0f-5625-452f-b7f7-48a264234822';
+  const deviceStorage = new Map();
+  const config = { user: { id }, identity: { authUserId: id, companyUserId: id }, theme: 'blue-glass', deviceStorage };
+  const h = await harness(config);
+  const theme = () => h.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'];
+  const click = async label => act(async () => h.renderer.root.findAllByType('button').find(button => button.children.includes(label)).props.onClick());
+  assert.equal(theme(), 'blue-glass');
+  await click('Experimentar Fundo Branco');
+  assert.equal(theme(), 'white');
+  assert.equal(deviceStorage.size, 0);
+  await click('Voltar ao tema anterior');
+  assert.equal(theme(), 'blue-glass');
+  await click('Experimentar Fundo Branco');
+  await click('Salvar tema');
+  assert.equal(deviceStorage.size, 1);
+  await h.close();
+  const reopened = await harness(config);
+  assert.equal(reopened.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'], 'white');
+  await reopened.close();
+  const other = await harness({ deviceStorage, identity: { authUserId: 'owner', companyUserId: 'elsewhere' }, theme: 'blue-glass' });
+  assert.equal(other.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'], 'blue-glass');
+  assert.equal(other.renderer.root.findAllByProps({ 'aria-labelledby': 'device-appearance-title' }).length, 0);
+  await other.close();
+});
 
 test('update notice only mounts inside an authenticated panel, never on landing, login or recovery', async () => {
   const visitor=await harness({user:null});
