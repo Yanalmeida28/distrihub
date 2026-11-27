@@ -18,6 +18,13 @@ type View = 'hub' | 'partner' | 'auth' | 'admin' | 'super-admin';
 
 type SavedPanelAppearance = { scope: string; preferences?: Partial<PanelPreferences> };
 const panelAppearanceStorageKey = 'distrihub:panel-appearance';
+const whiteThemePilotCompany = 'b9e98e0f-5625-452f-b7f7-48a264234822';
+const whiteThemeDeviceKey = `distrihub:device-white-theme:${whiteThemePilotCompany}`;
+
+function readDeviceWhiteTheme(): boolean {
+  try { return localStorage.getItem(whiteThemeDeviceKey) === 'white'; }
+  catch { return false; }
+}
 
 function readSavedPanelAppearance(): SavedPanelAppearance | undefined {
   try {
@@ -62,14 +69,49 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
   const [savedPanelAppearance, setSavedPanelAppearance] = useState(readSavedPanelAppearance);
   const accountScope = auth.identity ? `${auth.identity.authUserId}:${auth.identity.companyUserId}` : null;
   const companyUserId = auth.identity?.companyUserId;
+  const whiteThemePilot = Boolean(accountScope && companyUserId === whiteThemePilotCompany);
+  const [deviceWhiteTheme, setDeviceWhiteTheme] = useState(readDeviceWhiteTheme);
+  const [whitePreviewScope, setWhitePreviewScope] = useState<string | null>(null);
+  const [deviceThemeError, setDeviceThemeError] = useState('');
+  const previewingWhite = whiteThemePilot && whitePreviewScope === accountScope;
+  const localPanelTheme = whiteThemePilot && (previewingWhite || deviceWhiteTheme) ? 'white' : undefined;
   const savedForAccount = accountScope && savedPanelAppearance?.scope === accountScope ? savedPanelAppearance.preferences : undefined;
   const cachedPanelPreferences = accountScope && panelAppearance?.scope === accountScope ? panelAppearance.preferences : savedForAccount;
-  const panelTheme = accountScope && panelAppearance?.scope === accountScope
+  const panelTheme = localPanelTheme ?? (accountScope && panelAppearance?.scope === accountScope
     ? panelPreferences(panelAppearance.preferences).theme
-    : cachedPanelPreferences?.theme ?? cachedPanelPreferences?.financial_theme;
+    : cachedPanelPreferences?.theme ?? cachedPanelPreferences?.financial_theme);
   const startupTheme = !auth.passwordRecovery && savedPanelAppearance && (
     !sessionUserId || (accountScope ? savedPanelAppearance.scope === accountScope : savedPanelAppearance.scope.startsWith(sessionUserId + ':'))
   ) ? savedPanelAppearance.preferences?.theme : undefined;
+
+  function saveDeviceWhiteTheme(enabled: boolean) {
+    setDeviceThemeError('');
+    try {
+      if (enabled) localStorage.setItem(whiteThemeDeviceKey, 'white');
+      else localStorage.removeItem(whiteThemeDeviceKey);
+      setDeviceWhiteTheme(enabled);
+      setWhitePreviewScope(null);
+    } catch {
+      setDeviceThemeError('O navegador não permitiu salvar a preferência neste aparelho.');
+    }
+  }
+
+  const deviceAppearance = whiteThemePilot ? (
+    <section className="module-card settings-account-card" aria-labelledby="device-appearance-title">
+      <h3 id="device-appearance-title">Aparência neste aparelho</h3>
+      <p>{previewingWhite ? 'Fundo Branco em teste. Você pode navegar pelo painel e voltar aqui para salvar.' :
+        deviceWhiteTheme ? 'Fundo Branco salvo neste navegador.' : 'Experimente o Fundo Branco neste navegador.'}</p>
+      <div className="otp-actions">
+        {previewingWhite ? <>
+          <button type="button" className="module-submit-btn" onClick={() => saveDeviceWhiteTheme(true)}>Salvar tema</button>
+          <button type="button" className="partner-secondary-btn" onClick={() => { setWhitePreviewScope(null); setDeviceThemeError(''); }}>Voltar ao tema anterior</button>
+        </> : deviceWhiteTheme ?
+          <button type="button" className="partner-secondary-btn" onClick={() => saveDeviceWhiteTheme(false)}>Usar tema da empresa</button> :
+          <button type="button" className="module-submit-btn" onClick={() => setWhitePreviewScope(accountScope)}>Experimentar Fundo Branco</button>}
+      </div>
+      {deviceThemeError && <p role="alert">{deviceThemeError}</p>}
+    </section>
+  ) : undefined;
 
   useEffect(() => {
     if (!panelAppearance || panelAppearance.scope !== accountScope) return;
@@ -113,6 +155,8 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
     catch { /* The session has already been terminated. */ }
     setSavedPanelAppearance(undefined);
     setPanelAppearance(undefined);
+    setWhitePreviewScope(null);
+    setDeviceThemeError('');
     setPartnerInitialTab(undefined);
     setSuperAdminUnlocked(false);
     setSessionAccess(null);
@@ -274,6 +318,8 @@ function AppContent({ auth }: { auth: ReturnType<typeof useAuth> }) {
             key={`${auth.user?.id}:${accessLocked ? 'locked' : pinOperator?.id ?? 'owner'}:${pinOperator?.branchId ?? 'all'}`}
             accessLocked={accessLocked}
             cachedPanelPreferences={cachedPanelPreferences}
+            localPanelTheme={localPanelTheme}
+            deviceAppearance={deviceAppearance}
             onPanelPreferencesLoaded={setPanelAppearance}
             pinOperator={pinOperator}
             onRequestAccess={onRequestAccess}
