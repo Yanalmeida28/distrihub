@@ -39,7 +39,7 @@ type Props = {
   selectedBranchId: string | null;
   printDetails?: ReceiptDetails;
   warrantyTerms?: string;
-  onUpdateWarrantyTerms?: (value: string) => void;
+  onUpdateWarrantyTerms?: (value: string) => Promise<unknown>;
   isActive?: boolean;
 };
 
@@ -104,9 +104,30 @@ function ServiceOrdersContent({
   products,
   selectedBranchId,
   warrantyTerms,
+  onUpdateWarrantyTerms,
   printDetails,
   isActive = true,
 }: Props) {
+  const [warrantyDraft, setWarrantyDraft] = useState<string | null>(null);
+  const [savingWarranty, setSavingWarranty] = useState(false);
+  const [warrantyFeedback, setWarrantyFeedback] = useState<{ message: string; error?: boolean }>();
+
+  async function saveWarranty(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!onUpdateWarrantyTerms || warrantyDraft === null || savingWarranty) return;
+    setSavingWarranty(true);
+    setWarrantyFeedback(undefined);
+    try {
+      await onUpdateWarrantyTerms(warrantyDraft.trim());
+      setWarrantyDraft(null);
+      setWarrantyFeedback({ message: 'Termo de garantia salvo.' });
+    } catch (error) {
+      setWarrantyFeedback({ error: true, message: error instanceof Error ? error.message : 'Não foi possível salvar o termo de garantia. Tente novamente.' });
+    } finally {
+      setSavingWarranty(false);
+    }
+  }
+
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [open, setOpen] = useSessionDraftState('service-order:open', false);
   const [saving, setSaving] = useState(false);
@@ -602,10 +623,30 @@ function ServiceOrdersContent({
         </dl>
       )}
 
-      {warrantyTerms?.trim() && (
+      {(warrantyTerms?.trim() || onUpdateWarrantyTerms) && (
         <details className="module-card service-order-warranty">
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Termo de Garantia de Serviços</summary>
-          <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', marginTop: 12 }}>{warrantyTerms}</p>
+          {onUpdateWarrantyTerms && warrantyDraft !== null ? (
+            <form className="rma-form" onSubmit={saveWarranty}>
+              <label>Texto do termo de garantia
+                <textarea className="notice-input" rows={6} value={warrantyDraft} disabled={savingWarranty}
+                  onChange={event => setWarrantyDraft(event.target.value)} />
+              </label>
+              <div className="action-row">
+                <button type="submit" className="partner-primary-btn" disabled={savingWarranty || warrantyDraft.trim() === (warrantyTerms ?? '').trim()}>
+                  {savingWarranty ? 'Salvando…' : 'Salvar termo'}
+                </button>
+                <button type="button" className="rma-advance-btn" disabled={savingWarranty}
+                  onClick={() => { setWarrantyDraft(null); setWarrantyFeedback(undefined); }}>Cancelar</button>
+              </div>
+              <p>O novo texto vale para as próximas ordens de serviço.</p>
+            </form>
+          ) : <>
+            <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', marginTop: 12 }}>{warrantyTerms?.trim() ? warrantyTerms : 'Nenhum termo de garantia cadastrado.'}</p>
+            {onUpdateWarrantyTerms && <button type="button" className="rma-advance-btn"
+              onClick={() => { setWarrantyDraft(warrantyTerms ?? ''); setWarrantyFeedback(undefined); }}>Editar termo</button>}
+          </>}
+          {warrantyFeedback && <p role={warrantyFeedback.error ? 'alert' : 'status'}>{warrantyFeedback.message}</p>}
         </details>
       )}
 

@@ -2185,16 +2185,9 @@ export function PartnerPanel({
                   storeSettings.service_warranty_terms ??
                   ''
                 }
-                onUpdateWarrantyTerms={(
-                  value,
-                ) =>
-                  partner.updateStoreSettings(
-                    {
-                      service_warranty_terms:
-                        value,
-                    },
-                  )
-                }
+                onUpdateWarrantyTerms={identity && !isEmployeeRestricted && !pinOperator && canUseSaasFeature(saas.subscription, 'personalizacao_basica')
+                  ? value => partner.updateStoreSettings({ service_warranty_terms: value })
+                  : undefined}
               />)}
               </div>
             )}
