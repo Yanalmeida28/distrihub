@@ -77,13 +77,13 @@ body:has(.partner-panel[data-panel-theme="white"]) > :is(.product-actions-popove
   background: var(--dh-surface);
 }
 
-.partner-panel[data-panel-theme="white"] :is(input, textarea, select):not(:focus, :disabled),
+.partner-panel[data-panel-theme="white"] :is(input, textarea, select):not(:focus, :disabled):where(:not(.pdv-search-bar input)),
 .partner-panel[data-panel-theme="white"] :is(.partner-secondary-btn, .pdv-receipt-btn, .sidebar-mobile-close, .support-center .btn-secondary):not(:hover, :focus-visible, :disabled),
 .partner-panel[data-panel-theme="white"] .pdv-search-bar {
   border-color: var(--panel-white-control-border) !important;
 }
 
-.partner-panel[data-panel-theme="white"] .pdv-search-bar:focus-within {
+.partner-panel[data-panel-theme="white"] .pdv-search-bar:has(> input:focus) {
   border-color: var(--dh-blue) !important;
 }
 

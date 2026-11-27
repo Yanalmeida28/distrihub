@@ -21,6 +21,11 @@
   opacity: 1;
 }
 
+.partner-panel[data-panel-theme="blue-glass"] .pdv-checkout-layout .pdv-search-bar:has(> input:focus) {
+  border-color: var(--panel-theme-accent);
+  box-shadow: none;
+}
+
 .partner-panel[data-panel-theme="blue-glass"] :is(.module-submit-btn, .module-save-btn, .support-center .btn-primary, .pdv-mobile-review):not(:disabled):not(.danger) {
   background: var(--dh-blue) !important;
   border-color: var(--dh-blue) !important;

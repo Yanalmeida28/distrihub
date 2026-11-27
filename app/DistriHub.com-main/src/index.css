@@ -1390,6 +1390,11 @@ select option:hover, select option:checked { background: var(--panel-theme-borde
 .partner-panel textarea:focus {
   border-color: var(--dh-blue) !important; box-shadow: 0 0 0 3px var(--dh-blue-soft) !important; outline: none;
 }
+.partner-panel :is(.service-order-details, .service-order-form, .help-controls, .bi-filters) :is(input, textarea, select):focus {
+  box-shadow: inset 0 0 0 1px var(--dh-blue) !important;
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+}
 .partner-panel input:disabled,
 .partner-panel select:disabled,
 .partner-panel textarea:disabled { background: var(--panel-theme-surface, #102638) !important; color: var(--panel-theme-secondary, #adc2d6) !important; }
@@ -1473,7 +1478,7 @@ select option:hover, select option:checked { background: var(--panel-theme-borde
 /* ---------- PDV ---------- */
 .partner-panel .pdv-layout { display: grid; gap: 18px; }
 .partner-panel .pdv-search-bar { background: var(--dh-surface); border: 1px solid var(--dh-border); border-radius: var(--dh-radius-sm); color: var(--dh-text-secondary); transition: border-color .15s, box-shadow .15s; }
-.partner-panel .pdv-search-bar:focus-within { border-color: var(--dh-blue); box-shadow: 0 0 0 3px var(--dh-blue-soft); }
+.partner-panel .pdv-search-bar:has(> input:focus) { border-color: var(--dh-blue); box-shadow: inset 0 0 0 1px var(--dh-blue); outline: 2px solid transparent; outline-offset: -2px; }
 .partner-panel .pdv-search-bar input { border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 !important; min-height: 0 !important; color: var(--dh-text) !important; }
 .partner-panel .pdv-search-bar input:focus { border: none !important; box-shadow: none !important; }
 .partner-panel .pdv-search-bar input::placeholder { color: var(--panel-theme-secondary, #adc2d6) !important; }
@@ -2867,6 +2872,8 @@ html, body {
   .partner-panel .admin-module-layout .admin-legend-row strong { grid-column: 3; }
 }
 
+.partner-panel .stagnant-stock-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-block: 12px; color: var(--dh-text-secondary); }
+.partner-panel .stagnant-stock-pagination nav { display: flex; gap: 8px; }
 .stagnant-stock-card { display: flex; flex-direction: column; gap: 4px; width: 100%; text-align: left; cursor: pointer; margin-bottom: 14px; border-left: 4px solid #dd6b20; }
 .stagnant-stock-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,.12); }
 .stagnant-stock-card span { font-size: 13px; }
@@ -3379,7 +3386,8 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   .partner-panel .pdv-checkout-layout .pdv-search-bar input { scroll-margin-top: calc(90px + env(safe-area-inset-top)); }
   .partner-panel .pdv-search-bar { height: auto; min-height: 52px; padding: 4px 8px; }
   .partner-panel .pdv-camera-button { min-width: 44px; flex-shrink: 0; }
-  .partner-panel .cadastros-scope .pdv-search-bar { position: static; background: var(--dh-surface); box-shadow: 0 4px 10px #0002; }
+  .partner-panel .cadastros-scope .pdv-search-bar { position: static; background: var(--dh-surface); }
+  .partner-panel .cadastros-scope .pdv-search-bar:not(:focus-within) { box-shadow: 0 4px 10px #0002; }
   .partner-panel .cash-module .cash-card { padding: 12px; }
   .partner-panel .cash-module .cash-fields + button, .partner-panel .cash-module form > .module-submit-btn { width: 100%; white-space: normal; }
 }
@@ -3413,8 +3421,6 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
 .bi-filters > label { flex: 1 1 180px; max-width: 100%; }
 .bi-module select, .bi-module input { width: 100%; max-width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; color: var(--dh-text, #eaf1f6); background: var(--dh-surface, #102638); border: 1px solid var(--dh-border, #29465f); border-radius: 8px; font: inherit; font-size: 16px; }
 .bi-module input:focus-visible, .bi-module select:focus-visible, .bi-module button:focus-visible { outline: 2px solid #78cbb1; outline-offset: 3px; }
-.partner-panel .bi-module .bi-filters :is(select, input):focus { border-color: #78cbb1 !important; box-shadow: none !important; outline: none; }
-.partner-panel .bi-module .bi-filters :is(select, input):focus-visible { outline: 2px solid #78cbb1; outline-offset: -2px; }
 .bi-period { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #b6c9d7; }
 .bi-period small { display: block; margin-top: 5px; color: #829eaf; font-size: 11px; }
 .bi-section { display: grid; gap: 16px; min-width: 0; }
@@ -4244,11 +4250,6 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
   color: inherit;
 }
 
-.partner-panel .pdv-search-bar:focus-within {
-  outline: 2px solid var(--dh-blue);
-  outline-offset: 2px;
-}
-
 .partner-panel .pdv-observations {
   min-width: 0;
 }
@@ -4323,8 +4324,6 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
 .service-order-empty p { margin: 0; }
 
 .service-order-details .module-header { flex-wrap: wrap; justify-content: space-between; gap: 10px; }
-.service-order-details :is(input, textarea, select):focus-visible,
-.service-order-form :is(input, textarea, select):focus-visible { outline: 2px solid var(--dh-blue); outline-offset: 2px; }
 
 @media (width < 940px) {
   .service-order-list-row { grid-template-columns: minmax(0, 1fr) minmax(80px, auto); }

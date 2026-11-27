@@ -542,11 +542,18 @@ function FinancialReport({ timeZone, canExport = false, sales, allSales, product
 function StagnantStockReport({ canExport = false, isActive = true, products, sales, movements }: { canExport?: boolean; isActive?: boolean; products: PartnerProduct[]; sales: PartnerSale[]; movements: StockMovement[] }) {
   const [level, setLevel] = useState<StagnantLevel | 'todos'>('todos');
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
   const summary = useStagnantStock(products, sales, movements, isActive);
   const term = query.trim().toLowerCase();
   const rows = summary.items.filter((item) =>
     (level === 'todos' || item.level === level)
     && (!term || item.product.name.toLowerCase().includes(term) || (item.product.sku ?? '').toLowerCase().includes(term)));
+  const pageSize = 10;
+  const lastPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
+  useEffect(() => setPage(value => Math.min(value, lastPage)), [lastPage]);
+  const start = currentPage * pageSize;
+  const visibleRows = rows.slice(start, start + pageSize);
   const levelColor: Record<StagnantLevel, string> = { atencao: '#b7791f', alerta: '#dd6b20', critico: '#c53030' };
   const levelName: Record<StagnantLevel, string> = { atencao: 'Atenção', alerta: 'Alerta', critico: 'Crítico' };
   const stagnantRows: CsvValue[][] = [
@@ -597,7 +604,9 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
           <button
             key={option}
             className={`rma-advance-btn ${level === option ? 'active' : ''}`}
-            onClick={() => setLevel(option)}
+            type="button"
+            aria-pressed={level === option}
+            onClick={() => { setLevel(option); setPage(0); }}
           >
             {option === 'todos' ? 'Todos' : stagnantLevelLabels[option]}
           </button>
@@ -605,13 +614,20 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => { setQuery(event.target.value); setPage(0); }}
           placeholder="Buscar por nome ou SKU"
           aria-label="Buscar por nome ou SKU"
           style={{ minWidth: '200px' }}
         />
       </div>
 
+      {rows.length > 0 && <div className="stagnant-stock-pagination">
+        <span role="status">Mostrando {start + 1}–{start + visibleRows.length} de {rows.length} produtos</span>
+        {lastPage > 0 && <nav aria-label="Páginas de produtos sem giro">
+          <button type="button" className="partner-secondary-btn" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+          <button type="button" className="partner-secondary-btn" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+        </nav>}
+      </div>}
       <div className="stock-table-wrap">
         <table className="rma-table">
           <thead>
@@ -620,7 +636,7 @@ function StagnantStockReport({ canExport = false, isActive = true, products, sal
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={9} className="empty-row">Nenhum produto parado nesta seleção.</td></tr>
-            ) : rows.map(({ product, lastSaleAt, lastEntryAt, daysWithoutTurnover, costKnown, unitCost, tiedUpCapital, level: itemLevel }) => (
+            ) : visibleRows.map(({ product, lastSaleAt, lastEntryAt, daysWithoutTurnover, costKnown, unitCost, tiedUpCapital, level: itemLevel }) => (
               <tr key={product.id}>
                 <td><strong>{product.name}</strong></td>
                 <td>{product.sku || '—'}</td>
