@@ -87,6 +87,13 @@ export const helpGuides: HelpGuide[] = [
   'Preencha Observação da venda (opcional) antes de finalizar ou salvar o pedido.',
   'Revise o total e escolha Finalizar e imprimir ou Finalizar sem imprimir. Use Salvar pedido se quiser retomar a operação depois.',
  ],note:'Aguarde a confirmação e confira o Histórico. Se aparecer uma operação pendente, use a recuperação indicada pelo app antes de reenviar.'},
+ {id:'pdv-contingencia',title:'Operar o PDV em contingência sem internet',summary:'Consulte produtos, preços de varejo e caixa, e registre vendas em dinheiro na fila local.',feature:'pdv',module:'pdv',steps:[
+  'Com internet, selecione a filial, abra o caixa e, no PDV, entre em Contingência sem internet.',
+  'Crie uma senha local para o terminal, com pelo menos oito caracteres, e clique em Preparar ou atualizar terminal. A preparação permite registrar vendas por até 12 horas.',
+  'Durante a queda, abra o DistriHub no mesmo navegador ou use Abrir PDV em contingência. Desbloqueie com a senha local e confira quando foi feita a última cópia.',
+  'Busque os produtos, monte o carrinho e escolha Registrar venda pendente após receber em dinheiro. A venda ficará na fila deste navegador.',
+  'Quando a conexão voltar, entre no app com a mesma conta, operador e filial. Em Contingência sem internet, use Conferir fila local e Sincronizar vendas pendentes. Se o caixa original estiver fechado ou houver divergência, confira antes de reenviar.',
+ ],note:'Use um terminal por filial. A contingência usa preço de varejo e venda avulsa em dinheiro. A fila local fica neste navegador e depende da senha utilizada na preparação.'},
  {id:'caixa',title:'Abrir, acompanhar e fechar o caixa',summary:'Controle o caixa do operador e confira os valores.',feature:'caixa',module:'caixa',steps:['Abra Caixa com o operador e a filial corretos.','Abra o caixa e informe o saldo inicial quando solicitado.','Durante o turno, registre as movimentações permitidas e confira vendas e pagamentos.','No fechamento, confira os valores contados e eventuais diferenças antes de confirmar.','Para ver os caixas da equipe, use a visão de caixas da filial, quando sua função e suas permissões autorizarem.'],note:'Consultar outro caixa não troca seu operador. A visão de supervisão depende das permissões e fica restrita à filial selecionada.'},
  {id:'pedidos',title:'Retomar pedidos e pré-vendas',summary:'Localize pré-vendas do PDV e consulte pedidos do catálogo público.',feature:'pedidos',module:'pedidos',steps:[
   'Em Pedidos em Aberto, confira a filial, busque pelo cliente ou use Filtros.',

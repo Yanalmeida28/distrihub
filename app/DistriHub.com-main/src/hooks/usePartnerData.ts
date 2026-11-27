@@ -1723,7 +1723,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
   }, [refreshPdv]);
 
   const createSale = useCallback(
-    async (sale: SalePayload, operatorId?: string | null, operatorPin?: string | null) => {
+    async (sale: SalePayload, operatorId?: string | null, operatorPin?: string | null, offlineId?: string, checkOfflineCash?: () => Promise<void>) => {
       if (isSupabaseConfigured && navigator.onLine === false) throw new Error('Sem internet. O carrinho foi mantido; reconecte para confirmar a venda no servidor.');
       if (saleInFlight.current) throw new Error('Aguarde a conclusão da venda em andamento.');
       saleInFlight.current = true;
@@ -1739,10 +1739,37 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         const scope = currentIdentity.authUserId + ':' + currentIdentity.companyUserId;
         const attempts = new PdvSaleAttemptStore(window.localStorage, scope, sessionStorage);
         const previous = attempts.read();
+        if (offlineId && (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(offlineId) ||
+            (previous && previous.id !== offlineId))) throw new Error('Recupere a tentativa anterior antes de sincronizar esta venda.');
+        if (offlineId && checkOfflineCash && !previous) {
+          const client = supabase;
+          if (!client) throw new Error('Reconecte ao servidor para sincronizar.');
+          const { data: recorded, error } = await client.from('partner_sales').select('*')
+            .eq('id', offlineId).eq('user_id', currentIdentity.companyUserId).eq('branch_id', sale.branch_id).maybeSingle();
+          if (error) throw error;
+          if (recorded) {
+            const existing = recorded as PartnerSale;
+            const itemsMatch = Array.isArray(existing.items) && existing.items.length === sale.items.length &&
+              sale.items.every(item => existing.items.some(saved => saved.product_id === item.product_id &&
+                Number(saved.quantity) === item.quantity && Number(saved.unit_price) === item.unit_price));
+            if (existing.status !== 'concluida' || existing.payment_method !== 'dinheiro' || existing.customer_id ||
+                Number(existing.total) !== sale.total || !itemsMatch) {
+              throw new Error('O registro encontrado diverge da venda local. Confira o histórico antes de sincronizar.');
+            }
+            return existing;
+          }
+          const { products } = await refreshPdv(sale.branch_id);
+          const currentPrices = new Map(products.map(product => [product.id, Number(product.sale_price)]));
+          if (sale.items.some(item => currentPrices.get(item.product_id) !== item.unit_price)) {
+            throw new Error('Os preços ou produtos mudaram desde a venda offline. Confira a pendência antes de confirmar.');
+          }
+          await checkOfflineCash();
+          if (identityScopeRef.current !== scope) throw new Error('O acesso mudou durante a conferência da venda.');
+        }
         // Validate a NEW billed request. A retry may already have consumed its credit.
         if (!previous && sale.status !== 'pre_venda' && sale.payment_method === 'faturado') await validateBilledSale(sale);
         const candidate: PartnerSale = {
-          ...sale, id: crypto.randomUUID(), user_id: currentIdentity.companyUserId,
+          ...sale, id: offlineId ?? crypto.randomUUID(), user_id: currentIdentity.companyUserId,
           status: sale.status ?? 'concluida', created_at: new Date().toISOString(),
           imei: sale.imei ?? null, serial_number: sale.serial_number ?? null,
           payment_method: sale.payment_method ?? null, payment_splits: sale.payment_method === 'misto' ? sale.payment_splits ?? [] : [], branch_id: sale.branch_id,
@@ -1818,7 +1845,7 @@ read('sales', (signal) => fetchAllPages((from, to) => client
         }
         return ns;
       } finally { saleInFlight.current = false; }
-    }, [requireIdentity, validateBilledSale, syncConfirmedSale, loadData],
+    }, [requireIdentity, validateBilledSale, syncConfirmedSale, loadData, refreshPdv],
   );
 
   const retryPendingSale = useCallback(async (operatorId?: string | null, operatorPin?: string | null) => {

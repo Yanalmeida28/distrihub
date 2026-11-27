@@ -87,6 +87,21 @@ test('PDV search shows low and empty stock without blocking low-stock sales', as
   assert.equal(results.findByProps({ className: 'pdv-stock' }).children.join(''), '4 un. em estoque');
 });
 
+test('an interrupted server connection keeps the cart editable and blocks finalization', async () => {
+ let submitted = 0;
+ await act(async () => {
+   renderer = TestRenderer.create(React.createElement(module.exports.Checkout, {
+     ...props, connectivityInterrupted: true, onCreateSale: async () => { submitted++; },
+   }));
+ });
+ await act(async () => renderer.root.findByProps({ className: 'pdv-product-card' }).props.onClick());
+ assert.ok(renderer.root.findByProps({ 'aria-label': 'Remover ' + props.products[0].name }));
+ const finalize = renderer.root.findByProps({ className: 'module-cancel-btn pdv-checkout-btn' });
+ assert.equal(finalize.props.disabled, true);
+ await act(async () => finalize.props.onClick());
+ assert.equal(submitted, 0);
+});
+
 test('checkout places customer type and customer picker in the same layout row', async () => {
   await act(async () => { renderer = TestRenderer.create(React.createElement(module.exports.Checkout, props)); });
   const form = renderer.root.findByProps({ className: 'pdv-form' });
