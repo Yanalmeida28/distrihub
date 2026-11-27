@@ -1,4 +1,4 @@
-const cacheName = 'distrihub-contingencia-v1';
+const cacheName = 'distrihub-contingencia-v2';
 const shell = '/contingencia/index.html';
 const assets = [shell, '/contingencia/app.js', '/contingencia/storage.js', '/contingencia/style.css'];
 

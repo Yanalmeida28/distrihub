@@ -15,6 +15,21 @@ export function hasTerminal() {
   try { return Boolean(localStorage.getItem(terminalKey)); } catch { return false; }
 }
 
+async function scopeFingerprint(scope, branchId) {
+  const hash = await crypto.subtle.digest('SHA-256', encode.encode(JSON.stringify([scope, branchId])));
+  return btoa(String.fromCharCode(...new Uint8Array(hash)));
+}
+
+export async function terminalMatches(scope, branchId) {
+  try {
+    const saved = localStorage.getItem(terminalKey);
+    if (!saved) return false;
+    const { fingerprint } = JSON.parse(saved);
+    // Terminais anteriores conferem a filial ao desbloquear a cópia.
+    return !fingerprint || fingerprint === await scopeFingerprint(scope, branchId);
+  } catch { return false; }
+}
+
 export async function openTerminal(password, allowCreate = false) {
   if (!navigator.locks || !crypto.subtle) throw new Error('Use um navegador atualizado para habilitar a contingência.');
   let current = localStorage.getItem(terminalKey);
@@ -43,7 +58,8 @@ export async function openTerminal(password, allowCreate = false) {
       const iv = random(12);
       const bytes = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encode.encode(JSON.stringify(next))));
       const cipher = Array.from(bytes, byte => String.fromCharCode(byte)).join('');
-      const encrypted = JSON.stringify({ salt: [...salt], iv: [...iv], cipher: btoa(cipher) });
+      const fingerprint = await scopeFingerprint(next.snapshot.scope, next.snapshot.branchId);
+      const encrypted = JSON.stringify({ salt: [...salt], iv: [...iv], cipher: btoa(cipher), fingerprint });
       await navigator.locks.request(terminalKey, () => {
         if (localStorage.getItem(terminalKey) !== current) throw new Error('Os dados foram alterados em outra aba. Abra a contingência novamente.');
         localStorage.setItem(terminalKey, encrypted);
