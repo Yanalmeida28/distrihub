@@ -71,30 +71,43 @@ async function harness({ user = { id: 'owner' }, master = false, permissionError
     async close() { await act(async () => renderer.unmount()); } };
 }
 
-test('AAziz can preview and save the white theme in this browser only', async () => {
+test('AAziz can preview and switch between saved device themes in this browser only', async () => {
   const id = 'b9e98e0f-5625-452f-b7f7-48a264234822';
   const deviceStorage = new Map();
-  const config = { user: { id }, identity: { authUserId: id, companyUserId: id }, theme: 'blue-glass', deviceStorage };
+  const config = { user: { id }, identity: { authUserId: id, companyUserId: id }, theme: 'default', deviceStorage };
   const h = await harness(config);
-  const theme = () => h.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'];
-  const click = async label => act(async () => h.renderer.root.findAllByType('button').find(button => button.children.includes(label)).props.onClick());
-  assert.equal(theme(), 'blue-glass');
+  const theme = panel => panel.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'];
+  const click = async (label, panel = h) => act(async () => panel.renderer.root.findAllByType('button').find(button => button.children.join('') === label).props.onClick());
+  assert.equal(theme(h), 'default');
   await click('Experimentar Fundo Branco');
-  assert.equal(theme(), 'white');
+  assert.equal(theme(h), 'white');
   assert.equal(deviceStorage.size, 0);
   await click('Voltar ao tema anterior');
-  assert.equal(theme(), 'blue-glass');
+  assert.equal(theme(h), 'default');
   await click('Experimentar Fundo Branco');
   await click('Salvar tema');
   assert.equal(deviceStorage.size, 1);
   await h.close();
   const reopened = await harness(config);
-  assert.equal(reopened.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'], 'white');
+  assert.equal(theme(reopened), 'white');
+  await click('Experimentar Azul Vidro', reopened);
+  assert.equal(theme(reopened), 'blue-glass');
+  assert.deepEqual([...deviceStorage.values()], ['white']);
+  await click('Voltar ao tema anterior', reopened);
+  assert.equal(theme(reopened), 'white');
+  await click('Experimentar Azul Vidro', reopened);
+  await click('Salvar tema', reopened);
   await reopened.close();
-  const other = await harness({ deviceStorage, identity: { authUserId: 'owner', companyUserId: 'elsewhere' }, theme: 'blue-glass' });
-  assert.equal(other.renderer.root.findByProps({ 'data-panel': 'partner' }).props['data-theme'], 'blue-glass');
+  const other = await harness({ deviceStorage, identity: { authUserId: 'owner', companyUserId: 'elsewhere' }, theme: 'default' });
+  assert.equal(theme(other), 'default');
   assert.equal(other.renderer.root.findAllByProps({ 'aria-labelledby': 'device-appearance-title' }).length, 0);
   await other.close();
+  const blue = await harness(config);
+  assert.equal(theme(blue), 'blue-glass');
+  await click('Usar tema da empresa', blue);
+  assert.equal(theme(blue), 'default');
+  assert.equal(deviceStorage.size, 0);
+  await blue.close();
 });
 
 test('update notice only mounts inside an authenticated panel, never on landing, login or recovery', async () => {
