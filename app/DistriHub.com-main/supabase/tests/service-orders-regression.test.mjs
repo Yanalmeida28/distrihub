@@ -145,6 +145,28 @@ async function harness({orders=[],read,rpc,invoice=null,blocked=false,values=new
  return {calls,queries,values,unblock(){storageBlocked=false;},update:async changes=>{currentProps={...currentProps,...changes};await act(async()=>view.update(React.createElement(Component,currentProps)));}};
 }
 
+test('the owner can save the warranty template and can retry after a failed save', async () => {
+  const h = await harness();
+  assert.equal(button('Editar termo'), undefined);
+  const saved = [];
+  let reject = true;
+  await h.update({ onUpdateWarrantyTerms: async value => {
+    if (reject) throw new Error('Falha de rede');
+    saved.push(value);
+  } });
+  await act(async () => button('Editar termo').props.onClick());
+  const field = () => view.root.findAllByType('textarea').find(node => node.props.rows === 6);
+  const form = () => view.root.findAllByType('form').find(node => node.findAllByType('textarea').includes(field()));
+  await act(async () => field().props.onChange({ target: { value: '  Termo da loja  ' } }));
+  await act(async () => form().props.onSubmit({ preventDefault() {} }));
+  assert.match(rendered(), /Falha de rede/);
+  assert.equal(field().props.value, '  Termo da loja  ');
+  reject = false;
+  await act(async () => form().props.onSubmit({ preventDefault() {} }));
+  assert.deepEqual(saved, ['Termo da loja']);
+  assert.match(rendered(), /Termo de garantia salvo/);
+});
+
 test('late branch list response is discarded and inactive module performs no new reads',async()=>{
  const pending=[];const h=await harness({read:args=>args.table==='service_orders'?new Promise(resolve=>pending.push({args,resolve})):undefined});
  await h.update({selectedBranchId:'branch-b'});assert.equal(pending.length,2);
