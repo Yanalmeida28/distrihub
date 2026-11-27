@@ -991,6 +991,9 @@ function CategoriesSubTab({ categories, products, onAdd, onDelete, branches = []
     finally { actionLock.current = false; setBusy(false); }
   }
 
+  const [query, setQuery] = useState('');
+  const term = normalizeProductName(query);
+  const visibleCategories = categories.filter(category => normalizeProductName(category.name).includes(term));
   const [name, setName] = useSessionDraftState('categories:name', '');
   const [draftBranchId, setDraftBranchId] = useSessionDraftState('categories:branch', '');
   const [selectedCategoryId, setSelectedCategoryId] = useSessionDraftState<string | null>('categories:selected-id', null, undefined, value => value === null || typeof value === 'string');
@@ -1020,11 +1023,16 @@ function CategoriesSubTab({ categories, products, onAdd, onDelete, branches = []
         </label>
         <button type="submit" disabled={busy} className="module-submit-btn"><Plus size={16} /> Adicionar</button>
       </form>
+      <div className="category-browser-workspace">
+      <div className="category-browser-directory">
+        <label className="category-browser-search">Pesquisar categoria
+          <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Nome da categoria" />
+        </label>
       <div className="category-browser-list">
-        {categories.length === 0 ? (
-          <p className="empty-row">Nenhuma categoria cadastrada.</p>
+        {visibleCategories.length === 0 ? (
+          <p className="empty-row">{term ? 'Nenhuma categoria encontrada.' : 'Nenhuma categoria cadastrada.'}</p>
         ) : (
-          categories.map((category) => {
+          visibleCategories.map((category) => {
             const productCount = products.filter((product) => product.category === category.name).length;
             const isSelected = selectedCategoryId === category.id;
             return (
@@ -1055,6 +1063,8 @@ function CategoriesSubTab({ categories, products, onAdd, onDelete, branches = []
           })
         )}
       </div>
+      </div>
+      {!selectedCategory && <p className="category-browser-hint">Selecione uma categoria para consultar seus produtos.</p>}
       {selectedCategory && (
         <section className="category-product-results">
           <div className="category-product-heading">
@@ -1085,6 +1095,7 @@ function CategoriesSubTab({ categories, products, onAdd, onDelete, branches = []
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }
@@ -1985,6 +1996,26 @@ function SuppliersSubTab({ suppliers, onAdd, onUpdate, onDelete, branches = [], 
   const [editingId, setEditingId] = useSessionDraftState<string | null>('suppliers:editing-id', null, undefined, value => value === null || typeof value === 'string');
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showForm, setShowForm] = useState(Boolean(editingId || name || phone || notes || draftBranchId));
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const term = normalizeProductName(query);
+  const digits = normalizeDocument(query);
+  const matches = suppliers.filter(supplier => {
+    const text = normalizeProductName([supplier.name, supplier.document, supplier.phone, supplier.email].filter(Boolean).join(' '));
+    return !term || text.includes(term) || (digits !== '' && !/\p{L}/u.test(query) &&
+      [supplier.document, supplier.phone].some(value => normalizeDocument(value ?? '').includes(digits)));
+  });
+  const pageSize = 10;
+  const lastPage = Math.max(0, Math.ceil(matches.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const pageStart = currentPage * pageSize;
+  const shown = matches.slice(pageStart, pageStart + pageSize);
+  useEffect(() => setPage(value => Math.min(value, lastPage)), [lastPage]);
+  const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showForm && formRef.current) formRef.current.scrollIntoView({ block: 'nearest' });
+  }, [showForm, editingId]);
   const existingBranch = suppliers.find(supplier => supplier.id === editingId)?.branch_id;
   const targetBranch = existingBranch || selectedBranchId || draftBranchId;
 
@@ -2007,6 +2038,7 @@ function SuppliersSubTab({ suppliers, onAdd, onUpdate, onDelete, branches = [], 
       }
       setName(''); setPhone(''); setNotes('');
       setEditingId(null);
+      setShowForm(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Não foi possível salvar o fornecedor.');
     } finally {
@@ -2015,6 +2047,8 @@ function SuppliersSubTab({ suppliers, onAdd, onUpdate, onDelete, branches = [], 
   }
 
   function startEdit(supplier: PartnerSupplier) {
+    setFormError(null);
+    setShowForm(true);
     setEditingId(supplier.id);
     setName(supplier.name);
     setPhone(supplier.phone ?? '');
@@ -2023,10 +2057,17 @@ function SuppliersSubTab({ suppliers, onAdd, onUpdate, onDelete, branches = [], 
 
   function cancelEdit() {
     setEditingId(null); setName(''); setPhone(''); setNotes('');
+    setShowForm(false);
+    setFormError(null);
   }
 
   return (
     <div>
+      <div className="orders-filter-row supplier-directory-toolbar">
+        <input type="search" aria-label="Buscar fornecedor" placeholder="Nome, CPF/CNPJ, telefone ou e-mail" value={query} onChange={event => { setQuery(event.target.value); setPage(0); }} />
+        {!showForm && <button type="button" className="partner-primary-btn" onClick={() => setShowForm(true)}><Plus size={16} aria-hidden="true" /> Novo fornecedor</button>}
+      </div>
+      <div hidden={!showForm} ref={formRef}>
       <form className="rma-form" onSubmit={handleSubmit}>
         {!selectedBranchId && branches.length > 0 && <label>Filial do fornecedor<select aria-label="Filial do fornecedor" value={targetBranch} disabled={Boolean(existingBranch) || saving} onChange={event => setDraftBranchId(event.target.value)} required><option value="">Selecione</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>}
         <div className="form-row">
@@ -2044,16 +2085,24 @@ function SuppliersSubTab({ suppliers, onAdd, onUpdate, onDelete, branches = [], 
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notas sobre prazos, condições..." rows={2} />
         </label>
         {formError && <p className="form-error-msg" style={{ color: '#e3829b', fontSize: '13px' }}>{formError}</p>}
-        <div className="supplier-form-actions"><button type="submit" className="module-submit-btn" disabled={saving}>{saving ? 'Salvando...' : editingId ? <><Save size={16} /> Salvar alterações</> : <><Plus size={16} /> Adicionar fornecedor</>}</button>{editingId && <button type="button" className="rma-advance-btn" onClick={cancelEdit} disabled={saving}>Cancelar</button>}</div>
+        <div className="supplier-form-actions"><button type="submit" className="module-submit-btn" disabled={saving}>{saving ? 'Salvando...' : editingId ? <><Save size={16} /> Salvar alterações</> : <><Plus size={16} /> Adicionar fornecedor</>}</button><button type="button" className="rma-advance-btn" onClick={cancelEdit} disabled={saving}>Cancelar</button></div>
       </form>
+      </div>
+      {matches.length > 0 && <div className="directory-pagination">
+        <span role="status">Mostrando {pageStart + 1}–{pageStart + shown.length} de {matches.length} fornecedores</span>
+        {lastPage > 0 && <nav aria-label="Páginas de fornecedores">
+          <button type="button" className="partner-secondary-btn" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+          <button type="button" className="partner-secondary-btn" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+        </nav>}
+      </div>}
       <div className="stock-table-wrap directory-card-wrap">
         <table className="rma-table directory-card-table" aria-label="Fornecedores cadastrados">
           <thead><tr><th>Fornecedor</th><th>Telefone</th><th>Contas a Pagar</th><th className="supplier-actions-heading">Ações</th></tr></thead>
           <tbody>
-            {suppliers.length === 0 ? (
-              <tr><td colSpan={4} className="empty-row">Nenhum fornecedor cadastrado.</td></tr>
+            {shown.length === 0 ? (
+              <tr><td colSpan={4} className="empty-row">{term ? 'Nenhum fornecedor encontrado.' : 'Nenhum fornecedor cadastrado.'}</td></tr>
             ) : (
-              suppliers.map((s) => (
+              shown.map((s) => (
                 <tr key={s.id}>
                   <td className="directory-card-title"><strong>{s.name}</strong>{!selectedBranchId && <small style={{ display: 'block' }}>{branches.find(branch => branch.id === s.branch_id)?.name || 'Sem filial: editar para definir'}</small>}</td>
                   <td data-label="Telefone">{s.phone ?? '—'}</td>

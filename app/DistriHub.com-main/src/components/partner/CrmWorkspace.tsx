@@ -1,5 +1,5 @@
 import { adminBusinessDay, adminSaleDate } from '../../lib/adminDashboard';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { PartnerCustomer, PartnerInvoice, PartnerSale, PartnerSalesperson } from '../../types';
 import { supabase } from '../../lib/supabase';
@@ -13,6 +13,8 @@ const localDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth(
 
 export function CrmWorkspace({ timeZone, initialSegment = 'todos', customers, sales, invoices, salespeople, companyUserId, branchId }: Props) {
   const [query,setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const detailRef = useRef<HTMLDivElement>(null);
   const [segment,setSegment] = useState(initialSegment);
   const [selectedId,setSelectedId] = useState('');
   const [tasks,setTasks] = useState<Task[]>([]);
@@ -46,12 +48,40 @@ export function CrmWorkspace({ timeZone, initialSegment = 'todos', customers, sa
     } catch (cause) { if(scopeRef.current===currentScope) setError(cause instanceof Error ? cause.message : 'Não foi possível carregar o acompanhamento.'); }
     finally { if(scopeRef.current===currentScope) setLoading(false); }
   },[companyUserId,branchId]);
-  useEffect(() => { setTasks([]); setSelectedId(''); setDrafts({}); attempt.current=null; void load(); },[load]);
+  useEffect(() => { setTasks([]); setSelectedId(''); setPage(0); setDrafts({}); attempt.current=null; void load(); },[load]);
   const selected = customers.find(c=>c.id===selectedId);
+  const today = timeZone ? adminBusinessDay(new Date(), timeZone) : '';
+  const purchasesByCustomer = useMemo(() => {
+    const result = new Map<string, PartnerSale[]>();
+    const purchaseDate = (sale: PartnerSale) => timeZone ? adminSaleDate(sale) : sale.created_at;
+    for (const sale of sales) {
+      if (!sale.customer_id || sale.status !== 'concluida') continue;
+      const date = new Date(purchaseDate(sale));
+      if (timeZone && (!Number.isFinite(date.getTime()) || adminBusinessDay(date, timeZone) > today)) continue;
+      const purchases = result.get(sale.customer_id) ?? [];
+      purchases.push(sale);
+      result.set(sale.customer_id, purchases);
+    }
+    for (const purchases of result.values()) purchases.sort((a, b) => purchaseDate(b).localeCompare(purchaseDate(a)));
+    return result;
+  }, [sales, timeZone, today]);
   const purchaseDate = (sale: PartnerSale) => timeZone ? adminSaleDate(sale) : sale.created_at;
-  const customerSales = (id: string) => sales.filter(s=>s.customer_id===id && s.status==='concluida' && (!timeZone || Number.isFinite(Date.parse(purchaseDate(s))) && adminBusinessDay(new Date(purchaseDate(s)), timeZone) <= adminBusinessDay(new Date(), timeZone))).sort((a,b)=>purchaseDate(b).localeCompare(purchaseDate(a)));
+  const customerSales = (id: string) => purchasesByCustomer.get(id) ?? [];
   const inactiveDays = (id: string) => { const last=customerSales(id)[0]; return last ? Math.max(0,timeZone ? Math.round((Date.parse(adminBusinessDay(new Date(), timeZone))-Date.parse(adminBusinessDay(new Date(purchaseDate(last)), timeZone)))/86400000) : Math.floor((Date.now()-new Date(last.created_at).getTime())/86400000)) : null; };
   const visible=customers.filter(c=>c.is_active !== false && `${c.name} ${c.phone ?? ''} ${c.document ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()) && (segment==='todos' || segment==='sem-compras' && inactiveDays(c.id)===null || segment==='inativos' && (inactiveDays(c.id) ?? -1)>=90 || segment==='retorno' && tasks.some(t=>t.customer_id===c.id && t.status==='pendente' && t.due_date<=localDate(new Date()))));
+
+  const pageSize = 6;
+  const lastPage = Math.max(0, Math.ceil(visible.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const offset = currentPage * pageSize;
+  const pageCustomers = visible.slice(offset, offset + pageSize);
+  useEffect(() => setPage(value => Math.min(value, lastPage)), [lastPage]);
+  useEffect(() => {
+    if (selectedId && detailRef.current) {
+      detailRef.current.focus({ preventScroll: true });
+      detailRef.current.scrollIntoView({ block: 'start' });
+    }
+  }, [selectedId]);
 
   async function saveTask(event: React.FormEvent) {
     event.preventDefault();
@@ -79,14 +109,21 @@ export function CrmWorkspace({ timeZone, initialSegment = 'todos', customers, sa
     <p>Compras e saldos da filial selecionada. Registrar um retorno não envia uma mensagem ao cliente.</p>
     {error && <p role="alert">{error} <button type="button" onClick={()=>void load()}>Recarregar</button></p>}
     {loading && <p role="status">Carregando retornos…</p>}
-    <div className="orders-filter-row"><input type="search" autoComplete="off" aria-label="Buscar cliente no CRM" placeholder="Cliente, documento ou telefone" value={query} onChange={e=>setQuery(e.target.value)}/><select aria-label="Segmento de clientes" value={segment} onChange={e=>setSegment(e.target.value)}><option value="todos">Todos</option><option value="inativos">Sem comprar há 90 dias</option><option value="sem-compras">Sem compras registradas</option><option value="retorno">Retorno pendente até hoje</option></select></div>
-    <div className="stock-table-wrap crm-customer-table-wrap"><table className="rma-table crm-customer-table"><thead><tr><th>Cliente</th><th>Última compra</th><th>Compras</th><th>Valor</th><th>Ação</th></tr></thead><tbody>{visible.map(c=>{const purchases=customerSales(c.id);return <tr key={c.id}><td data-label="Cliente">{c.name}</td><td data-label="Última compra">{purchases[0] ? new Date(purchaseDate(purchases[0])).toLocaleDateString('pt-BR', timeZone ? { timeZone } : undefined) : 'Sem compras'}</td><td data-label="Compras">{purchases.length}</td><td data-label="Valor">{money.format(purchases.reduce((sum,s)=>sum+s.total,0))}</td><td data-label="Ação"><button type="button" disabled={busy || Boolean(attempt.current && attempt.current.customer_id !== c.id)} onClick={()=>setSelectedId(c.id)}>Abrir ficha</button></td></tr>;})}{!visible.length && <tr><td colSpan={5}>Nenhum cliente encontrado.</td></tr>}</tbody></table></div>
-    {selected && <div className="module-card"><div className="module-header" style={{ flexWrap: 'wrap' }}><h4>{selected.name}</h4><button type="button" className="rma-advance-btn" style={{ minHeight: 44 }} disabled={busy} onClick={()=>setSelectedId('')}><X size={16} aria-hidden="true" /> Fechar ficha</button></div><p>{selected.phone || 'Sem telefone'} · {selected.email || 'Sem e-mail'}</p>
+    <div className="orders-filter-row"><input type="search" autoComplete="off" aria-label="Buscar cliente no CRM" placeholder="Cliente, documento ou telefone" value={query} onChange={e=>{setQuery(e.target.value);setPage(0);}}/><select aria-label="Segmento de clientes" value={segment} onChange={e=>{setSegment(e.target.value);setPage(0);}}><option value="todos">Todos</option><option value="inativos">Sem comprar há 90 dias</option><option value="sem-compras">Sem compras registradas</option><option value="retorno">Retorno pendente até hoje</option></select></div>
+    {selected && <div className="module-card crm-customer-detail" ref={detailRef} tabIndex={-1}><div className="module-header" style={{ flexWrap: 'wrap' }}><h4>{selected.name}</h4><button type="button" className="rma-advance-btn" style={{ minHeight: 44 }} disabled={busy} onClick={()=>setSelectedId('')}><X size={16} aria-hidden="true" /> Fechar ficha</button></div><p>{selected.phone || 'Sem telefone'} · {selected.email || 'Sem e-mail'}</p>
       <p>A receber: {money.format(invoices.filter(i=>i.customer_id===selected.id).reduce((sum,i)=>sum+accountBalance(i),0))} · Vencido: {money.format(invoices.filter(i=>i.customer_id===selected.id && isOverdue(i, new Date(), timeZone)).reduce((sum,i)=>sum+accountBalance(i),0))}</p>
       <h4>Compras recentes</h4>{customerSales(selected.id).slice(0,10).map(s=><p key={s.id}>#{s.id.slice(0,8)} · {new Date(s.created_at).toLocaleDateString('pt-BR')} · {money.format(s.total)}</p>)}
       <h4>Planejar retorno / registrar observação</h4>{!branchId ? <p>Selecione uma filial para cadastrar retornos.</p> : <form onSubmit={saveTask}><fieldset disabled={busy || Boolean(attempt.current)} style={{border:0}}><label>Observação / próxima ação<textarea required maxLength={4000} value={description} onChange={e=>updateDraft({description:e.target.value})}/></label><label>Data<input type="date" required value={dueDate} onChange={e=>updateDraft({dueDate:e.target.value})}/></label><label>Responsável<select value={responsibleId} onChange={e=>updateDraft({responsibleId:e.target.value})}><option value="">Não atribuído</option>{salespeople.filter(s=>!s.branch_id || s.branch_id===branchId).map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></label></fieldset><button type="submit" disabled={busy}>{busy ? 'Salvando…' : attempt.current ? 'Recuperar retorno enviado' : 'Salvar retorno'}</button></form>}
-      <h4>Histórico de acompanhamento</h4>{tasks.filter(t=>t.customer_id===selected.id).map(t=><p key={t.id}>{t.due_date.split('-').reverse().join('/')} · {t.description} · {salespeople.find(s=>s.id===t.responsible_id)?.name ?? 'Não atribuído'} · {t.status}{t.completed_at ? ' em '+new Date(t.completed_at).toLocaleString('pt-BR') : ''} {t.status==='pendente' && <button type="button" disabled={busy} onClick={()=>void complete(t)}>Marcar realizado</button>}</p>)}
+      <details><summary>Histórico de acompanhamento</summary>{tasks.filter(t=>t.customer_id===selected.id).map(t=><p key={t.id}>{t.due_date.split('-').reverse().join('/')} · {t.description} · {salespeople.find(s=>s.id===t.responsible_id)?.name ?? 'Não atribuído'} · {t.status}{t.completed_at ? ' em '+new Date(t.completed_at).toLocaleString('pt-BR') : ''} {t.status==='pendente' && <button type="button" disabled={busy} onClick={()=>void complete(t)}>Marcar realizado</button>}</p>)}</details>
     </div>}
+    {visible.length > 0 && <div className="directory-pagination">
+      <span role="status">Mostrando {offset + 1}–{offset + pageCustomers.length} de {visible.length} clientes</span>
+      {lastPage > 0 && <nav aria-label="Páginas de clientes do CRM">
+        <button type="button" className="partner-secondary-btn" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+        <button type="button" className="partner-secondary-btn" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+      </nav>}
+    </div>}
+    <div className="stock-table-wrap crm-customer-table-wrap"><table className="rma-table crm-customer-table"><thead><tr><th>Cliente</th><th>Última compra</th><th>Compras</th><th>Valor</th><th>Ação</th></tr></thead><tbody>{pageCustomers.map(c=>{const purchases=customerSales(c.id);return <tr key={c.id}><td data-label="Cliente">{c.name}</td><td data-label="Última compra">{purchases[0] ? new Date(purchaseDate(purchases[0])).toLocaleDateString('pt-BR', timeZone ? { timeZone } : undefined) : 'Sem compras'}</td><td data-label="Compras">{purchases.length}</td><td data-label="Valor">{money.format(purchases.reduce((sum,s)=>sum+s.total,0))}</td><td data-label="Ação"><button type="button" disabled={busy || Boolean(attempt.current && attempt.current.customer_id !== c.id)} onClick={()=>setSelectedId(c.id)}>Abrir ficha</button></td></tr>;})}{!visible.length && <tr><td colSpan={5}>Nenhum cliente encontrado.</td></tr>}</tbody></table></div>
     {!selected && tasks.some(t=>t.status==='pendente') && <p>{tasks.filter(t=>t.status==='pendente').length} retorno(s) pendente(s). Abra a ficha para acompanhar.</p>}
   </section>;
 }
