@@ -855,6 +855,7 @@ function CrmReport({ canExport = false, customers, sales }: { canExport?: boolea
         )}
       </div>
 
+      <section className="crm-birthdays-section">
       <h4 className="report-section-title"><Cake size={16} /> Aniversariantes do Mês</h4>
       <div className="stock-table-wrap crm-birthdays-wrap">
         <table className="rma-table crm-birthdays-table">
@@ -865,11 +866,12 @@ function CrmReport({ canExport = false, customers, sales }: { canExport?: boolea
             ) : (
               birthdays.map((c) => (
                 <tr key={c.id}>
-                  <td><strong>{c.name}</strong></td>
-                  <td>{c.phone ?? '—'}</td>
-                  <td>{displayBirthday(c.birthday)}</td>
+                  <td className="crm-birthday-name"><strong>{c.name}</strong></td>
+                  <td data-label="WhatsApp">{c.phone ?? '—'}</td>
+                  <td data-label="Aniversário">{displayBirthday(c.birthday)}</td>
                   <td>
                     <button
+                      type="button"
                       className="rma-advance-btn whatsapp-btn"
                       aria-label={`Enviar parabéns para ${c.name} pelo WhatsApp`}
                       title="Enviar mensagem no WhatsApp"
@@ -885,6 +887,7 @@ function CrmReport({ canExport = false, customers, sales }: { canExport?: boolea
           </tbody>
         </table>
       </div>
+      </section>
     </div>
   );
 }

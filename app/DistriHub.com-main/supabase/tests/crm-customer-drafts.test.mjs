@@ -98,3 +98,24 @@ test('CRM in-flight save retains its original scope and cannot populate the next
     assert.equal(f.view.root.findByType('textarea').props.value,'');
   } finally {release?.();await f.cleanup();}
 });
+
+test('CRM paginates the customer list and returns to its first page on a filter change', async () => {
+  const f = await fixture();
+  try {
+    await f.update({ customers: Array.from({ length: 13 }, (_, i) => ({ id: String(i + 1), name: 'Cliente ' + (i + 1) })) });
+    const next = () => f.view.root.findAllByType('button').find(node => node.children.includes('Próxima'));
+    const content = () => JSON.stringify(f.view.toJSON());
+    assert.equal(f.openButtons().length, 6);
+    await act(async () => next().props.onClick());
+    assert.match(content(), /Mostrando .* de .* clientes/);
+    assert.match(content(), /Cliente 7/);
+    await f.change('input', 'Cliente 13');
+    assert.equal(f.openButtons().length, 1);
+    assert.match(content(), /Cliente 13/);
+    assert.equal(next(), undefined);
+    await f.change('input', '');
+    assert.equal(f.openButtons().length, 6);
+    assert.match(content(), /"Cliente 1"/);
+    assert.doesNotMatch(content(), /"Cliente 7"/);
+  } finally { await f.cleanup(); }
+});

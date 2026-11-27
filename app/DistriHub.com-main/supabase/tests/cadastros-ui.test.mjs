@@ -173,7 +173,9 @@ test('product deletion runs only once while a request is pending and clears busy
 test('consolidated supplier form requires a branch and sends its explicit selection',async()=>{
  let saved;
  await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Suppliers,{suppliers:[],branches:[{id:'atacado',name:'Atacado'},{id:'varejo',name:'Varejo'}],selectedBranchId:null,onAdd:async value=>{saved=value;},onUpdate:async()=>{},onDelete:async()=>{}}));});
- await act(async()=>renderer.root.findAllByType('input')[0].props.onChange({target:{value:'Fornecedor Varejo'}}));
+ const newSupplier = renderer.root.findAllByType('button').find(button => button.children.includes(' Novo fornecedor'));
+ await act(async()=>newSupplier.props.onClick());
+ await act(async()=>renderer.root.findByType('form').findAllByType('input')[0].props.onChange({target:{value:'Fornecedor Varejo'}}));
  await act(async()=>submit());assert.equal(saved,undefined);assert.match(rendered(),/Selecione a filial/);
  await act(async()=>renderer.root.findByProps({'aria-label':'Filial do fornecedor'}).props.onChange({target:{value:'varejo'}}));
  await act(async()=>submit());assert.equal(saved.branch_id,'varejo');
@@ -203,10 +205,10 @@ test('XML blocks duplicate submissions and preserves invoice for retry after fai
 test('category failure is visible and keeps the draft; concurrent submits run once',async()=>{
  let reject,calls=0;const pending=new Promise((_done,fail)=>{reject=fail;});
  await act(async()=>{renderer=TestRenderer.create(React.createElement(exports.Categories,{categories:[],products:[],onAdd:async()=>{calls++;await pending;},onDelete:async()=>{}}));});
- await act(async()=>renderer.root.findByType('input').props.onChange({target:{value:'Categoria nova'}}));
+ await act(async()=>renderer.root.findByType('form').findByType('input').props.onChange({target:{value:'Categoria nova'}}));
  let operation;await act(async()=>{operation=submit();submit();});assert.equal(calls,1);
  await act(async()=>{reject(new Error('Permissão negada'));await operation;});
- assert.equal(renderer.root.findByType('input').props.value,'Categoria nova');assert.match(rendered(),/Permissão negada/);
+ assert.equal(renderer.root.findByType('form').findByType('input').props.value,'Categoria nova');assert.match(rendered(),/Permissão negada/);
 });
 
 test('kit rejects negative price and stale products from a previous branch',async()=>{

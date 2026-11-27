@@ -3336,15 +3336,15 @@ body, .app-shell { background: var(--panel-theme-background, #091724); color: va
   .partner-panel .cadastros-scope .category-browser-item > select,
   .partner-panel .cadastros-scope .category-browser-item > small { grid-column: 1 / -1; min-width: 0; max-width: 100%; padding: 6px; }
   .partner-panel .category-browser-list > .empty-row { grid-column: 1 / -1; }
-  .partner-panel .stock-table-wrap .crm-birthdays-table { width: 100%; min-width: 0; table-layout: fixed; }
-  .partner-panel .crm-birthdays-table :is(th, td) { padding: 6px 4px; white-space: normal; overflow-wrap: anywhere; font-size: 11px; }
-  .partner-panel .crm-birthdays-table th { font-size: 10px; }
-  .partner-panel .crm-birthdays-table th:nth-child(1) { width: 34%; }
-  .partner-panel .crm-birthdays-table th:nth-child(2) { width: 27%; }
-  .partner-panel .crm-birthdays-table th:nth-child(3) { width: 22%; }
-  .partner-panel .crm-birthdays-table th:nth-child(4) { width: 17%; }
-  .partner-panel .crm-birthdays-table .whatsapp-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 44px; width: 100%; max-width: 100%; padding: 4px; }
-  .partner-panel .crm-birthdays-table .whatsapp-btn span { display: none; }
+  .partner-panel .crm-birthdays-wrap { border: 0; background: transparent; }
+  .partner-panel .stock-table-wrap .crm-birthdays-table { display: block; width: 100%; min-width: 0; }
+  .partner-panel .crm-birthdays-table thead { display: none; }
+  .partner-panel .crm-birthdays-table tbody { display: grid; gap: 10px; }
+  .partner-panel .crm-birthdays-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; padding: 12px; border: 1px solid var(--dh-border); border-radius: var(--dh-radius-sm); background: var(--dh-surface); }
+  .partner-panel .crm-birthdays-table td { display: block; border: 0; padding: 0; white-space: normal; overflow-wrap: anywhere; }
+  .partner-panel .crm-birthdays-table :is(.crm-birthday-name, td:last-child) { grid-column: 1 / -1; }
+  .partner-panel .crm-birthdays-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--dh-text-secondary); font-size: 12px; }
+  .partner-panel .crm-birthdays-table .whatsapp-btn { min-height: 44px; }
 }
 
 /* Highlight the product under the pointer using the palette's light blue. */
@@ -4352,4 +4352,40 @@ body:has(.partner-panel:is([data-panel-theme="blue-glass"], [data-panel-theme="w
   background: var(--dh-surface);
   text-align: center;
   overflow-wrap: break-word;
+}
+
+.partner-panel .directory-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+  color: var(--dh-text-secondary);
+}
+
+.partner-panel .directory-pagination nav { display: flex; gap: 8px; }
+.partner-panel .directory-pagination button { min-height: 44px; }
+.partner-panel .crm-customer-detail { margin-block: 12px; scroll-margin-top: 88px; }
+.partner-panel .crm-birthdays-section { margin-block-start: 24px; }
+.partner-panel .crm-birthdays-section > .report-section-title { margin-block-end: 12px; }
+.partner-panel .supplier-directory-toolbar input { flex: 1; min-width: 0; }
+
+.partner-panel .category-browser-directory,
+.partner-panel .category-product-results { min-width: 0; }
+.partner-panel .category-browser-search { display: grid; gap: 6px; margin-block: 12px; }
+.partner-panel .category-browser-hint { display: none; }
+
+@media (min-width: 768px) {
+  .partner-panel .category-browser-workspace { display: grid; grid-template-columns: minmax(170px, 30%) minmax(0, 1fr); align-items: start; gap: 16px; }
+  .partner-panel .category-browser-search { margin-block-start: 0; }
+  .partner-panel .cadastros-scope .category-browser-list { display: grid; max-height: 55vh; overflow: auto; padding: 2px; }
+  .partner-panel .cadastros-scope .category-browser-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .partner-panel .cadastros-scope .category-browser-select { width: 100%; min-height: 44px; text-align: left; }
+  .partner-panel .cadastros-scope .category-browser-select small { margin-inline-start: auto; }
+  .partner-panel .cadastros-scope .category-browser-delete { grid-column: 2; grid-row: 1; }
+  .partner-panel .cadastros-scope .category-browser-item > :is(select, small) { grid-column: 1 / -1; margin: 4px 8px; min-width: 0; }
+  .partner-panel .cadastros-scope .category-product-results { margin-top: 0; }
+  .partner-panel .category-product-results > .stock-table-wrap { max-height: 55vh; overflow: auto; }
+  .partner-panel .category-browser-hint { display: block; color: var(--dh-text-secondary); }
 }
