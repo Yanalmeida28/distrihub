@@ -1999,10 +1999,10 @@ export function PartnerPanel({
             )}
             {visitedTabs.has('pdv') && !blockedTabs.includes('pdv') && canUseSaasFeature(saas.subscription, 'pdv') && (
               <div hidden={activeTab !== 'pdv'}>
-              {activeTab === 'pdv' && effectiveBranchId && <OfflineTerminal
-                key={`${operatorScope}:${effectiveBranchId}:${pinOperator?.id ?? 'owner'}`}
+              <OfflineTerminal
+                key={`${operatorScope}:${effectiveBranchId}:${pinOperator?.id ?? identity?.salespersonId ?? 'owner'}`}
                 scope={`${operatorScope}:${pinOperator?.id ?? identity?.salespersonId ?? 'owner'}`}
-                branchId={effectiveBranchId}
+                branchId={effectiveBranchId ?? ''}
                 branchName={partner.branches.find(branch => branch.id === effectiveBranchId)?.name ?? 'Filial selecionada'}
                 cashId={checkoutCash.current?.id}
                 connected={networkAvailable && !deviceSession.interrupted}
@@ -2010,11 +2010,11 @@ export function PartnerPanel({
                 products={filteredProducts}
                 confirmCash={checkoutCash.assertOpen}
                 syncSale={synchronizeOfflineSale}
-              />}
-              {renderTab('pdv', <PdvModule
-                connectivityInterrupted={deviceSession.interrupted}
+              >
+              {offline => renderTab('pdv', <PdvModule
+                connectivityInterrupted={!networkAvailable || deviceSession.interrupted}
                 priceLists={priceLists.lists}
-                isActive={activeTab === 'pdv' && partner.resourcesReady !== false && !partner.loading}
+                isActive={!offline && activeTab === 'pdv' && partner.resourcesReady !== false && !partner.loading}
                 preSaleToCheckout={preSaleToCheckout}
                 onRequestPreSale={setPreSaleToCheckout}
                 onConsumePreSale={() => setPreSaleToCheckout(null)}
@@ -2078,6 +2078,7 @@ export function PartnerPanel({
                   handleDeleteSale
                 }
               />)}
+              </OfflineTerminal>
               </div>
             )}
 

@@ -7,6 +7,9 @@ const cart = new Map();
 let terminal;
 let state;
 let saving = false;
+const embedded = window.parent !== window;
+const context = new URLSearchParams(location.hash.slice(1));
+element('back').hidden = embedded;
 
 function row(container, text, action) {
   const li = document.createElement('li');
@@ -57,13 +60,17 @@ function render() {
   for (const sale of [...queue].reverse()) row('queue', `#${sale.id.slice(0, 8)} · ${date.format(new Date(sale.recordedAt))} · ${money.format(sale.total)}`);
 }
 
-element('unlock').onsubmit = async event => {
-  event.preventDefault();
-  const form = event.currentTarget;
+async function unlock(password) {
+  const form = element('unlock');
   const button = form.querySelector('button');
+  if (button.disabled || terminal) return;
   button.disabled = true;
   try {
-    terminal = await openTerminal(new FormData(form).get('password'));
+    const opened = await openTerminal(password);
+    if (embedded && (opened.state.snapshot.scope !== context.get('scope') || opened.state.snapshot.branchId !== context.get('branch'))) {
+      throw new Error('A cópia local pertence a outra conta, operador ou filial.');
+    }
+    terminal = opened;
     state = terminal.state;
     form.reset();
     form.hidden = true;
@@ -72,7 +79,22 @@ element('unlock').onsubmit = async event => {
     render();
   } catch (error) { element('message').textContent = error.message; }
   finally { button.disabled = false; }
+}
+
+element('unlock').onsubmit = event => {
+  event.preventDefault();
+  void unlock(new FormData(event.currentTarget).get('password'));
 };
+
+if (embedded) {
+  window.addEventListener('message', event => {
+    if (event.origin !== location.origin || event.source !== window.parent) return;
+    if (event.data?.type === 'distrihub:contingency-unlock' && typeof event.data.password === 'string') {
+      void unlock(event.data.password);
+    }
+  });
+  window.parent.postMessage({ type: 'distrihub:contingency-ready' }, location.origin);
+}
 
 element('search').oninput = render;
 element('save').onclick = async () => {

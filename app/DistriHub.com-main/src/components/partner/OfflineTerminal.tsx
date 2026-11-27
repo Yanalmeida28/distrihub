@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import type { PartnerProduct, SaleItem } from '../../types';
 import { validSalePrice } from '../../lib/pdv';
 import { money } from '../../utils';
@@ -10,6 +10,7 @@ type OfflineState = { version: number; snapshot: Snapshot & { savedAt: number; e
 type Terminal = { state: OfflineState | null; save(next: OfflineState): Promise<void> };
 type Runtime = {
   hasTerminal(): boolean;
+  terminalMatches(scope: string, branchId: string): Promise<boolean>;
   openTerminal(password: string, allowCreate?: boolean): Promise<Terminal>;
   prepareSnapshot(previous: OfflineState | null, snapshot: Snapshot): OfflineState;
 };
@@ -23,6 +24,7 @@ type Props = {
   products: PartnerProduct[];
   confirmCash: (cashId?: string) => Promise<void>;
   syncSale: (sale: OfflineSale, cashId: string) => Promise<unknown>;
+  children: (offline: boolean) => ReactNode;
 };
 
 const offlinePath = '/contingencia/index.html';
@@ -51,13 +53,48 @@ async function installShell() {
   if (!(await caches.match(offlinePath))) throw new Error('A página offline não ficou disponível neste navegador.');
 }
 
-export function OfflineTerminal({ scope, branchId, branchName, cashId, canPrepare, connected, products, confirmCash, syncSale }: Props) {
+export function OfflineTerminal({ scope, branchId, branchName, cashId, canPrepare, connected, products, confirmCash, syncSale, children }: Props) {
   const [password, setPassword] = useState('');
   const [summary, setSummary] = useState<OfflineState | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const verifiedPassword = useRef('');
+  const [prepared, setPrepared] = useState(false);
+  const [frameMounted, setFrameMounted] = useState(false);
+  const [frameVersion, setFrameVersion] = useState(0);
+  const offline = !connected && prepared && Boolean(branchId);
+
+  useEffect(() => {
+    if (!branchId) return;
+    let current = true;
+    void loadRuntime().then(async runtime => {
+      const matches = runtime.terminalMatches ? await runtime.terminalMatches(scope, branchId) : runtime.hasTerminal();
+      if (current) setPrepared(matches);
+    }).catch(() => {});
+    return () => { current = false; };
+  }, [branchId, connected, scope]);
+
+  useEffect(() => {
+    if (offline) {
+      setFrameMounted(true);
+      setSummary(null);
+    }
+  }, [offline]);
+
+  useEffect(() => {
+    function unlockFrame(event: MessageEvent) {
+      const offlineWindow = frame.current?.contentWindow;
+      if (!offlineWindow || event.origin !== location.origin || event.source !== offlineWindow) return;
+      if (event.data?.type === 'distrihub:contingency-ready' && verifiedPassword.current) {
+        offlineWindow.postMessage({ type: 'distrihub:contingency-unlock', password: verifiedPassword.current }, location.origin);
+      }
+    }
+    window.addEventListener('message', unlockFrame);
+    return () => window.removeEventListener('message', unlockFrame);
+  }, []);
 
   async function run(action: (runtime: Runtime) => Promise<void>) {
     if (running.current) return;
@@ -92,8 +129,11 @@ export function OfflineTerminal({ scope, branchId, branchName, cashId, canPrepar
     await installShell();
     await confirmCash(cashId);
     await terminal.save(next);
+    verifiedPassword.current = password;
+    setPrepared(true);
+    setFrameVersion(version => version + 1);
     setSummary(next);
-    setMessage('Terminal preparado por 12 horas. Acesse a contingência quando precisar.');
+    setMessage('Terminal preparado por 12 horas. O PDV entra em contingência automaticamente se a conexão cair.');
   }
 
   async function showQueue(event: FormEvent<HTMLFormElement>) {
@@ -101,6 +141,7 @@ export function OfflineTerminal({ scope, branchId, branchName, cashId, canPrepar
     void run(async runtime => {
       if (!runtime.hasTerminal()) throw new Error('Prepare a contingência neste navegador antes de consultar os registros.');
       setSummary(validateScope((await runtime.openTerminal(password)).state));
+      verifiedPassword.current = password;
     });
   }
 
@@ -108,6 +149,7 @@ export function OfflineTerminal({ scope, branchId, branchName, cashId, canPrepar
     if (!connected) throw new Error('Reconecte-se para sincronizar as vendas.');
     const terminal = await runtime.openTerminal(password);
     let state = validateScope(terminal.state);
+    verifiedPassword.current = password;
     for (const sale of state.queue) {
       await syncSale(sale, state.snapshot.cashId);
       const quantities = new Map(sale.items.map(item => [item.product_id, item.quantity]));
@@ -122,31 +164,47 @@ export function OfflineTerminal({ scope, branchId, branchName, cashId, canPrepar
         queue: state.queue.filter(entry => entry.id !== sale.id),
       };
       await terminal.save(state);
+      setFrameVersion(version => version + 1);
       setSummary(state);
     }
     setMessage('Fila local sincronizada.');
   }
 
-  return <details className="module-card">
-    <summary>Contingência sem internet</summary>
-    <p>Prepare um terminal por filial com a internet funcionando. A cópia local inclui produtos, preços de varejo e identificação do caixa.</p>
-    <p><a href={offlinePath}>Abrir PDV em contingência</a></p>
-    <form className="rma-form inline" onSubmit={showQueue} autoComplete="off">
-      <label>Senha local do terminal<input type="password" required minLength={8} maxLength={128} autoComplete="new-password" value={password} disabled={busy} onChange={event => {
-        setPassword(event.target.value); setSummary(null);
-      }} /></label>
-      <button type="button" className="partner-secondary-btn" disabled={busy || !connected || !canPrepare || !cashId || password.length < 8}
-        onClick={() => void run(prepare)}>Preparar ou atualizar terminal</button>
-      <button type="submit" className="partner-secondary-btn" disabled={busy || password.length < 8}>Conferir fila local</button>
-    </form>
-    {summary && <div>
-      <p>{summary.queue.length} venda(s) pendente(s) · {summary.snapshot.branchName} · Caixa {summary.snapshot.cashId.slice(0, 8)}</p>
-      {summary.queue.length > 0 && <>
-        <ul>{summary.queue.map(sale => <li key={sale.id}>#{sale.id.slice(0, 8)} · {new Date(sale.recordedAt).toLocaleString('pt-BR')} · {money.format(sale.total)}</li>)}</ul>
-        <button type="button" className="module-submit-btn" disabled={busy || !connected} onClick={() => void run(synchronize)}>Sincronizar vendas pendentes</button>
-      </>}
-    </div>}
-    {message && <p role="status">{message}</p>}
-    {error && <p role="alert">{error}</p>}
-  </details>;
+  const frameScope = new URLSearchParams({ scope, branch: branchId });
+  return <>
+    <div hidden={!offline}>
+      {(offline || frameMounted) && <iframe
+        key={frameVersion}
+        ref={frame}
+        title="PDV em contingência"
+        src={`${offlinePath}#${frameScope}`}
+        className="block h-[75vh] w-full border-0"
+      />}
+    </div>
+    <div hidden={offline}>
+      {children(offline)}
+      {branchId && <details className="module-card">
+        <summary>Preparação offline e fila de vendas</summary>
+        <p>Prepare um terminal por filial com a internet funcionando. A cópia local inclui produtos, preços de varejo e identificação do caixa.</p>
+        {frameMounted && connected && <p role="status">Conexão restabelecida. Confira se há vendas locais para sincronizar.</p>}
+        <form className="rma-form inline" onSubmit={showQueue} autoComplete="off">
+          <label>Senha local do terminal<input type="password" required minLength={8} maxLength={128} autoComplete="new-password" value={password} disabled={busy} onChange={event => {
+            setPassword(event.target.value); setSummary(null);
+          }} /></label>
+          <button type="button" className="partner-secondary-btn" disabled={busy || !connected || !canPrepare || !cashId || password.length < 8}
+            onClick={() => void run(prepare)}>Preparar ou atualizar terminal</button>
+          <button type="submit" className="partner-secondary-btn" disabled={busy || password.length < 8}>Conferir fila local</button>
+        </form>
+        {summary && <div>
+          <p>{summary.queue.length} venda(s) pendente(s) · {summary.snapshot.branchName} · Caixa {summary.snapshot.cashId.slice(0, 8)}</p>
+          {summary.queue.length > 0 && <>
+            <ul>{summary.queue.map(sale => <li key={sale.id}>#{sale.id.slice(0, 8)} · {new Date(sale.recordedAt).toLocaleString('pt-BR')} · {money.format(sale.total)}</li>)}</ul>
+            <button type="button" className="module-submit-btn" disabled={busy || !connected} onClick={() => void run(synchronize)}>Sincronizar vendas pendentes</button>
+          </>}
+        </div>}
+        {message && <p role="status">{message}</p>}
+        {error && <p role="alert">{error}</p>}
+      </details>}
+    </div>
+  </>;
 }
