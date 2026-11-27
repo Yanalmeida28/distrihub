@@ -160,6 +160,24 @@ test('checkout enables cart scrolling starting with six products', async () => {
   assert.equal(cartWrapper().props.className, 'pdv-cart-table-wrap pdv-cart-table-scrollable');
 });
 
+test('selecting a customer applies their custom price to the cart and checkout', async () => {
+  let submitted;
+  const priceLists = [{ id: 'revenda', name: 'Revendedores', base_table: 'varejo', adjustment_bps: -1000, prices: { product: 72.35 } }];
+  const customers = [{ id: 'customer', name: 'Cliente', customer_type: 'varejo', price_table: 'lista:revenda' }];
+  await act(async () => {
+    renderer = TestRenderer.create(React.createElement(module.exports.Checkout, {
+      ...props, priceLists, customers, onCreateSale: async sale => { submitted = sale; return { ...sale, id: 'confirmed' }; },
+    }));
+  });
+  await act(async () => renderer.root.findByProps({ className: 'pdv-product-card' }).props.onClick());
+  const picker = renderer.root.findAll(node => typeof node.type === 'function' && node.type.name === 'CustomerSearchPicker')[0];
+  await act(async () => picker.props.onSelect('customer'));
+  assert.match(JSON.stringify(renderer.toJSON()), /Revendedores/);
+  await act(async () => renderer.root.findByProps({ className: 'module-cancel-btn pdv-checkout-btn' }).props.onClick());
+  assert.equal(submitted.items[0].unit_price, 72.35);
+  assert.equal(submitted.total, 72.35);
+});
+
 test('new checkout applies customer return credit to a purchase and charges only the difference',async()=>{
  let submitted;
  const rma={id:'rma',customer_id:'customer',branch_id:'branch',status:'credito_gerado',product_name:'Returned product',credit_amount:50,credit_used_amount:0};

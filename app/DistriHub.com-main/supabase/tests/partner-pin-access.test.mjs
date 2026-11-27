@@ -110,6 +110,7 @@ test('the real PartnerPanel groups desktop and mobile navigation across PIN and 
     '../lib/cadastrosNavigation': cadastroNavigation,
     '../lib/storeTheme': { storeTheme: () => ({}) },
     '../lib/saas': { canUseSaasFeature: (_, tab) => modulesAllowed && (!allowedTabs || allowedTabs.includes(tab)) },
+    '../hooks/usePriceLists': { usePriceLists: () => ({ lists: [] }) },
     '../lib/checkoutCash': cashExports,
     '../lib/moduleLoading': { moduleLoader: () => () => { throw new Error('Unexpected module prefetch'); } },
     './partner/HelpModule': { HelpModule: props => React.createElement('section', { 'data-help': true },
