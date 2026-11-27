@@ -17,6 +17,7 @@ const moduleCollections: Record<string, PartnerCollection[]> = {
   'cadastros:importar': ['products', 'categories', 'suppliers', 'customers'],
   'cadastros:combos': ['products', 'combos'], 'cadastros:modificadores': ['modifiers'],
   'cadastros:reposicao': ['products', 'sales'],
+  'cadastros:tabelas-precos': ['products'],
   pdv: ['products', 'customers', 'categories', 'combos', 'modifiers'],
   pedidos: ['products', 'customers', 'sales'],
   // Cash RPC returns its own authorized sales and movements; do not gate it

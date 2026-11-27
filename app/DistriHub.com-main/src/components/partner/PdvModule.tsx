@@ -9,7 +9,7 @@ import type { IScannerControls } from '@zxing/browser';
 import type { DeliveryType, PartnerProduct, PartnerCustomer, PartnerSale, SalePayment, PartnerSalesperson, SalespersonRole, RmaRequest } from '../../types';
 import { SalePriceInput } from './SalePriceInput';
 import { money } from '../../utils';
-import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentError, billedSaleError, pdvErrorMessage, pdvTotal, saleChargeTotal, validSalePrice, type CustomerCredit, customerPriceTable, productTablePrice, type PriceTable } from '../../lib/pdv';
+import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentError, billedSaleError, pdvErrorMessage, pdvTotal, saleChargeTotal, validSalePrice, type CustomerCredit, customerPriceTable, productTablePrice, priceTableName, type CustomPriceList, type PriceTable } from '../../lib/pdv';
 import { SessionDraftProvider, useSessionDraftScope, useSessionDraftState, clearConfirmedPdvDraft } from '../../hooks/useSessionDraft';
 import { PdvCartBackupStore, type PdvCartBackup } from '../../lib/pdv';
 
@@ -318,6 +318,7 @@ type Props = {
   onConfirmCashOperator?: (operatorId?: string | null) => void;
   canEditPrice: boolean;
   products: PartnerProduct[];
+  priceLists?: readonly CustomPriceList[];
   customers: PartnerCustomer[];
   sales: PartnerSale[];
   credits: CustomerCredit[];
@@ -377,7 +378,7 @@ const PRODUCT_PAGE_SIZE = 30;
 
 export function PdvModule({
   cashContext, onOpenCash, onOpenOrders, onConfirmCashOperator,
-  products, customers, sales, credits, rmaRequests = [], hasPendingSale, isActive = true, salespeople, segment, selectedBranchId,
+  products, customers, sales, credits, priceLists, rmaRequests = [], hasPendingSale, isActive = true, salespeople, segment, selectedBranchId,
   barcodeScannerEnabled = true, cameraScannerEnabled = false,
   preSaleToCheckout, onConsumePreSale,
   activeSalespersonId, activeBranchName, receiptDetails, currentRole, canEditPrice, onCreateSale, onCreatePreSale, onFinalizePreSale, onUpdatePreSale,
@@ -462,6 +463,7 @@ export function PdvModule({
       {checkoutPreSale && (
         <SessionDraftProvider key={checkoutPreSale.id} scope={`${parentDraftScope}:pdv:${contextKey}:rescued:${checkoutPreSale.id}`}>
         <PdvCheckout
+          priceLists={priceLists}
           onSaleConfirmed={setSaleNotice}
           rescuedSale={checkoutPreSale}
           products={products}
@@ -501,6 +503,7 @@ export function PdvModule({
       {(
         <div className="pdv-checkout-slot" hidden={Boolean(checkoutPreSale)}>
         <PdvCheckout
+          priceLists={priceLists}
           onSaleConfirmed={setSaleNotice}
           products={products}
           customers={customers}
@@ -530,7 +533,7 @@ export function PdvModule({
 
 /* ============ PDV Checkout ============ */
 
-function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendingSale, isActive = true, barcodeScannerEnabled = true, cameraScannerEnabled = false, salespeople, activeSalespersonId, selectedBranchId, canCheckout, canEditPrice, receiptDetails, onCreateSale, onCreatePreSale, onOpenOrders, rescuedSale, onExitRescue, onSavePreSale, onPreSaleSaved, onSaleConfirmed }: {
+function PdvCheckout({ products, customers, credits, priceLists = [], rmaRequests = [], hasPendingSale, isActive = true, barcodeScannerEnabled = true, cameraScannerEnabled = false, salespeople, activeSalespersonId, selectedBranchId, canCheckout, canEditPrice, receiptDetails, onCreateSale, onCreatePreSale, onOpenOrders, rescuedSale, onExitRescue, onSavePreSale, onPreSaleSaved, onSaleConfirmed }: {
   onSaleConfirmed?: (sale: PartnerSale) => void;
   onCreatePreSale?: Props['onCreatePreSale'];
   onOpenOrders?: () => void;
@@ -539,6 +542,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   onSavePreSale?: (edits: Parameters<Props['onCreateSale']>[0]) => Promise<void>;
   onPreSaleSaved?: () => void;
   products: PartnerProduct[];
+  priceLists?: readonly CustomPriceList[];
   customers: PartnerCustomer[];
   credits: CustomerCredit[];
   rmaRequests?: RmaRequest[];
@@ -678,7 +682,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
   }, []);
 
 
-  function getPriceForProduct(p: PartnerProduct, table: PriceTable): number { return productTablePrice(p, table); }
+  function getPriceForProduct(p: PartnerProduct, table: PriceTable): number { return productTablePrice(p, table, priceLists); }
 
   function handleClientTypeChange(type: ClientType) {
     if (!canChangeCart()) return;
@@ -1067,6 +1071,9 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                 const availableStockLabel = lowStock ? `${p.stock} un. · Estoque baixo` : `${p.stock} un. em estoque`;
                 const inCartQty = cart.find((i) => i.product_id === p.id)?.quantity ?? 0;
                 const justAdded = lastAddedId === p.id;
+                let displayPrice: string;
+                try { displayPrice = money.format(getPriceForProduct(p, priceTable)); }
+                catch { displayPrice = priceTable === 'premium' ? 'Premium não configurado' : 'Preço indisponível'; }
                 return (
                   <button
                     key={p.id}
@@ -1077,7 +1084,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                   >
                     <strong>{p.name}</strong>
                     {p.sku && <small>SKU: {p.sku}</small>}
-                    <span>{priceTable === 'premium' && p.premium_price == null ? 'Premium não configurado' : money.format(getPriceForProduct(p, priceTable))}</span>
+                    <span>{displayPrice}</span>
                     {tracksStock && (
                       <small className={`pdv-stock${outOfStock ? ' out' : lowStock ? ' low' : ''}`}>
                         {outOfStock ? 'Sem estoque' : availableStockLabel}
@@ -1175,7 +1182,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
                       onSelect={handleCustomerChange}
                     />
                   </div>
-                  {customerId && <small>Tabela aplicada: {priceTable === 'premium' ? 'Premium' : priceTable === 'atacado' ? 'Atacado' : 'Varejo'}</small>}
+                  {customerId && <small>Tabela aplicada: {priceTableName(priceTable, priceLists)}</small>}
                 </div>
                 <div className="pdv-form-section pdv-payment-section">
                   <div className="form-row">
@@ -1252,7 +1259,7 @@ function PdvCheckout({ products, customers, credits, rmaRequests = [], hasPendin
 
           <div className="pdv-sale-footer">
               <div className="pdv-total-bar">
-                <span>Total {priceTable === 'premium' ? '(Premium)' : priceTable === 'atacado' ? '(Atacado)' : '(Varejo)'}</span>
+                <span>Total ({priceTableName(priceTable, priceLists)})</span>
                 <strong>{money.format(chargeTotal)}</strong>
               </div>
 

@@ -18,12 +18,20 @@ before(async()=>{
    CREATE TABLE partner_suppliers(id uuid,user_id uuid);`);
   await db.exec(await read('../migrations/20261014210022_fix_pdv_presales_and_customer_price_tables.sql'));
   await db.exec(await read('../migrations/20261022185925_add_product_barcode.sql'));
+  await db.exec(`CREATE TABLE auth.users (id uuid PRIMARY KEY);
+    GRANT USAGE ON SCHEMA auth TO authenticated;
+    GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
+    GRANT SELECT ON public.partner_branches, public.partner_products TO authenticated;
+    CREATE FUNCTION public.partner_has_saas_access(uuid, text) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
+    CREATE FUNCTION public.partner_employee_can_access_branch(uuid, uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;`);
+  await db.exec(await read('../migrations/20261127155354_custom_price_lists.sql'));
  } catch(error){console.error(error.message,error.position,error.internalQuery);throw error;}
 });
 after(()=>db.close());
 beforeEach(async()=>{
- await db.exec('TRUNCATE partner_audit_logs,stock_movements,partner_invoices,partner_sales,partner_products,partner_customers,partner_profiles,partner_branches,partner_pdv_price_snapshots CASCADE');
+ await db.exec('RESET ROLE; TRUNCATE auth.users,partner_audit_logs,stock_movements,partner_invoices,partner_sales,partner_products,partner_customers,partner_profiles,partner_branches,partner_pdv_price_snapshots CASCADE');
  await db.query("SELECT set_config('test.auth_uid',$1,false)",[owner]);
+ await db.query('INSERT INTO auth.users VALUES($1),($2)',[owner,other]);
  await db.query("INSERT INTO partner_profiles(id) VALUES($1),($2)",[owner,other]);
  await db.query('INSERT INTO partner_branches VALUES($1,$2)',[branch,owner]);
  await db.query("INSERT INTO partner_customers(id,user_id,branch_id,customer_type,price_table,is_active) VALUES($1,$2,$3,'varejo','premium',true)",[customer,owner,branch]);
@@ -88,4 +96,42 @@ test('inactive customers cannot start new sales or finalize old quotes; rejected
  assert.equal((await db.query('SELECT status FROM partner_sales')).rows[0].status,'pre_venda');
  await db.query('UPDATE partner_customers SET is_active=true WHERE id=$1',[customer]);
  await sale('concluida');assert.equal((await db.query('SELECT stock FROM partner_products')).rows[0].stock,9);
+});
+
+test('custom tables apply rounded adjustments and product overrides on the authoritative checkout', async () => {
+ const list=(await db.query("INSERT INTO partner_price_lists(user_id,name,base_table,adjustment_bps) VALUES($1,'Revenda','varejo',-1250) RETURNING id",[owner])).rows[0].id;
+ await db.query('UPDATE partner_customers SET price_table=$1 WHERE id=$2',['lista:'+list,customer]);
+ assert.equal(Number((await validate(87.50)).rows[0].total),87.5);
+ await assert.rejects(validate(100),/alterar o preco/);
+ await db.query('INSERT INTO partner_price_list_items VALUES($1,$2,$3,$4,72.35)',[list,product,owner,branch]);
+ assert.equal(Number((await validate(72.35)).rows[0].total),72.35);
+ await assert.rejects(validate(87.50),/alterar o preco/);
+ await db.query('UPDATE partner_price_list_items SET price=0 WHERE price_list_id=$1',[list]);
+ assert.equal(Number((await validate(0)).rows[0].total),0);
+ await db.query('DELETE FROM partner_price_list_items WHERE price_list_id=$1',[list]);
+ assert.equal(Number((await validate(87.50)).rows[0].total),87.5);
+ await db.query("UPDATE partner_price_lists SET base_table='premium',adjustment_bps=333 WHERE id=$1",[list]);
+ assert.equal(Number((await validate(144.66)).rows[0].total),144.66);
+});
+
+test('a customer cannot link a price list belonging to another company', async () => {
+ const foreignList=(await db.query("INSERT INTO partner_price_lists(user_id,name,base_table,adjustment_bps) VALUES($1,'Outra empresa','varejo',0) RETURNING id",[other])).rows[0].id;
+ await assert.rejects(db.query('UPDATE partner_customers SET price_table=$1 WHERE id=$2',['lista:'+foreignList,customer]),/inválida para esta empresa/);
+ await db.exec('SET ROLE authenticated');
+ try {
+  assert.equal((await db.query('SELECT id FROM partner_price_lists WHERE id=$1',[foreignList])).rows.length,0);
+  await assert.rejects(db.query("INSERT INTO partner_price_lists(user_id,name,base_table,adjustment_bps) VALUES($1,'Invasão','varejo',0)",[other]),/row-level security/);
+ } finally { await db.exec('RESET ROLE'); }
+});
+
+test('an unchanged pre-sale retains its recorded price after the custom table changes', async () => {
+ const list=(await db.query("INSERT INTO partner_price_lists(user_id,name,base_table,adjustment_bps) VALUES($1,'Revenda','premium',0) RETURNING id",[owner])).rows[0].id;
+ await db.query('UPDATE partner_customers SET price_table=$1 WHERE id=$2',['lista:'+list,customer]);
+ await sale();
+ await db.query('UPDATE partner_price_lists SET adjustment_bps=1000 WHERE id=$1',[list]);
+ assert.equal(Number((await validate(154)).rows[0].total),154);
+ await sale('concluida');
+ const result=(await db.query('SELECT total,status FROM partner_sales WHERE id=$1',[saleId])).rows[0];
+ assert.equal(Number(result.total),140);
+ assert.equal(result.status,'concluida');
 });

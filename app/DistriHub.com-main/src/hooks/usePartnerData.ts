@@ -223,7 +223,7 @@ const PAGE_BATCH = 4;
 
 // Pages are requested in small parallel batches and joined in order, so the
 // result is identical to a sequential read but needs far fewer round trips.
-async function fetchAllPages<T>(
+export async function fetchAllPages<T>(
   fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: PostgrestError | null }>,
   signal?: AbortSignal,
 ): Promise<{ data: T[] | null; error: PostgrestError | null }> {

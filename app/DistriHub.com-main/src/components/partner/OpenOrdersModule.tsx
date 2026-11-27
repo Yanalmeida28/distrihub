@@ -7,6 +7,7 @@ import {
   ClipboardList, Search, X, Calendar, Filter, ArrowRight, Wallet, Lock,
 } from 'lucide-react';
 import type { PartnerSale, SalePayment, PartnerCustomer, PartnerSalesperson, SalespersonRole, PartnerProduct } from '../../types';
+import type { CustomPriceList } from '../../lib/pdv';
 import { OpenOrderItemsEditor } from './OpenOrderItemsEditor';
 import { money } from '../../utils';
 import { draftPayments, emptySplitPaymentDraft, splitPaymentDraft, splitPaymentError, pdvErrorMessage, saleChargeTotal } from '../../lib/pdv';
@@ -21,6 +22,7 @@ type Props = {
   timeZone?: string;
   canEditPrice: boolean;
   products: PartnerProduct[];
+  priceLists?: readonly CustomPriceList[];
   onUpdateItems: (id: string, items: PartnerSale['items']) => Promise<void>;
   onUpdateCustomer: (id: string, customerId: string) => Promise<void>;
   sales: PartnerSale[];
@@ -50,7 +52,7 @@ const payStatusLabels: Record<string, { label: string; color: string; tone: stri
   cancelado: { label: 'Cancelado', color: '#fda4af', tone: 'danger' },
 };
 
-export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
+export function OpenOrdersModule({ priceLists, catalogOrders, timeZone, canEditPrice, products, onUpdateItems, onUpdateCustomer, sales, customers, salespeople, currentRole, receiptDetails, onFinalizePreSale, onCancelSale, onDeleteSale, onPullToPdv, isActive = true }: Props) {
   useEffect(() => { void prepareOrderQuoteLogo(receiptDetails?.settings?.logo_url); }, [receiptDetails?.settings?.logo_url]);
   const mounted = useRef(true);
   const active = useRef(isActive); active.current = isActive;
@@ -509,6 +511,7 @@ export function OpenOrdersModule({ catalogOrders, timeZone, canEditPrice, produc
       {/* Finalize Modal */}
       {editTarget && (
         <OpenOrderItemsEditor
+          priceLists={priceLists}
           canEditPrice={canEditPrice}
           sale={editTarget}
           products={products}

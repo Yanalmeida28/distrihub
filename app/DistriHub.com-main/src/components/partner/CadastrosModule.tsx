@@ -33,7 +33,11 @@ type PartnerCustomerUpdate = Partial<
   remove_photo?: boolean;
 };
 
+import type { CustomPriceList } from '../../lib/pdv';
+
 type Props = {
+  priceLists?: readonly CustomPriceList[];
+  priceListsPanel?: React.ReactNode;
   canImportExport?: boolean;
   suppliersReady?: boolean;
   findProductDuplicates: (name: string, branchId: string) => Promise<PartnerProduct[]>;
@@ -84,7 +88,7 @@ type Props = {
   onDeleteCustomer: (id: string) => Promise<void>;
 };
 
-type SubTab = 'produtos' | 'categorias' | 'xml' | 'combos' | 'modificadores' | 'clientes' | 'fornecedores' | 'vendedores' | 'importar' | 'reposicao';
+type SubTab = 'produtos' | 'categorias' | 'xml' | 'combos' | 'modificadores' | 'clientes' | 'fornecedores' | 'vendedores' | 'importar' | 'reposicao' | 'tabelas-precos';
 
 const subTabs: { id: SubTab; label: string; icon: typeof Package }[] = [
   { id: 'produtos', label: 'Produtos & Serviços', icon: Package },
@@ -94,6 +98,7 @@ const subTabs: { id: SubTab; label: string; icon: typeof Package }[] = [
   { id: 'modificadores', label: 'Modificadores', icon: Layers },
   { id: 'clientes', label: 'Clientes', icon: Users },
   { id: 'fornecedores', label: 'Fornecedores', icon: Building2 },
+  { id: 'tabelas-precos', label: 'Tabelas de preços', icon: Tag },
   { id: 'reposicao', label: 'Reposição de Estoque', icon: Activity },
   { id: 'importar', label: 'Importar / Exportar', icon: Upload },
 ];
@@ -113,7 +118,7 @@ export function CadastrosModule({
   planId,
   findProductDuplicates,
   initialTab = 'produtos', productType = 'todos',
-  isActive = true, onDataScopeChange, suppliersReady = true,
+  isActive = true, onDataScopeChange, suppliersReady = true, priceLists = [], priceListsPanel,
   products, branches, selectedBranchId, categories, suppliers, salespeople, combos, modifiers, customers, sales,
   allSales, rmaRequests = [], segment, onAddProduct, onUpdateProduct, onDeleteProduct,
   onReplenishStock, onImportXml,
@@ -125,7 +130,9 @@ export function CadastrosModule({
   const parentDraftScope = useSessionDraftScope();
   const [subTab, setSubTab] = useSessionDraftState<SubTab>(`cadastros:${adminTarget ?? 'principal'}:active-subtab`, initialTab);
   const showSalespeopleOutsideAdmin = canManageSalespeople && planId === 'basico';
-  const availableSubTabs = subTabs.filter(tab => canImportExport || !['importar', 'xml'].includes(tab.id));
+  const availableSubTabs = subTabs.filter(tab => tab.id === 'tabelas-precos'
+    ? Boolean(priceListsPanel)
+    : canImportExport || !['importar', 'xml'].includes(tab.id));
   const visibleSubTabs = showSalespeopleOutsideAdmin
     ? [...availableSubTabs, { id: 'vendedores' as const, label: 'Colaboradores', icon: Users }]
     : availableSubTabs;
@@ -140,8 +147,8 @@ export function CadastrosModule({
     if (!canImportExport && !adminTarget && ['importar', 'xml'].includes(subTab)) setSubTab('produtos');
   }, [canImportExport, adminTarget, subTab, setSubTab]);
   useEffect(() => {
-    if (!adminTarget && subTab === 'vendedores' && !showSalespeopleOutsideAdmin) setSubTab('produtos');
-  }, [adminTarget, subTab, showSalespeopleOutsideAdmin, setSubTab]);
+    if (!adminTarget && ((subTab === 'vendedores' && !showSalespeopleOutsideAdmin) || (subTab === 'tabelas-precos' && !priceListsPanel))) setSubTab('produtos');
+  }, [adminTarget, subTab, showSalespeopleOutsideAdmin, priceListsPanel, setSubTab]);
   useEffect(() => { if (isActive) onDataScopeChange?.(subTab); }, [isActive, subTab, onDataScopeChange]);
   const [visitedSubTabs, setVisitedSubTabs] = useState<Set<SubTab>>(() => new Set([initialTab]));
   useEffect(() => {
@@ -192,6 +199,7 @@ export function CadastrosModule({
       </div>}
 
       <div className="subtab-content">
+        {!adminTarget && subTab === 'tabelas-precos' && priceListsPanel}
         {adminTarget === 'estoque' && <StockAdjustmentSubTab products={filteredProducts.filter(p => !p.is_service && p.control_stock !== false)} branchId={selectedBranchId} onUpdate={onUpdateProduct} />}
         {adminTarget !== 'estoque' && (adminTarget ? subTab === 'produtos' : visitedSubTabs.has('produtos')) && (
           <div hidden={subTab !== 'produtos'}>
@@ -234,6 +242,7 @@ export function CadastrosModule({
         {(adminTarget ? subTab === 'clientes' : visitedSubTabs.has('clientes')) && (
           <div hidden={subTab !== 'clientes'}>
           <CustomersSubTab
+            priceLists={priceLists}
             canExport={canImportExport}
             customers={customers}
             branches={branches}
@@ -1293,7 +1302,8 @@ function ModifiersSubTab({ modifiers, products, onAdd, onDelete }: {
   );
 }
 
-function CustomersSubTab({ canExport = false, isActive = true, customers, branches, sales, rmaRequests, salespeople, selectedBranchId, onAdd, onUpdate, onDelete, onLoadCustomer, onRequestHistory }: {
+function CustomersSubTab({ priceLists = [], canExport = false, isActive = true, customers, branches, sales, rmaRequests, salespeople, selectedBranchId, onAdd, onUpdate, onDelete, onLoadCustomer, onRequestHistory }: {
+  priceLists?: readonly CustomPriceList[];
   onRequestHistory?: () => void;
   canExport?: boolean;
   isActive?: boolean;
@@ -1752,7 +1762,7 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
       )}
 
       {profileCustomerId && profileCustomer && (
-        <CustomerProfileModal customer={profileCustomer} sales={sales} rmaRequests={rmaRequests} salespeople={salespeople} onUpdate={onUpdate} onClose={() => setProfileCustomerId(null)} />
+        <CustomerProfileModal priceLists={priceLists} customer={profileCustomer} sales={sales} rmaRequests={rmaRequests} salespeople={salespeople} onUpdate={onUpdate} onClose={() => setProfileCustomerId(null)} />
       )}
     </div>
   );
@@ -1761,7 +1771,8 @@ function CustomersSubTab({ canExport = false, isActive = true, customers, branch
 type CustomerTab = 'cadastrais' | 'enderecos' | 'observacoes' | 'financeiros' | 'contatos' | 'historico';
 type CustomerForm = Omit<PartnerCustomer, 'id' | 'user_id' | 'created_at' | 'updated_at'>;
 
-function CustomerProfileModal({ customer, sales, rmaRequests, salespeople, onUpdate, onClose }: {
+function CustomerProfileModal({ customer, sales, rmaRequests, salespeople, onUpdate, onClose, priceLists = [] }: {
+  priceLists?: readonly CustomPriceList[];
   rmaRequests: RmaRequest[];
   customer: PartnerCustomer;
   sales: PartnerSale[];
@@ -1937,7 +1948,7 @@ function CustomerProfileModal({ customer, sales, rmaRequests, salespeople, onUpd
             </div>
             <div className="form-row">
               <label><span className="social-label">Vendedor Responsável</span><select value={form.salesperson_id ?? ''} onChange={(event) => setField('salesperson_id', event.target.value || null)}><option value="">Nenhum</option>{salespeople.filter((person) => !person.branch_id || person.branch_id === form.branch_id).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-              <label><span className="social-label">Tabela de Preços</span><select value={form.price_table ?? 'varejo'} onChange={(event) => setField('price_table', event.target.value)}><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="premium">Premium</option></select></label>
+              <label><span className="social-label">Tabela de Preços</span><select value={form.price_table ?? 'varejo'} onChange={(event) => setField('price_table', event.target.value)}><option value="varejo">Varejo</option><option value="atacado">Atacado</option><option value="premium">Premium</option>{form.price_table?.startsWith('lista:') && !priceLists.some(list => `lista:${list.id}` === form.price_table) && <option value={form.price_table}>Tabela personalizada vinculada</option>}{priceLists.map(list => <option key={list.id} value={`lista:${list.id}`}>{list.name}</option>)}</select></label>
             </div>
             <div className="form-row"><label><span className="social-label">Limite de Crédito (R$)</span><input type="number" min="0" step="0.01" aria-label="Limite de crédito (R$)" value={creditLimitInput} onChange={(event) => { setCreditLimitInput(event.target.value); setSuccess(false); }} /></label><label><span className="social-label">Venda Faturada / Crediário</span><select aria-label="Permitir venda faturada" value={form.allow_credit ? 'sim' : 'nao'} onChange={(event) => setField('allow_credit', event.target.value === 'sim')}><option value="nao">Não Permitido</option><option value="sim">Permitido</option></select></label></div>
             <div className="customer-compliance-grid">

@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Search, Trash2, X } from 'lucide-react';
 import type { PartnerCustomer, PartnerProduct, PartnerSale } from '../../types';
 import { money } from '../../utils';
-import { pdvTotal, saleChargeTotal, validSalePrice, customerPriceTable, productTablePrice } from '../../lib/pdv';
+import { pdvTotal, saleChargeTotal, validSalePrice, customerPriceTable, productTablePrice, type CustomPriceList } from '../../lib/pdv';
 import { SalePriceInput } from './SalePriceInput';
 
 type Props = {
@@ -10,11 +10,12 @@ type Props = {
   sale: PartnerSale;
   products: PartnerProduct[];
   customers?: PartnerCustomer[];
+  priceLists?: readonly CustomPriceList[];
   onSave: (id: string, items: PartnerSale['items']) => Promise<void>;
   onClose: () => void;
 };
 
-export function OpenOrderItemsEditor({ canEditPrice, sale, products, customers = [], onSave, onClose }: Props) {
+export function OpenOrderItemsEditor({ canEditPrice, sale, products, customers = [], priceLists = [], onSave, onClose }: Props) {
   const [items, setItems] = useState(() => sale.items.map(item => ({ ...item })));
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +26,11 @@ export function OpenOrderItemsEditor({ canEditPrice, sale, products, customers =
   const term = normalize(search.trim());
   const matches = term ? catalog.filter(product => normalize(product.name).includes(term) || normalize(product.sku ?? '').includes(term)) : [];
   const table = customerPriceTable(customers.find(customer => customer.id === sale.customer_id), sale.customer_type === 'atacado' ? 'atacado' : 'varejo');
-  const price = (product: PartnerProduct) => productTablePrice(product, table);
+  const price = (product: PartnerProduct) => productTablePrice(product, table, priceLists);
+  const displayPrice = (product: PartnerProduct) => {
+    try { return money.format(price(product)); }
+    catch { return table === 'premium' ? 'Premium não configurado' : 'Preço indisponível'; }
+  };
 
   function changeQuantity(productId: string, quantity: number) {
     setError(null);
@@ -88,7 +93,7 @@ export function OpenOrderItemsEditor({ canEditPrice, sale, products, customers =
           {term && <div className="open-order-editor-results">
             {matches.length ? matches.map(product => (
               <button type="button" className="rma-advance-btn" key={product.id} onClick={() => addProduct(product)}>
-                {product.name} · {table === 'premium' && product.premium_price == null ? 'Premium não configurado' : money.format(price(product))} · Adicionar
+                {product.name} · {displayPrice(product)} · Adicionar
               </button>
             )) : <p className="empty-row">Nenhum produto encontrado nesta filial.</p>}
           </div>}

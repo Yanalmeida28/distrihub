@@ -1,3 +1,5 @@
+import { usePriceLists } from '../hooks/usePriceLists';
+import { PriceListsModule } from './partner/PriceListsModule';
 import { useSupportUnread } from '../hooks/useSupportUnread';
 import { SupportUnreadBadge } from './SupportUnreadBadge';
 import { ModuleBoundary } from './ModuleBoundary';
@@ -480,6 +482,9 @@ export function PartnerPanel({
     ? activeSalesperson.role
     : 'administrador';
   const canImportExport = canTransferCompanyData(identity, accessLocked, deviceSession.ready, activeSalesperson);
+
+  const priceLists = usePriceLists(deviceSession.ready ? identity?.companyUserId : undefined, effectiveBranchId || undefined);
+  const canManagePriceLists = !isEmployeeRestricted && !pinOperator && identity?.companyUserId === user?.id && !!user?.id;
 
   const operatorScope = `${identity?.authUserId}:${identity?.companyUserId}`;
   useEffect(() => { setManagedCashSession(null); }, [operatorScope, effectiveBranchId]);
@@ -1533,6 +1538,8 @@ export function PartnerPanel({
     }
     return (
               <CadastrosModule
+                priceLists={priceLists.lists}
+                priceListsPanel={canManagePriceLists ? <PriceListsModule key={effectiveBranchId} data={priceLists} products={filteredProducts} branchId={effectiveBranchId || undefined} /> : undefined}
                 canImportExport={canImportExport}
                 key={target ?? 'principal'}
                 isActive={activeTab === (target ? 'administrativo' : 'cadastros')}
@@ -1974,6 +1981,7 @@ export function PartnerPanel({
             {visitedTabs.has('pdv') && !blockedTabs.includes('pdv') && canUseSaasFeature(saas.subscription, 'pdv') && (
               <div hidden={activeTab !== 'pdv'}>
               {renderTab('pdv', <PdvModule
+                priceLists={priceLists.lists}
                 isActive={activeTab === 'pdv' && partner.resourcesReady !== false && !partner.loading}
                 preSaleToCheckout={preSaleToCheckout}
                 onRequestPreSale={setPreSaleToCheckout}
@@ -2064,7 +2072,7 @@ export function PartnerPanel({
               <div hidden={activeTab !== 'pedidos'}>
               {renderTab('pedidos', <>
               {!mobileMenu && <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} />}
-              <OpenOrdersModule catalogOrders={mobileMenu ? <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} compact /> : undefined} timeZone={storeSettings.personalization?.business_time_zone}
+              <OpenOrdersModule priceLists={priceLists.lists} catalogOrders={mobileMenu ? <CatalogOrdersModule companyId={identity?.companyUserId ?? null} branchId={effectiveBranchId} compact /> : undefined} timeZone={storeSettings.personalization?.business_time_zone}
                 key={`${identity?.authUserId}:${identity?.companyUserId}:${effectiveBranchId}`}
                 isActive={activeTab === 'pedidos'}
                 onPullToPdv={(sale) => {

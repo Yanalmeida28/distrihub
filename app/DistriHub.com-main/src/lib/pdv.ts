@@ -1,11 +1,39 @@
 import type { PartnerSale, SalePayment, PartnerCustomer, PartnerProduct } from '../types';
 
-export type PriceTable = 'varejo' | 'atacado' | 'premium';
+export type BasePriceTable = 'varejo' | 'atacado' | 'premium';
+export type PriceTable = BasePriceTable | `lista:${string}`;
+export type CustomPriceList = {
+  id: string;
+  name: string;
+  base_table: BasePriceTable;
+  adjustment_bps: number;
+  prices: Readonly<Record<string, number>>;
+};
+
 export function customerPriceTable(customer: Pick<PartnerCustomer, 'price_table' | 'customer_type'> | undefined, fallback: 'varejo' | 'atacado'): PriceTable {
   const table = customer?.price_table;
-  return table === 'premium' || table === 'atacado' || table === 'varejo' ? table : fallback;
+  if (table === 'premium' || table === 'atacado' || table === 'varejo') return table;
+  return table?.startsWith('lista:') ? table as PriceTable : fallback;
 }
-export function productTablePrice(product: Pick<PartnerProduct, 'sale_price' | 'wholesale_price' | 'premium_price'>, table: PriceTable): number {
+
+export function priceTableName(table: PriceTable, lists: readonly CustomPriceList[] = []): string {
+  if (table === 'varejo') return 'Varejo';
+  if (table === 'atacado') return 'Atacado';
+  if (table === 'premium') return 'Premium';
+  return lists.find(list => `lista:${list.id}` === table)?.name ?? 'Tabela indisponível';
+}
+
+export function productTablePrice(product: Pick<PartnerProduct, 'sale_price' | 'wholesale_price' | 'premium_price'> & { id?: string }, table: PriceTable, lists: readonly CustomPriceList[] = []): number {
+  if (table !== 'varejo' && table !== 'atacado' && table !== 'premium') {
+    const list = lists.find(candidate => `lista:${candidate.id}` === table);
+    if (!list) throw new Error('Tabela de preços indisponível. Atualize os dados antes de vender.');
+    const fixedPrice = product.id ? list.prices[product.id] : undefined;
+    if (fixedPrice !== undefined) return fixedPrice;
+    const cents = Math.round(productTablePrice(product, list.base_table) * 100);
+    const price = Math.round(cents * (10000 + list.adjustment_bps) / 10000) / 100;
+    if (!validSalePrice(price)) throw new Error('Preço fora do limite desta tabela.');
+    return price;
+  }
   if (table === 'premium') {
     if (product.premium_price == null || !validSalePrice(product.premium_price)) throw new Error('Defina um preço Premium válido para este produto no Cadastro.');
     return product.premium_price;
